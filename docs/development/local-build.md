@@ -85,11 +85,23 @@ The canonical Windows compiler under ADR-0005 §1 is MSVC. The simplest setup:
 
    `winget` is bundled with modern Windows 10/11. If your machine is locked down, `scoop install cmake ninja` is an unprivileged alternative.
 
-3. **Restart the terminal** so `PATH` picks up the new entries, then verify:
+3. **Refresh `PATH`** and verify the new tools are reachable.
+
+   `winget` writes the installer's `PATH` additions into the Windows registry, but **an already-open PowerShell session does not pick them up** — `cmake` / `ninja` will fail with *"Termine ... non riconosciuto"* / *"is not recognized"*. Two fixes, in increasing order of inconvenience:
+
+   - **Reload `PATH` in the current session** (no restart needed):
+
+     ```powershell
+     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+     ```
+
+   - **Close and reopen the terminal.** Every new PowerShell / `cmd.exe` / Developer PowerShell session inherits the updated `PATH` automatically.
+
+   Either way, verify before continuing:
 
    ```powershell
-   cmake --version
-   ninja --version
+   cmake --version    # expect 3.25 or newer
+   ninja --version    # any recent ninja
    ```
 
 #### Loading the MSVC environment
@@ -212,6 +224,7 @@ Run all of these before opening a PR. CI runs the same things, but local pre-fli
 | Symptom                                                          | Most likely cause                                                                 | Fix                                                                                                  |
 |------------------------------------------------------------------|-----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
 | `cmake: command not found`                                       | CMake not in `PATH`.                                                              | Install per §2 and restart the shell.                                                                |
+| `cmake` / `ninja` not recognised on Windows immediately after `winget install`. | `winget` updated `PATH` in the registry but the open shell did not reload it. | Either run `$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")` in the current session, or close and reopen the terminal. See §2.3 step 3. |
 | `cl is not recognized` on Windows.                               | MSVC environment not loaded.                                                      | Open Developer PowerShell for VS, or run `Launch-VsDevShell.ps1` (see §2.3).                         |
 | `CMake Error: Could not find generator 'Ninja'`.                 | Ninja not in `PATH`.                                                              | Install per §2.                                                                                      |
 | Preset is "hidden" or "skipped" with reason `condition`.         | A sanitizer preset on Windows.                                                    | Expected behaviour — sanitizer presets are POSIX-only (ADR-0005 §3). Use `debug` or `release` instead. |
