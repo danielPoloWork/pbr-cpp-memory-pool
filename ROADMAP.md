@@ -36,12 +36,15 @@ Goal: a clean, reproducible build with empty stubs that compile, link, and run a
 - [ ] 1.3 Add `CMakePresets.json` with `debug`, `release`, `asan`, `ubsan`, `tsan` presets.
 - [ ] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline.
 - [ ] 1.5 Add `.clang-tidy` with the baseline check set declared in `AGENTS.md` §9 — ADR if checks deviate from that baseline.
-- [ ] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5) and `memory_pool.hpp` (C++ wrapper skeleton) — no-op definitions, fully documented (spec §5).
+- [ ] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5), `memory_pool.hpp` (C++ wrapper skeleton), and `version.hpp` (single source of truth for the project version constants consumed by CMake's `project(... VERSION ...)`) — no-op definitions, fully documented (spec §5; version constants per ADR-0004).
 - [ ] 1.7 Add CTest wiring; create a no-op smoke test under `src/test/cpp/it/d4np/memorypool/`.
 - [ ] 1.8 Set up CI workflow: build matrix, `clang-tidy`, ASan + UBSan, CTest — gate `master` on all green.
 - [ ] 1.9 README quickstart: build / test commands verified on Windows and Linux.
 - [ ] 1.10 ANSI C compatibility verification: dedicated CI job compiling `memory_pool.h` and a minimal C TU under `-std=c89 -pedantic -Werror` and `-std=c99 -pedantic -Werror` to enforce the C interop contract (spec §3.3).
 - [ ] 1.11 Zero-external-dependency verification: CI job that builds with `-nostdinc++` audit / `find_package(...)` introspection failing if any external package leaks into the build graph (spec §3.3).
+- [ ] 1.12 Add the initial `CHANGELOG.md` at the repo root in Keep a Changelog 1.1.0 format, with an empty `Unreleased` section ready to accept entries from this and subsequent PRs (ADR-0004 §3).
+- [ ] 1.13 Add `.github/workflows/release.yml` triggered on `v*` tag push: re-run the full test matrix, build per-platform binaries (Linux x86_64, Windows x86_64, macOS arm64 — degrade gracefully where unavailable), emit `SHA256SUMS`, and create a **draft** GitHub Release with the corresponding `docs/releases/v<X.Y.Z>.md` as the body (ADR-0004 §4).
+- [ ] 1.14 **Close Milestone 1 → `v0.1.0`**: bump `version.hpp` to `0.1.0`, roll `CHANGELOG.md` Unreleased into a `[0.1.0]` block with ISO date, add `docs/releases/v0.1.0.md` release notes, open the release PR for the maintainer to tag and publish (see [`docs/workflow/release.md`](docs/workflow/release.md)).
 
 ## Milestone 2 — Core Memory Pool (Single-Threaded MVP)
 
@@ -57,6 +60,7 @@ Goal: a correct, leak-free, O(1) fixed-block pool matching the spec — single-t
 - [ ] 2.8 Valgrind job in CI gated on `ERROR SUMMARY: 0 errors from 0 contexts` (spec §3.1, spec §6.2). Carry the exact `gcc -g -O0 ... && valgrind --leak-check=full --show-leak-kinds=all ./test_pool` invocation from spec §6.2 as a literal demonstrative test under `src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/` so the spec-named verification path is reproducible 1:1.
 - [ ] 2.9 Microbenchmark vs `malloc`/`free` over 1,000,000 iterations under `src/bench/cpp/it/d4np/memorypool/` (spec §6.3); numbers committed and summarised in the README.
 - [ ] 2.10 Metadata-overhead measurement and budget: instrumented test reports bytes of pool-internal metadata as a function of `block_count`; result documented in an ADR and asserted as a CI lower bound (spec §3.2).
+- [ ] 2.11 **Close Milestone 2 → `v0.2.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v0.2.0.md`, open release PR (ADR-0004 §2).
 
 ## Milestone 3 — C++ Wrapper & Type Safety
 
@@ -67,6 +71,7 @@ Goal: an idiomatic C++17 wrapper around the C core, with RAII and allocator-awar
 - [ ] 3.3 ADR + impl: **Adapter** — STL-compatible allocator over the underlying pool; propagation traits specified in the ADR.
 - [ ] 3.4 ADR + impl: **Iterator** (read-only) over the free list for diagnostics — disabled in release builds unless explicitly enabled.
 - [ ] 3.5 Tests against `std::vector`, `std::list`, and a small custom container.
+- [ ] 3.6 **Close Milestone 3 → `v0.3.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v0.3.0.md`, open release PR (ADR-0004 §2).
 
 ## Milestone 4 — Thread-Safe Variant
 
@@ -77,6 +82,7 @@ Goal: opt-in thread safety with a measurable single-threaded fast path preserved
 - [ ] 4.3 Implementation behind a compile-time switch; default remains single-threaded so the fast path is preserved (spec §2.4 — "configurabile tramite macro di compilazione per massimizzare le prestazioni single-thread").
 - [ ] 4.4 Concurrent stress tests; TSan job added to CI.
 - [ ] 4.5 Comparative benchmark: single-thread fast path vs. concurrent path (re-runs spec §6.3 in both modes).
+- [ ] 4.6 **Close Milestone 4 → `v0.4.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v0.4.0.md`, open release PR (ADR-0004 §2).
 
 ## Milestone 5 — Dynamic Growth Mode
 
@@ -86,6 +92,7 @@ Goal: optional behavior where the pool acquires additional contiguous chunks whe
 - [ ] 5.2 ADR + impl: **Composite** chunk-list representation linking the original pool with overflow chunks.
 - [ ] 5.3 Implementation behind a runtime / compile-time flag; default remains fixed-size (spec §2.2).
 - [ ] 5.4 Tests and benchmarks covering exhaustion-and-grow scenarios.
+- [ ] 5.5 **Close Milestone 5 → `v0.5.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v0.5.0.md`, open release PR (ADR-0004 §2).
 
 ## Milestone 6 — Observability & Decorators
 
@@ -94,6 +101,7 @@ Goal: optional logging / statistics / tracing without touching the hot path of r
 - [ ] 6.1 ADR + impl: **Decorator** for an instrumented pool variant (counters, allocation histogram, optional logging).
 - [ ] 6.2 ADR + impl: **Observer** for pool-lifecycle events (exhaustion, growth, destruction).
 - [ ] 6.3 Tests verifying zero-overhead in release builds when instrumentation is disabled.
+- [ ] 6.4 **Close Milestone 6 → `v0.6.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v0.6.0.md`, open release PR (ADR-0004 §2).
 
 ## Milestone 7 — Release & Polish
 
@@ -101,11 +109,13 @@ Goal: ship a v1.0.0 reference implementation.
 
 - [ ] 7.1 Doxygen-generated API documentation published as a static site.
 - [ ] 7.2 README: full usage example, performance summary, compatibility matrix.
-- [ ] 7.3 `CHANGELOG.md` following Keep a Changelog conventions.
-- [ ] 7.4 ADR: install / packaging layout (public-header export, pkg-config, CMake config file).
+- [ ] 7.3 `CHANGELOG.md` audit for the v1.0.0 entry: consolidate every Unreleased line accumulated since `v0.6.0`, verify category placement, and write the v1.0.0 summary headline (the file itself was introduced in Milestone 1.12).
+- [ ] 7.4 ADR: install / packaging layout (public-header export, pkg-config, CMake `find_package` config file) — phase 1 distribution per ADR-0004 §5.
 - [ ] 7.5 Patterns catalogue audit — verify every adopted pattern has both an ADR and a code location; refresh statuses.
 - [ ] 7.6 **Spec compliance acceptance** — walk every row of the Spec Coverage Map (below) and confirm each requirement is satisfied by a passing test, a documented ADR, or both. Record the audit outcome in an ADR.
-- [ ] 7.7 Tag `v1.0.0` and draft GitHub release notes.
+- [ ] 7.7 **Close Milestone 7 → `v1.0.0`**: bump `version.hpp`, roll `CHANGELOG.md`, draft `docs/releases/v1.0.0.md`, open the release PR for the maintainer to tag and publish (ADR-0004 §2).
+- [ ] 7.8 *(Stretch, post-v1.0)* vcpkg port: register `pbr-memory-pool` in microsoft/vcpkg, with portfile pinning to the v1.0.0 tag — phase 2 distribution per ADR-0004 §5.
+- [ ] 7.9 *(Stretch, post-v1.0)* Conan recipe: publish a `conanfile.py` to ConanCenter or a self-hosted recipe index, with the same v1.0.0 pin — phase 2 distribution per ADR-0004 §5.
 
 ---
 

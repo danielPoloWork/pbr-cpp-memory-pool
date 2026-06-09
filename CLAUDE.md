@@ -11,6 +11,7 @@ This file is auto-loaded by **Claude Code**. The full agent contract — persona
 - **Docs:** every PR keeps `README.md`, `ROADMAP.md`, `docs/adr/`, and `docs/patterns/` in sync. Non-trivial design choices need an ADR. See `AGENTS.md` §7.
 - **Design patterns:** apply classical patterns broadly to demonstrate competence; every adoption justified in an ADR + catalogued in `docs/patterns/`. Never force-fit. See `AGENTS.md` §8.
 - **Quality bar:** enterprise — warnings-as-errors, `clang-tidy` clean, ASan/UBSan/TSan green, Valgrind clean, Doxygen documented. No shortcuts. See `AGENTS.md` §10.
+- **Versioning & releases:** SemVer. Pre-1.0: one tag per closed milestone (`v0.1.0`…`v0.6.0`), then `v1.0.0`. Agents bump the version, roll `CHANGELOG.md`, draft release notes under `docs/releases/`; the maintainer opens the release PR, merges, tags, pushes the tag, and clicks *Publish* on the GitHub Release. CI builds artifacts on tag push. See `AGENTS.md` §11.
 - **Project:** fixed-block-size O(1) memory pool, C++17 + ANSI C interop. Spec in `docs/specs/01_spec_cpp_memory_pool.md`. Implementation has not started yet.
 
 ## Claude Code specifics
