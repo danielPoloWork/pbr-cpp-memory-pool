@@ -18,11 +18,18 @@ string(REGEX MATCH "PBR_MEMORY_POOL_VERSION_MINOR = ([0-9]+)" _ "${_pbr_version_
 set(_pbr_ver_minor "${CMAKE_MATCH_1}")
 string(REGEX MATCH "PBR_MEMORY_POOL_VERSION_PATCH = ([0-9]+)" _ "${_pbr_version_contents}")
 set(_pbr_ver_patch "${CMAKE_MATCH_1}")
-if(NOT _pbr_ver_major OR NOT DEFINED _pbr_ver_minor OR NOT DEFINED _pbr_ver_patch)
+# Use STREQUAL "" (not `if(NOT var)`) — CMake's truthiness rules treat the
+# string "0" as false, which would misfire when a version component is
+# legitimately zero (e.g. v0.1.0's MAJOR or PATCH).
+if("${_pbr_ver_major}" STREQUAL ""
+        OR "${_pbr_ver_minor}" STREQUAL ""
+        OR "${_pbr_ver_patch}" STREQUAL "")
     message(FATAL_ERROR
         "Could not parse version constants from ${PBR_VERSION_HEADER}. "
         "The regex contract expected by CMake must stay in sync with the "
-        "constants declared in that header (ADR-0004 §2).")
+        "constants declared in that header (ADR-0004 §2). "
+        "Parsed values: MAJOR='${_pbr_ver_major}', MINOR='${_pbr_ver_minor}', "
+        "PATCH='${_pbr_ver_patch}'.")
 endif()
 
 project(pbr_memory_pool
