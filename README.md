@@ -87,13 +87,15 @@ Full quality contract: [`AGENTS.md`](AGENTS.md) §10. Until the C++ build lands 
 
 ## Build and test
 
-The build system arrives in Milestone 1 (see [`ROADMAP.md`](ROADMAP.md) §1). Once available, the canonical commands will be:
+The canonical commands, once the toolchain is installed:
 
 ```bash
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
 ```
+
+For first-time setup on a fresh clone — installing CMake, Ninja, and the supported compilers per platform, plus troubleshooting and the full quality-bar workflow — see the **[Local Build Guide](docs/development/local-build.md)**.
 
 ## Repository layout
 
@@ -108,16 +110,18 @@ ctest --preset debug
 | [`docs/adr/`](docs/adr/)                      | Architecture Decision Records.                                                            |
 | [`docs/patterns/`](docs/patterns/)            | Design-patterns catalogue + canonical enterprise taxonomy.                                |
 | [`docs/workflow/`](docs/workflow/)            | Git and documentation conventions.                                                        |
+| [`docs/development/`](docs/development/)      | Procedural how-to guides for local development (build, debug, profile).                   |
 
 ## For human contributors
 
 Start by reading, in this order:
 
 1. [`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md) — what we are building.
-2. [`docs/adr/`](docs/adr/) — why the project is structured this way.
-3. [`docs/patterns/README.md`](docs/patterns/README.md) — which design patterns we exercise and why.
-4. [`docs/workflow/git-workflow.md`](docs/workflow/git-workflow.md) — branch, commit, and PR conventions.
-5. [`ROADMAP.md`](ROADMAP.md) — what is done and what is next.
+2. [`docs/development/local-build.md`](docs/development/local-build.md) — how to build and test it on your machine.
+3. [`docs/adr/`](docs/adr/) — why the project is structured this way.
+4. [`docs/patterns/README.md`](docs/patterns/README.md) — which design patterns we exercise and why.
+5. [`docs/workflow/git-workflow.md`](docs/workflow/git-workflow.md) — branch, commit, and PR conventions.
+6. [`ROADMAP.md`](ROADMAP.md) — what is done and what is next.
 
 ## For AI coding agents
 

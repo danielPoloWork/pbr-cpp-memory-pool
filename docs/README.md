@@ -9,16 +9,18 @@ This directory holds the durable, versioned documentation for `pbr-cpp-memory-po
 | `docs/specs/`         | Functional and technical specifications. Frozen contracts — diverging requires an ADR.   |
 | `docs/adr/`           | Architecture Decision Records — one numbered Markdown file per decision.                 |
 | `docs/patterns/`      | Living catalogue of design patterns adopted, rejected, or under consideration.           |
-| `docs/workflow/`      | Repository workflow conventions (git, documentation maintenance).                        |
+| `docs/workflow/`      | Repository workflow conventions (git, documentation maintenance, release).               |
+| `docs/development/`   | Procedural how-to guides for working on the code locally (toolchain, build, debug).      |
 
 ## Reading order for newcomers
 
 1. [`/README.md`](../README.md) — what this project is.
 2. [`/AGENTS.md`](../AGENTS.md) — how AI agents are expected to work in this repo.
 3. [`docs/specs/01_spec_cpp_memory_pool.md`](specs/01_spec_cpp_memory_pool.md) — what we are building.
-4. [`docs/adr/`](adr/) — why we built it that way.
-5. [`docs/patterns/`](patterns/) — which design patterns we exercise and why.
-6. [`/ROADMAP.md`](../ROADMAP.md) — what is done and what is next.
+4. [`docs/development/local-build.md`](development/local-build.md) — how to build and test it on your machine.
+5. [`docs/adr/`](adr/) — why we built it that way.
+6. [`docs/patterns/`](patterns/) — which design patterns we exercise and why.
+7. [`/ROADMAP.md`](../ROADMAP.md) — what is done and what is next.
 
 ## Conventions
 
