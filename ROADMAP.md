@@ -37,7 +37,7 @@ Goal: a clean, reproducible build with empty stubs that compile, link, and run a
 - [x] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline. See [ADR-0006](docs/adr/0006-code-style-and-static-analysis-baseline.md).
 - [x] 1.5 Add `.clang-tidy` with the baseline check set declared in `AGENTS.md` §9 — ADR if checks deviate from that baseline. See [ADR-0006](docs/adr/0006-code-style-and-static-analysis-baseline.md).
 - [x] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5), `memory_pool.hpp` (C++ wrapper skeleton), and `version.hpp` (single source of truth for the project version constants consumed by CMake's `project(... VERSION ...)`) — no-op definitions, fully documented (spec §5; version constants per ADR-0004). Stub implementations live in `memory_pool.cpp` so the library is linkable from M1; real algorithms replace them in M2.
-- [ ] 1.7 Add CTest wiring; create a no-op smoke test under `src/test/cpp/it/d4np/memorypool/`.
+- [x] 1.7 Add CTest wiring; create a no-op smoke test under `src/test/cpp/it/d4np/memorypool/`. Framework choice in [ADR-0007](docs/adr/0007-test-framework-doctest.md) (doctest v2.4.11 via FetchContent).
 - [ ] 1.8 Set up CI workflow: build matrix, `clang-tidy`, ASan + UBSan, CTest — gate `master` on all green.
 - [ ] 1.9 README quickstart: build / test commands verified on Windows and Linux.
 - [ ] 1.10 ANSI C compatibility verification: dedicated CI job compiling `memory_pool.h` and a minimal C TU under `-std=c89 -pedantic -Werror` and `-std=c99 -pedantic -Werror` to enforce the C interop contract (spec §3.3).

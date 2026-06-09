@@ -104,7 +104,21 @@ option(PBR_MEMORY_POOL_BUILD_TESTS
     "Build the test targets under src/test/cpp/" OFF)
 if(PBR_MEMORY_POOL_BUILD_TESTS)
     enable_testing()
-    # add_subdirectory(src/test/cpp/it/d4np/memorypool)   # enabled in Milestone 1.7
+
+    # doctest is our test framework (ADR-0007). Pinned to a stable tag,
+    # cloned shallow at configure time. The first configure on a fresh
+    # build tree pays a one-time network cost (a few seconds); subsequent
+    # configures hit the cache under build/_deps/.
+    include(FetchContent)
+    FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest.git
+        GIT_TAG        v2.4.11
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(doctest)
+
+    add_subdirectory(src/test/cpp/it/d4np/memorypool)
 endif()
 
 option(PBR_MEMORY_POOL_BUILD_BENCHMARKS
