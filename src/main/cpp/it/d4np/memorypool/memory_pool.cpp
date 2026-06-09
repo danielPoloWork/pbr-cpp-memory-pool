@@ -47,8 +47,7 @@ void memory_pool_destroy(memory_pool_t* /*pool*/) {
 
 namespace it::d4np::memorypool {
 
-Pool::Pool(std::size_t block_size, std::size_t block_count)
-    : handle_(::memory_pool_create(block_size, block_count)) {}
+Pool::Pool(std::size_t block_size, std::size_t block_count) : handle_(::memory_pool_create(block_size, block_count)) {}
 
 Pool::~Pool() noexcept {
     ::memory_pool_destroy(handle_);

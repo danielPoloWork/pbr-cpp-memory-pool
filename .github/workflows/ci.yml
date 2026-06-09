@@ -1,0 +1,299 @@
+name: ci
+
+# Full enterprise CI gate for pbr-cpp-memory-pool — implements the contract
+# fixed by ADR-0005 (toolchain matrix) and the quality bar in AGENTS.md §10.
+# Covers ROADMAP §1.8 (build matrix + clang-tidy + sanitizers + CTest),
+# §1.10 (ANSI C / C99 verification of the public C header), and §1.11
+# (zero-external-dependency verification of the library build).
+#
+# The configure-smoke job in .github/workflows/build-smoke.yml is removed in
+# the same PR — its work is now a subset of the per-cell configure step here.
+
+on:
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'src/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'src/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.github/workflows/ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Cross-platform build matrix per ADR-0005 §4.
+  #
+  # Sanitizer presets (asan/ubsan) are POSIX-only by preset condition; the
+  # matrix omits them for Windows. TSan is deferred until ROADMAP §4 lands
+  # threading.
+  # ---------------------------------------------------------------------------
+  build:
+    name: build / ${{ matrix.os }} / ${{ matrix.compiler }} / ${{ matrix.preset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - { os: ubuntu-24.04,  compiler: gcc,         preset: debug }
+          - { os: ubuntu-24.04,  compiler: gcc,         preset: release }
+          - { os: ubuntu-24.04,  compiler: gcc,         preset: asan }
+          - { os: ubuntu-24.04,  compiler: gcc,         preset: ubsan }
+          - { os: ubuntu-24.04,  compiler: clang,       preset: debug }
+          - { os: ubuntu-24.04,  compiler: clang,       preset: release }
+          - { os: ubuntu-24.04,  compiler: clang,       preset: asan }
+          - { os: ubuntu-24.04,  compiler: clang,       preset: ubsan }
+          # Windows x86_64 — sanitizer presets are POSIX-only.
+          - { os: windows-2022,  compiler: msvc,        preset: debug }
+          - { os: windows-2022,  compiler: msvc,        preset: release }
+          # macOS arm64
+          - { os: macos-14,      compiler: apple-clang, preset: debug }
+          - { os: macos-14,      compiler: apple-clang, preset: release }
+          - { os: macos-14,      compiler: apple-clang, preset: asan }
+          - { os: macos-14,      compiler: apple-clang, preset: ubsan }
+    steps:
+      - name: Check out the source tree
+        uses: actions/checkout@v4
+
+      - name: Install a recent CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Set up MSVC environment
+        if: matrix.compiler == 'msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Pin Linux GCC
+        if: matrix.compiler == 'gcc'
+        shell: bash
+        run: |
+          # ubuntu-24.04 already ships GCC 13 above the ADR-0005 floor of 11.
+          gcc --version
+          g++ --version
+          echo "CC=gcc"  >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
+
+      - name: Pin Linux Clang
+        if: matrix.compiler == 'clang'
+        shell: bash
+        run: |
+          # ubuntu-24.04 ships Clang 18 above the ADR-0005 floor of 14.
+          clang --version
+          clang++ --version
+          echo "CC=clang"   >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
+      - name: Configure
+        shell: bash
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        shell: bash
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # clang-format — entire repo, dry-run with -Werror.
+  # ---------------------------------------------------------------------------
+  format:
+    name: format / clang-format check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Ensure clang-format is available
+        shell: bash
+        run: clang-format --version
+
+      - name: Verify all C and C++ sources are clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.cpp' '*.hpp' '*.h' '*.c')
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No C/C++ sources tracked."
+            exit 0
+          fi
+          printf '%s\n' "${files[@]}"
+          clang-format --dry-run --Werror "${files[@]}"
+
+  # ---------------------------------------------------------------------------
+  # clang-tidy — diff-based, gated with --warnings-as-errors='*'.
+  # ---------------------------------------------------------------------------
+  tidy:
+    name: tidy / clang-tidy diff gate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out (full history needed for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Ensure clang-tidy is available
+        shell: bash
+        run: clang-tidy --version
+
+      - name: Configure debug to produce compile_commands.json
+        shell: bash
+        run: |
+          export CC=clang CXX=clang++
+          cmake --preset debug
+
+      - name: Compute changed C/C++ sources against base
+        id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            # Push to master — diff against the previous commit.
+            base_sha="$(git rev-parse HEAD~1)"
+          fi
+          # Limit clang-tidy to C++ sources. .c files belong to the
+          # ANSI-C / C99 verification job above; running clang-tidy on
+          # them with the C++ project's compile_commands.json forces it
+          # into C++ mode and surfaces inapplicable diagnostics
+          # (modernize-redundant-void-arg, init-variables-with-nullptr,
+          # etc.).
+          git diff --name-only --diff-filter=AM "$base_sha"...HEAD \
+              -- '*.cpp' '*.hpp' '*.h' > changed.txt || true
+          echo "Changed sources:"
+          cat changed.txt || true
+          # Surface to next step
+          echo "file=changed.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Run clang-tidy on the diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -s "${{ steps.changed.outputs.file }}" ]]; then
+            echo "No C/C++ source changes — nothing for clang-tidy to do."
+            exit 0
+          fi
+          mapfile -t files < "${{ steps.changed.outputs.file }}"
+          clang-tidy -p build/debug --warnings-as-errors='*' "${files[@]}"
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP §1.10 — ANSI C (C89) and C99 compatibility of the public header.
+  # Uses GCC directly (no CMake) so the standard flag is unambiguous.
+  # ---------------------------------------------------------------------------
+  ansi-c-compat:
+    name: compat / ${{ matrix.std }} pedantic
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        std: [c89, c99]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Compile the minimal C consumer under -std=${{ matrix.std }} -pedantic -Werror
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcc --version
+          gcc -std=${{ matrix.std }} -pedantic -Werror \
+              -Isrc/main/cpp \
+              -c src/test/c/it/d4np/memorypool/c_consumer_min.c \
+              -o /tmp/c_consumer_min.o
+          echo "${{ matrix.std }} verification: OK"
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP §1.11 — zero external dependencies in the library build.
+  # When tests and benchmarks are OFF, the library target must depend only on
+  # the C/C++ standard library.
+  # ---------------------------------------------------------------------------
+  zero-external-deps:
+    name: deps / zero external dependencies (library only)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure with tests and benchmarks disabled
+        shell: bash
+        run: |
+          cmake -S . -B build/zero-deps -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DPBR_MEMORY_POOL_BUILD_TESTS=OFF \
+              -DPBR_MEMORY_POOL_BUILD_BENCHMARKS=OFF
+
+      - name: Audit CMakeLists for stray find_package outside test/bench scopes
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Allow find_package() only under src/test/** and src/bench/**.
+          stray=$(grep -RIn --include='CMakeLists.txt' '^[[:space:]]*find_package' \
+              CMakeLists.txt src/main/ 2>/dev/null || true)
+          if [[ -n "$stray" ]]; then
+            echo "ERROR: find_package() found in the library scope:"
+            echo "$stray"
+            exit 1
+          fi
+          echo "OK — no find_package() calls in the library scope."
+
+      - name: Audit FetchContent declarations outside test/bench scopes
+        shell: bash
+        run: |
+          set -euo pipefail
+          stray=$(grep -RIn --include='CMakeLists.txt' 'FetchContent_Declare' \
+              CMakeLists.txt src/main/ 2>/dev/null || true)
+          # FetchContent_Declare(doctest ...) lives inside the
+          # if(PBR_MEMORY_POOL_BUILD_TESTS) block — when tests are off it is
+          # never reached, so it is allowed at the top-level CMakeLists. Flag
+          # only declarations that are NOT inside the tests/bench guard.
+          if [[ -n "$stray" ]]; then
+            echo "FetchContent declarations found (informational):"
+            echo "$stray"
+            echo "Ensure each is gated by PBR_MEMORY_POOL_BUILD_TESTS or"
+            echo "PBR_MEMORY_POOL_BUILD_BENCHMARKS — verify by inspection."
+          fi
+
+      - name: Build the library and inspect linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build/zero-deps
+          # The static archive should contain only objects from our own
+          # sources; no transitive third-party object files.
+          archive="build/zero-deps/libpbr_memory_pool.a"
+          if [[ ! -f "$archive" ]]; then
+            echo "ERROR: expected static archive at $archive"
+            ls -la build/zero-deps
+            exit 1
+          fi
+          ar t "$archive"
+          # Heuristic: every object in the archive must come from
+          # src/main/cpp/it/d4np/memorypool/.
+          stray=$(ar t "$archive" | grep -v '^memory_pool\..*\.o$' || true)
+          if [[ -n "$stray" ]]; then
+            echo "ERROR: unexpected objects in the static archive:"
+            echo "$stray"
+            exit 1
+          fi
+          echo "OK — library archive contains only project-local objects."

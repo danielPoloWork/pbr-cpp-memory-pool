@@ -80,7 +80,7 @@ void memory_pool_free(memory_pool_t* pool, void* block);
 void memory_pool_destroy(memory_pool_t* pool);
 
 #ifdef __cplusplus
-}  /* extern "C" */
+}
 #endif
 
-#endif  /* IT_D4NP_MEMORYPOOL_MEMORY_POOL_H_ */
+#endif
