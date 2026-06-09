@@ -233,17 +233,17 @@ This is a **reference implementation**, and demonstrating fluency with classical
 
 Formal policy: see [ADR-0003](docs/adr/0003-design-patterns-policy.md). Project-scoped candidates and out-of-scope categories: [`docs/patterns/README.md`](docs/patterns/README.md).
 
-## 9. Coding Conventions (provisional — finalized in Milestone 1)
+## 9. Coding Conventions
 
-These defaults apply until the formal style ADR lands; the toolchain and platform contract is already formalised in [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md).
+The toolchain and platform contract is formalised in [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md); the formatter and static-analysis baseline are in [ADR-0006](docs/adr/0006-code-style-and-static-analysis-baseline.md). The repo-local enforcement configs are [`.clang-format`](.clang-format) and [`.clang-tidy`](.clang-tidy) — both at the repo root.
 
 - **Language standard:** C++17, no compiler extensions. The C interop layer is verified against both C89 (ANSI C, spec §3.3) and C99 — see ADR-0005 §3.
 - **Tier-1 platforms (CI-gated):** Linux x86_64 (GCC ≥ 11, Clang ≥ 14), Windows x86_64 (MSVC ≥ 19.30), macOS arm64 (Apple Clang ≥ 14). Full matrix in ADR-0005 §1.
 - **Namespace:** `it::d4np::memorypool` (with nested sub-namespaces for components, e.g., `it::d4np::memorypool::detail`).
 - **Headers:** `<it/d4np/memorypool/memory_pool.h>` for the public C API, `<it/d4np/memorypool/memory_pool.hpp>` for the C++ wrapper.
-- **Naming:** `snake_case` for functions and variables, `PascalCase` for C++ types, `SCREAMING_SNAKE_CASE` for macros. No globals.
-- **Formatting:** `clang-format` config added in the first build PR (Milestone 1.3); until then, follow LLVM style with 4-space indent and 120-col soft limit.
-- **Static analysis:** `clang-tidy` with `bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `performance-*`, `readability-*` baseline; disables only with inline justification.
+- **Naming:** `snake_case` for functions and variables, `CamelCase` for C++ types, `UPPER_CASE` for macros and `constexpr` constants, trailing `_` on private/protected members. Enforced by `readability-identifier-naming` in [`.clang-tidy`](.clang-tidy).
+- **Formatting:** LLVM-derived style, 4-space indent, 120-col soft limit, pointer-aligned-left. See [`.clang-format`](.clang-format) and ADR-0006 §1 for the full deviation table.
+- **Static analysis:** `bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `modernize-*`, `performance-*`, `portability-*`, `readability-*` baseline with the deviations recorded in ADR-0006 §2. `WarningsAsErrors` enforced on the diff at CI (ROADMAP §1.8); locally advisory.
 - **Documentation:** All public symbols documented with Doxygen-compatible comments (`///` or `/** */`). Private code commented only where the *why* is non-obvious.
 - **Errors:** No exceptions across the C ABI boundary. The C++ wrapper may throw `std::bad_alloc` (configurable). All error paths covered by tests.
 

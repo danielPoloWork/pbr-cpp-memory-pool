@@ -1,0 +1,66 @@
+---
+# Static-analysis configuration for pbr-cpp-memory-pool.
+# Policy, deviation rationale, and CI integration: docs/adr/0006-code-style-and-static-analysis-baseline.md
+
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -cert-err58-cpp,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers
+
+# WarningsAsErrors is intentionally empty here. The CI job (ROADMAP §1.8)
+# invokes clang-tidy with --warnings-as-errors='*' on the PR diff; making
+# every warning fatal in the config itself would force every contributor's
+# local clang-tidy version to exactly match the maintainer's. The CI runs
+# on a pinned version; local runs are advisory.
+WarningsAsErrors: ''
+
+# Restrict header analysis to our own tree — third-party headers transitively
+# included must not produce findings that we cannot fix.
+HeaderFilterRegex: 'src/main/cpp/it/d4np/memorypool/.*\.(h|hpp)$'
+
+# Keep clang-tidy's fix-it suggestions in lockstep with .clang-format.
+FormatStyle: file
+
+CheckOptions:
+  - key:             readability-function-cognitive-complexity.Threshold
+    value:           '25'
+  - key:             readability-function-size.LineThreshold
+    value:           '80'
+  - key:             cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value:           'true'
+  - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value:           'true'
+  - key:             modernize-use-default-member-init.UseAssignment
+    value:           'true'
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           'lower_case'
+  - key:             readability-identifier-naming.ClassCase
+    value:           'CamelCase'
+  - key:             readability-identifier-naming.StructCase
+    value:           'CamelCase'
+  - key:             readability-identifier-naming.EnumCase
+    value:           'CamelCase'
+  - key:             readability-identifier-naming.FunctionCase
+    value:           'lower_case'
+  - key:             readability-identifier-naming.MethodCase
+    value:           'lower_case'
+  - key:             readability-identifier-naming.VariableCase
+    value:           'lower_case'
+  - key:             readability-identifier-naming.MemberSuffix
+    value:           '_'
+  - key:             readability-identifier-naming.MacroDefinitionCase
+    value:           'UPPER_CASE'
+  - key:             readability-identifier-naming.ConstexprVariableCase
+    value:           'UPPER_CASE'
+...
