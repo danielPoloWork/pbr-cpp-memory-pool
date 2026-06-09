@@ -19,8 +19,12 @@
  * records the M1 contract so the diff is obvious.
  */
 
+// IMPORTANT: defining DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN before the doctest
+// header instructs doctest to emit `main()` from this translation unit.
+// clang-format's IncludeBlocks: Regroup may place the doctest include in a
+// different priority group below — the define is still in effect there
+// because preprocessor scope is forward from the define.
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include <doctest/doctest.h>
 
 #include <it/d4np/memorypool/memory_pool.h>
 #include <it/d4np/memorypool/memory_pool.hpp>
@@ -29,6 +33,8 @@
 #include <cstddef>
 #include <string_view>
 #include <utility>
+
+#include <doctest/doctest.h>
 
 using it::d4np::memorypool::Pool;
 namespace mem = it::d4np::memorypool;

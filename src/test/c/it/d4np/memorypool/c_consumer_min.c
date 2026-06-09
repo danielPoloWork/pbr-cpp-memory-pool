@@ -33,6 +33,6 @@ int main(void) {
      * dereference it. The verification job's success criterion is "compiles
      * cleanly under -pedantic -Werror", not "runs to a specific value".
      */
-    (void) block;
+    (void)block;
     return 0;
 }

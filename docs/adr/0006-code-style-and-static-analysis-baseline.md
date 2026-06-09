@@ -60,7 +60,10 @@ The full check-set lives in [`.clang-tidy`](../../.clang-tidy). It enables:
 | `cppcoreguidelines-avoid-magic-numbers`, `readability-magic-numbers` | Too noisy in test fixtures and microbenchmarks where literal sizes are the entire point. Re-enable per-file with `// NOLINT` if a magic number needs flagging. |
 | `cppcoreguidelines-pro-bounds-pointer-arithmetic`       | A pool allocator does pointer arithmetic by definition. Disabling at the check level is honest; per-line `// NOLINT` would be noise.            |
 | `modernize-use-trailing-return-type`                    | Stylistic preference; trailing return types are not adopted in this project.                                                                    |
+| `modernize-use-using`                                   | The public C-ABI header (`memory_pool.h`) must remain compilable under C89/C99 per ADR-0005 §3; `using` is a C++-only syntax and `typedef` is the only portable form. Disabling at the check level is more honest than scattering `// NOLINT` annotations on every C-compat typedef. |
 | `readability-identifier-length`                         | Default lower bound is 1 — clean for general code, noisy for `i`, `j`, `n` in tight loops. Re-enable with a project-wide config-option if needed. |
+
+In addition, the `readability-identifier-naming.MacroDefinitionIgnoredRegexp` option carries an exemption for macros matching `IT_D4NP_.*` — the project's include guards embed `D4NP` as a single word (mirroring the namespace and filesystem path locked by [ADR-0002](0002-adopt-cross-language-source-layout.md)) and end with a trailing underscore, both of which clang-tidy's default tokenizer rejects. The exemption is narrowly scoped to this prefix so generic macros (`PBR_FOO_BAR`) remain enforced.
 
 `WarningsAsErrors` is **not** set in the config — diff-based enforcement happens at the CI layer (M1.8) via the `--warnings-as-errors='*'` flag. The config defines *what* to check; the CI defines *when* a finding blocks a PR.
 

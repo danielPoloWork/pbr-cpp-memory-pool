@@ -170,8 +170,14 @@ jobs:
             # Push to master — diff against the previous commit.
             base_sha="$(git rev-parse HEAD~1)"
           fi
+          # Limit clang-tidy to C++ sources. .c files belong to the
+          # ANSI-C / C99 verification job above; running clang-tidy on
+          # them with the C++ project's compile_commands.json forces it
+          # into C++ mode and surfaces inapplicable diagnostics
+          # (modernize-redundant-void-arg, init-variables-with-nullptr,
+          # etc.).
           git diff --name-only --diff-filter=AM "$base_sha"...HEAD \
-              -- '*.cpp' '*.hpp' '*.h' '*.c' > changed.txt || true
+              -- '*.cpp' '*.hpp' '*.h' > changed.txt || true
           echo "Changed sources:"
           cat changed.txt || true
           # Surface to next step

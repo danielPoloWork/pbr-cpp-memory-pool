@@ -15,6 +15,7 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -modernize-use-trailing-return-type,
+  -modernize-use-using,
   -readability-identifier-length,
   -readability-magic-numbers
 
@@ -63,4 +64,11 @@ CheckOptions:
     value:           'UPPER_CASE'
   - key:             readability-identifier-naming.ConstexprVariableCase
     value:           'UPPER_CASE'
+  # The project's include-guard macros embed "D4NP" as a single word
+  # (mirroring the it::d4np::memorypool namespace and src/.../d4np/...
+  # filesystem path). clang-tidy's tokenizer otherwise insists on splitting
+  # digit/letter boundaries (D4_NP) and on stripping the trailing underscore,
+  # both of which would diverge from the project identity locked by ADR-0002.
+  - key:             readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value:           'IT_D4NP_.*'
 ...
