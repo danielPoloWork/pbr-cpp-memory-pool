@@ -1,0 +1,103 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "_base",
+            "hidden": true,
+            "description": "Hidden base shared by every concrete preset.",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "PBR_MEMORY_POOL_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "debug",
+            "inherits": "_base",
+            "displayName": "Debug",
+            "description": "Debug build with full diagnostics. Sanitizers off.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "_base",
+            "displayName": "Release",
+            "description": "Optimised build for performance measurement.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "asan",
+            "inherits": "debug",
+            "displayName": "AddressSanitizer",
+            "description": "Debug + AddressSanitizer. POSIX-only (ADR-0005 §3).",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+                "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+                "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "ubsan",
+            "inherits": "debug",
+            "displayName": "UndefinedBehaviorSanitizer",
+            "description": "Debug + UBSan. POSIX-only (ADR-0005 §3).",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g",
+                "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined",
+                "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=undefined"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "tsan",
+            "inherits": "debug",
+            "displayName": "ThreadSanitizer",
+            "description": "Debug + TSan. Used from Milestone 4 onwards (threading). POSIX-only.",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -g",
+                "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -g",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread",
+                "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=thread"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        }
+    ],
+    "buildPresets": [
+        {"name": "debug",   "configurePreset": "debug"},
+        {"name": "release", "configurePreset": "release"},
+        {"name": "asan",    "configurePreset": "asan"},
+        {"name": "ubsan",   "configurePreset": "ubsan"},
+        {"name": "tsan",    "configurePreset": "tsan"}
+    ],
+    "testPresets": [
+        {"name": "debug",   "configurePreset": "debug",   "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
+        {"name": "release", "configurePreset": "release", "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
+        {"name": "asan",    "configurePreset": "asan",    "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
+        {"name": "ubsan",   "configurePreset": "ubsan",   "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
+        {"name": "tsan",    "configurePreset": "tsan",    "output": {"outputOnFailure": true}, "execution": {"jobs": 0}}
+    ]
+}
