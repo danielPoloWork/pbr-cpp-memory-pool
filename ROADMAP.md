@@ -32,11 +32,11 @@ Goal: establish the documentation, agent configuration, source-tree shape, and q
 Goal: a clean, reproducible build with empty stubs that compile, link, and run a no-op test under CTest — built against the Maven-style source tree.
 
 - [x] 1.1 ADR: C++17 toolchain matrix (MSVC, GCC, Clang — Debug & Release) and supported platforms (spec §3.3) — see [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md).
-- [ ] 1.2 Add `CMakeLists.txt` exposing `src/main/cpp` as the public include root; declare `pbr_memory_pool` library target with sources globbed under `src/main/cpp/it/d4np/memorypool/`.
-- [ ] 1.3 Add `CMakePresets.json` with `debug`, `release`, `asan`, `ubsan`, `tsan` presets.
+- [x] 1.2 Add `CMakeLists.txt` exposing `src/main/cpp` as the public include root; declare `pbr_memory_pool` library target with sources globbed under `src/main/cpp/it/d4np/memorypool/`.
+- [x] 1.3 Add `CMakePresets.json` with `debug`, `release`, `asan`, `ubsan`, `tsan` presets.
 - [ ] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline.
 - [ ] 1.5 Add `.clang-tidy` with the baseline check set declared in `AGENTS.md` §9 — ADR if checks deviate from that baseline.
-- [ ] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5), `memory_pool.hpp` (C++ wrapper skeleton), and `version.hpp` (single source of truth for the project version constants consumed by CMake's `project(... VERSION ...)`) — no-op definitions, fully documented (spec §5; version constants per ADR-0004).
+- [x] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5), `memory_pool.hpp` (C++ wrapper skeleton), and `version.hpp` (single source of truth for the project version constants consumed by CMake's `project(... VERSION ...)`) — no-op definitions, fully documented (spec §5; version constants per ADR-0004). Stub implementations live in `memory_pool.cpp` so the library is linkable from M1; real algorithms replace them in M2.
 - [ ] 1.7 Add CTest wiring; create a no-op smoke test under `src/test/cpp/it/d4np/memorypool/`.
 - [ ] 1.8 Set up CI workflow: build matrix, `clang-tidy`, ASan + UBSan, CTest — gate `master` on all green.
 - [ ] 1.9 README quickstart: build / test commands verified on Windows and Linux.
@@ -127,7 +127,7 @@ Legend: ⏳ pending · 🚧 in progress · ✅ done · ❎ not applicable (with 
 
 | Spec section | Requirement                                                                       | Roadmap items   | Status |
 |--------------|-----------------------------------------------------------------------------------|-----------------|--------|
-| §2.1         | Pre-allocate contiguous pool given `block_size` and `block_count`                 | 1.6, 2.1, 2.3   | ⏳     |
+| §2.1         | Pre-allocate contiguous pool given `block_size` and `block_count`                 | 1.6, 2.1, 2.3   | 🚧     |
 | §2.2         | O(1) allocation; return `NULL` (C) or `std::bad_alloc` (C++); dynamic growth opt. | 2.4, 3.1, 5.x   | ⏳     |
 | §2.3         | O(1) deallocation; block marked free without returning to OS                      | 2.4             | ⏳     |
 | §2.4         | Optional, configurable thread safety; single-thread fast path preserved           | 4.1–4.5         | ⏳     |
@@ -135,10 +135,10 @@ Legend: ⏳ pending · 🚧 in progress · ✅ done · ❎ not applicable (with 
 | §3.2         | Minimal metadata overhead per block                                               | 2.1, 2.10       | ⏳     |
 | §3.3         | ANSI C / C++17 standard, no external dependencies                                 | 1.1, 1.10, 1.11 | 🚧     |
 | §4           | Free List implicit (free blocks store the next-free pointer)                      | 2.1             | ⏳     |
-| §5 — create  | `memory_pool_t* memory_pool_create(size_t block_size, size_t block_count)`        | 1.6, 2.3        | ⏳     |
-| §5 — alloc   | `void* memory_pool_alloc(memory_pool_t* pool)`                                    | 1.6, 2.4        | ⏳     |
-| §5 — free    | `void memory_pool_free(memory_pool_t* pool, void* block)`                         | 1.6, 2.4        | ⏳     |
-| §5 — destroy | `void memory_pool_destroy(memory_pool_t* pool)`                                   | 1.6, 2.3        | ⏳     |
+| §5 — create  | `memory_pool_t* memory_pool_create(size_t block_size, size_t block_count)`        | 1.6, 2.3        | 🚧     |
+| §5 — alloc   | `void* memory_pool_alloc(memory_pool_t* pool)`                                    | 1.6, 2.4        | 🚧     |
+| §5 — free    | `void memory_pool_free(memory_pool_t* pool, void* block)`                         | 1.6, 2.4        | 🚧     |
+| §5 — destroy | `void memory_pool_destroy(memory_pool_t* pool)`                                   | 1.6, 2.3        | 🚧     |
 | §6.1         | Correctness — exhaustion, null inputs, foreign / out-of-range pointers            | 2.7             | ⏳     |
 | §6.2         | Valgrind clean: `ERROR SUMMARY: 0 errors from 0 contexts`                         | 2.8             | ⏳     |
 | §6.3         | Benchmark `pool_alloc/free` vs `malloc/free` over 1,000,000 iterations            | 2.9, 4.5        | ⏳     |
