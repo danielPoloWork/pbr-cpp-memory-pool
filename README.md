@@ -1,4 +1,4 @@
-# pbr-cpp-memory-pool
+# Purpose-built reference High-Performance Memory Pool Manager (C++)
 
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
