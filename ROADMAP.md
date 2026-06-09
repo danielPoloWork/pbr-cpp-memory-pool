@@ -45,6 +45,7 @@ Goal: a clean, reproducible build with empty stubs that compile, link, and run a
 - [ ] 1.12 Add the initial `CHANGELOG.md` at the repo root in Keep a Changelog 1.1.0 format, with an empty `Unreleased` section ready to accept entries from this and subsequent PRs (ADR-0004 §3).
 - [ ] 1.13 Add `.github/workflows/release.yml` triggered on `v*` tag push: re-run the full test matrix, build per-platform binaries (Linux x86_64, Windows x86_64, macOS arm64 — degrade gracefully where unavailable), emit `SHA256SUMS`, and create a **draft** GitHub Release with the corresponding `docs/releases/v<X.Y.Z>.md` as the body (ADR-0004 §4).
 - [ ] 1.14 **Close Milestone 1 → `v0.1.0`**: bump `version.hpp` to `0.1.0`, roll `CHANGELOG.md` Unreleased into a `[0.1.0]` block with ISO date, add `docs/releases/v0.1.0.md` release notes, open the release PR for the maintainer to tag and publish (see [`docs/workflow/release.md`](docs/workflow/release.md)).
+- [x] 1.15 CMake configure-smoke CI workflow (`.github/workflows/build-smoke.yml`) — early subset of §1.8. Runs `cmake --preset debug` and `--preset release` on every PR touching CMake / sources / configs. Catches latent `CMakeLists.txt` and preset breakage (like the version-regex zero bug fixed in PR #6) before it reaches a fresh-clone consumer. Subsumed by the full build matrix when §1.8 lands.
 
 ## Milestone 2 — Core Memory Pool (Single-Threaded MVP)
 

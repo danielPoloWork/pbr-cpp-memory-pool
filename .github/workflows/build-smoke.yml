@@ -1,0 +1,63 @@
+name: build-smoke
+
+# Lightweight CI gate that catches CMakeLists / preset / source-glob breakage
+# the moment it lands in a PR, without the wall-clock cost of the full build
+# matrix (which arrives in ROADMAP §1.8). Pure configure step — no compile,
+# no link, no test — so the job finishes in well under a minute on a cold
+# runner.
+#
+# Trigger paths are the surface area that can break the configure: the CMake
+# files themselves, the source / test / bench trees the project file globs
+# over, and the style configs that the configure stage validates. Pure-docs
+# PRs do not run this; they are covered by docs.yml.
+
+on:
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'src/main/**'
+      - 'src/test/**'
+      - 'src/bench/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.github/workflows/build-smoke.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'src/main/**'
+      - 'src/test/**'
+      - 'src/bench/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.github/workflows/build-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cmake-configure:
+    name: cmake configure (${{ matrix.preset }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [debug, release]
+    steps:
+      - name: Check out the source tree
+        uses: actions/checkout@v4
+
+      - name: Install a recent CMake and Ninja
+        # Pins to the latest stable CMake / Ninja so the preset schema floor
+        # (v6, CMake >= 3.25) is satisfied regardless of the runner image.
+        uses: lukka/get-cmake@latest
+
+      - name: Show CMake and Ninja versions
+        run: |
+          cmake --version
+          ninja --version
+
+      - name: cmake --preset ${{ matrix.preset }}
+        run: cmake --preset ${{ matrix.preset }}
