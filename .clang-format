@@ -1,0 +1,62 @@
+---
+# Code-style configuration for pbr-cpp-memory-pool.
+# Policy and full deviation rationale: docs/adr/0006-code-style-and-static-analysis-baseline.md
+
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++17
+
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+AccessModifierOffset: -4
+NamespaceIndentation: None
+FixNamespaceComments: true
+ShortNamespaceLines: 0
+
+PointerAlignment: Left
+DerivePointerAlignment: false
+ReferenceAlignment: Pointer
+
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All
+AllowShortBlocksOnASingleLine: Empty
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 2
+
+# Include ordering — own headers first, then C++ stdlib, then C stdlib,
+# then third-party C++, then third-party C.
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^<it/d4np/memorypool/.*\.h(pp)?>$'
+    Priority:        1
+    SortPriority:    1
+    CaseSensitive:   true
+  - Regex:           '^<[a-z_]+>$'
+    Priority:        3
+    SortPriority:    3
+  - Regex:           '^<[a-z_]+\.h>$'
+    Priority:        4
+    SortPriority:    4
+  - Regex:           '^<.*\.hpp>$'
+    Priority:        5
+    SortPriority:    5
+  - Regex:           '^<.*\.h>$'
+    Priority:        6
+    SortPriority:    6
+  - Regex:           '.*'
+    Priority:        9
+    SortPriority:    9
+...

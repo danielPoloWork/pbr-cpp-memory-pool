@@ -34,8 +34,8 @@ Goal: a clean, reproducible build with empty stubs that compile, link, and run a
 - [x] 1.1 ADR: C++17 toolchain matrix (MSVC, GCC, Clang — Debug & Release) and supported platforms (spec §3.3) — see [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md).
 - [x] 1.2 Add `CMakeLists.txt` exposing `src/main/cpp` as the public include root; declare `pbr_memory_pool` library target with sources globbed under `src/main/cpp/it/d4np/memorypool/`.
 - [x] 1.3 Add `CMakePresets.json` with `debug`, `release`, `asan`, `ubsan`, `tsan` presets.
-- [ ] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline.
-- [ ] 1.5 Add `.clang-tidy` with the baseline check set declared in `AGENTS.md` §9 — ADR if checks deviate from that baseline.
+- [x] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline. See [ADR-0006](docs/adr/0006-code-style-and-static-analysis-baseline.md).
+- [x] 1.5 Add `.clang-tidy` with the baseline check set declared in `AGENTS.md` §9 — ADR if checks deviate from that baseline. See [ADR-0006](docs/adr/0006-code-style-and-static-analysis-baseline.md).
 - [x] 1.6 Add `src/main/cpp/it/d4np/memorypool/memory_pool.h` (public C API skeleton, signatures from spec §5), `memory_pool.hpp` (C++ wrapper skeleton), and `version.hpp` (single source of truth for the project version constants consumed by CMake's `project(... VERSION ...)`) — no-op definitions, fully documented (spec §5; version constants per ADR-0004). Stub implementations live in `memory_pool.cpp` so the library is linkable from M1; real algorithms replace them in M2.
 - [ ] 1.7 Add CTest wiring; create a no-op smoke test under `src/test/cpp/it/d4np/memorypool/`.
 - [ ] 1.8 Set up CI workflow: build matrix, `clang-tidy`, ASan + UBSan, CTest — gate `master` on all green.
