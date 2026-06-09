@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file MD041 -->
 ## Summary
 <!-- One or two sentences: what changes and why it matters. -->
 
@@ -6,6 +7,7 @@
 
 ## Changes
 <!-- Bulleted list of meaningful changes (not a file list). -->
+
 -
 
 ## Design Patterns
@@ -14,9 +16,11 @@ List every pattern adopted, refined, or rejected in this PR, with a one-line rat
 and a link to the ADR. If none, write: "None — straightforward implementation."
 Pattern names must match docs/patterns/design-patterns.md.
 -->
+
 -
 
 ## Verification
+
 - [ ] Builds cleanly on the full toolchain matrix
 - [ ] Unit tests pass
 - [ ] `clang-tidy` clean on the diff
@@ -26,6 +30,7 @@ Pattern names must match docs/patterns/design-patterns.md.
 - [ ] N/A — docs-only or scaffolding PR
 
 ## Documentation Impact
+
 - [ ] `README.md` updated (if user-facing surface changed)
 - [ ] `ROADMAP.md` checkbox flipped
 - [ ] ADR added/updated (if a non-trivial design decision was made)

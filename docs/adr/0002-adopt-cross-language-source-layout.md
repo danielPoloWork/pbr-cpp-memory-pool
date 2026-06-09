@@ -37,7 +37,7 @@ Public/private header separation is handled *within* `memorypool/` (private code
 ## Alternatives Considered
 
 - **Conventional C++ `src/` + `include/` split.** Rejected because it has no analogue in Java/Python/Rust and would force per-language exceptions to the PBR layout convention. The public/private header concern it solves is real but can be handled by intra-component subfolders.
-- **Flat layout (`source files at repo root or under a single `src/<project>/`).** Rejected because it scales poorly past one component and conveys no organisational information.
+- **Flat layout** (source files at the repo root or under a single `src/<project>/`). Rejected because it scales poorly past one component and conveys no organisational information.
 - **CMake "modern" target layout (one folder per CMake target, headers next to sources).** Rejected as the *outer* convention because it is C++-only; we can still apply target-level organisation *inside* `memorypool/` once the codebase grows.
 - **Reverse-domain segment with a different organisational root** (e.g., `com/pbr/`, `org/d4np/`). Rejected to keep alignment with the user's existing `it.d4np` identity and Italian ccTLD; switching would also force a rename across every sibling project.
 

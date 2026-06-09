@@ -25,7 +25,7 @@ Status vocabulary:
 
 ## Adopted / Planned
 
-_No patterns have been adopted or planned yet. Entries will be added as Milestones 1+ proceed._
+*No patterns have been adopted or planned yet. Entries will be added as Milestones 1+ proceed.*
 
 | # | Pattern | Status | Problem it addresses | Code location | ADR / PR |
 |---|---------|--------|----------------------|---------------|----------|
@@ -33,7 +33,7 @@ _No patterns have been adopted or planned yet. Entries will be added as Mileston
 
 ## Rejected
 
-_No rejections have been recorded yet._
+*No rejections have been recorded yet.*
 
 | # | Pattern | Considered for | Rejected because | ADR / PR |
 |---|---------|----------------|------------------|----------|
@@ -41,7 +41,7 @@ _No rejections have been recorded yet._
 
 ## Superseded
 
-_No superseded patterns yet._
+*No superseded patterns yet.*
 
 | # | Pattern | Superseded by | When | ADR / PR |
 |---|---------|---------------|------|----------|

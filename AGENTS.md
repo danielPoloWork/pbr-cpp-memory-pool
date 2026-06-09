@@ -100,6 +100,7 @@ Format: `<type>/<short-kebab-description>`
 `type` is one of: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `chore`, `ci`.
 
 Examples:
+
 - `feat/free-list-alloc`
 - `fix/destroy-double-free`
 - `docs/adr-thread-safety`
@@ -121,6 +122,7 @@ Refs: #<issue> | ADR-0003>
 ```
 
 Rules:
+
 - One logical change per commit.
 - Subject in **imperative mood** ("add free list", not "added free list").
 - The body is for motivation, trade-offs, and links to ADRs — the diff already shows the *what*.
@@ -188,6 +190,7 @@ If a PR changes the public API, the build, or the user-facing workflow, it **mus
 Format: lightweight Michael Nygard ADRs, one Markdown file per decision in `docs/adr/`, numbered sequentially (`0001-…`, `0002-…`). Template at [`docs/adr/template.md`](docs/adr/template.md).
 
 Open an ADR when:
+
 - A choice affects the public API.
 - A choice affects ABI, alignment, or thread-safety guarantees.
 - Two reasonable options exist and the rationale is non-obvious from the code.
@@ -263,12 +266,15 @@ Shortcuts ("just disable the warning", "tests next PR", "docs follow-up") are no
 ## 11. Tool-Specific Notes
 
 ### 11.1 Claude Code
+
 `CLAUDE.md` defers here. Claude Code-specific config (subagents, hooks) lives under `.claude/`. Use the `TaskCreate` tool to track multi-step work in-session.
 
 ### 11.2 Gemini Antigravity
+
 `GEMINI.md` defers here. Tool-specific configuration lives under `.gemini/` if added.
 
 ### 11.3 ChatGPT Codex
+
 Reads `AGENTS.md` natively — no adapter file required.
 
 ---
