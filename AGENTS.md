@@ -235,9 +235,10 @@ Formal policy: see [ADR-0003](docs/adr/0003-design-patterns-policy.md). Project-
 
 ## 9. Coding Conventions (provisional — finalized in Milestone 1)
 
-These defaults apply until the formal style ADR lands:
+These defaults apply until the formal style ADR lands; the toolchain and platform contract is already formalised in [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md).
 
-- **Language standard:** C++17, no compiler extensions. The C interop layer stays ANSI C-compatible per spec §5.
+- **Language standard:** C++17, no compiler extensions. The C interop layer is verified against both C89 (ANSI C, spec §3.3) and C99 — see ADR-0005 §3.
+- **Tier-1 platforms (CI-gated):** Linux x86_64 (GCC ≥ 11, Clang ≥ 14), Windows x86_64 (MSVC ≥ 19.30), macOS arm64 (Apple Clang ≥ 14). Full matrix in ADR-0005 §1.
 - **Namespace:** `it::d4np::memorypool` (with nested sub-namespaces for components, e.g., `it::d4np::memorypool::detail`).
 - **Headers:** `<it/d4np/memorypool/memory_pool.h>` for the public C API, `<it/d4np/memorypool/memory_pool.hpp>` for the C++ wrapper.
 - **Naming:** `snake_case` for functions and variables, `PascalCase` for C++ types, `SCREAMING_SNAKE_CASE` for macros. No globals.
