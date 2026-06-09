@@ -37,5 +37,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0002   | [Adopt a Maven-style cross-language source layout](0002-adopt-cross-language-source-layout.md)       | Accepted |
 | 0003   | [Design Patterns Policy](0003-design-patterns-policy.md)                                             | Accepted |
 | 0004   | [Versioning and Release Policy](0004-versioning-and-release-policy.md)                               | Accepted |
+| 0005   | [Toolchain Matrix and Supported Platforms](0005-toolchain-matrix-and-supported-platforms.md)         | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

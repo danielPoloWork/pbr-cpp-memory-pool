@@ -31,7 +31,7 @@ Goal: establish the documentation, agent configuration, source-tree shape, and q
 
 Goal: a clean, reproducible build with empty stubs that compile, link, and run a no-op test under CTest — built against the Maven-style source tree.
 
-- [ ] 1.1 ADR: C++17 toolchain matrix (MSVC, GCC, Clang — Debug & Release) and supported platforms (spec §3.3).
+- [x] 1.1 ADR: C++17 toolchain matrix (MSVC, GCC, Clang — Debug & Release) and supported platforms (spec §3.3) — see [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md).
 - [ ] 1.2 Add `CMakeLists.txt` exposing `src/main/cpp` as the public include root; declare `pbr_memory_pool` library target with sources globbed under `src/main/cpp/it/d4np/memorypool/`.
 - [ ] 1.3 Add `CMakePresets.json` with `debug`, `release`, `asan`, `ubsan`, `tsan` presets.
 - [ ] 1.4 Add `.clang-format` (LLVM derivative, 4-space indent, 120-col soft limit) — ADR for style baseline.
@@ -133,7 +133,7 @@ Legend: ⏳ pending · 🚧 in progress · ✅ done · ❎ not applicable (with 
 | §2.4         | Optional, configurable thread safety; single-thread fast path preserved           | 4.1–4.5         | ⏳     |
 | §3.1         | No memory leaks — destroy releases everything to the OS                           | 2.3, 2.8        | ⏳     |
 | §3.2         | Minimal metadata overhead per block                                               | 2.1, 2.10       | ⏳     |
-| §3.3         | ANSI C / C++17 standard, no external dependencies                                 | 1.1, 1.10, 1.11 | ⏳     |
+| §3.3         | ANSI C / C++17 standard, no external dependencies                                 | 1.1, 1.10, 1.11 | 🚧     |
 | §4           | Free List implicit (free blocks store the next-free pointer)                      | 2.1             | ⏳     |
 | §5 — create  | `memory_pool_t* memory_pool_create(size_t block_size, size_t block_count)`        | 1.6, 2.3        | ⏳     |
 | §5 — alloc   | `void* memory_pool_alloc(memory_pool_t* pool)`                                    | 1.6, 2.4        | ⏳     |
