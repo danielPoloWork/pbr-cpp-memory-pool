@@ -69,29 +69,39 @@ TEST_CASE("C API symbols link and follow the Milestone 1 stub contract") {
     memory_pool_free(pool, block);
 }
 
-TEST_CASE("Pool RAII wrapper constructs, moves, and destroys cleanly") {
+TEST_CASE("Pool RAII wrapper: default construction and forwarded allocation") {
     // Construction wraps memory_pool_create; under the M1 stub the
     // resulting native handle is NULL but the wrapper itself must remain
     // valid (no crash on destruction).
-    Pool a(64, 16);
-    CHECK(a.native_handle() == nullptr);
+    Pool pool(64, 16);
+    CHECK(pool.native_handle() == nullptr);
 
     // allocate / deallocate forward to the stubs.
-    void* slot = a.allocate();
+    void* slot = pool.allocate();
     CHECK(slot == nullptr);
-    a.deallocate(slot);
+    pool.deallocate(slot);
+}
 
-    // Move construction leaves the source in a valid empty state — the
-    // M2 implementations will preserve this invariant, so we lock it in
-    // now.
-    Pool b(std::move(a));
-    CHECK(a.native_handle() == nullptr);
-    CHECK(b.native_handle() == nullptr);
+TEST_CASE("Pool RAII wrapper: move construction leaves the source empty") {
+    Pool source(64, 16);
+    Pool target(std::move(source));
 
-    // Move assignment must release the current handle (no-op with stubs)
-    // and adopt the source's.
-    Pool c(128, 8);
-    c = std::move(b);
-    CHECK(b.native_handle() == nullptr);
-    CHECK(c.native_handle() == nullptr);
+    // Invariant: a moved-from Pool must be in a valid empty state so its
+    // destructor can run without aliasing target's handle. We deliberately
+    // observe `source` after the move — clang-tidy's use-after-move check
+    // is suppressed on the assertion line below for that exact reason.
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
+    CHECK(source.native_handle() == nullptr);
+    CHECK(target.native_handle() == nullptr);
+}
+
+TEST_CASE("Pool RAII wrapper: move assignment releases the previous handle") {
+    Pool source(64, 16);
+    Pool target(128, 8);
+    target = std::move(source);
+
+    // Same intentional moved-from-state observation as the previous test.
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
+    CHECK(source.native_handle() == nullptr);
+    CHECK(target.native_handle() == nullptr);
 }

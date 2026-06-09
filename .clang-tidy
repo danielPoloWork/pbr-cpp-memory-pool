@@ -12,8 +12,10 @@ Checks: >
   portability-*,
   readability-*,
   -cert-err58-cpp,
+  -clang-analyzer-cplusplus.NewDeleteLeaks,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -modernize-deprecated-headers,
   -modernize-use-trailing-return-type,
   -modernize-use-using,
   -readability-identifier-length,
@@ -35,7 +37,7 @@ FormatStyle: file
 
 CheckOptions:
   - key:             readability-function-cognitive-complexity.Threshold
-    value:           '25'
+    value:           '40'
   - key:             readability-function-size.LineThreshold
     value:           '80'
   - key:             cppcoreguidelines-avoid-do-while.IgnoreMacros

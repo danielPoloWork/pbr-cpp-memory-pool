@@ -23,7 +23,7 @@ ReferenceAlignment: Pointer
 
 AlwaysBreakTemplateDeclarations: Yes
 BreakBeforeBraces: Attach
-AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AllowShortLambdasOnASingleLine: All
