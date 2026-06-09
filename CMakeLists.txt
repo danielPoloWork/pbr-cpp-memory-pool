@@ -116,7 +116,17 @@ if(PBR_MEMORY_POOL_BUILD_TESTS)
         GIT_TAG        v2.4.11
         GIT_SHALLOW    TRUE
     )
+    # CMake 4.x removed support for `cmake_minimum_required(VERSION < 3.5)`,
+    # and doctest v2.4.11's internal CMakeLists.txt declares a lower minimum.
+    # Without this override the configure fails on any runner with CMake >= 4
+    # ("Compatibility with CMake < 3.5 has been removed"). Scope the policy
+    # floor to doctest only — our own project keeps its modern policy
+    # posture by unsetting the variable immediately after. Remove this block
+    # when doctest publishes a release whose own CMakeLists.txt asks for
+    # >= 3.5.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     FetchContent_MakeAvailable(doctest)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
 
     add_subdirectory(src/test/cpp/it/d4np/memorypool)
 endif()
