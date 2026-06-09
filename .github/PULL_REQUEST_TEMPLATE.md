@@ -1,4 +1,11 @@
 <!-- markdownlint-disable-file MD041 -->
+<!--
+Heads-up: this PR body becomes the merge commit's extended description verbatim
+(repo is configured with merge_commit_message=PR_BODY and squash_merge_commit_message=PR_BODY).
+Before clicking "Merge", scrub any HTML comments and placeholder hints below
+so the resulting commit message reads cleanly in `git log`.
+-->
+
 ## Summary
 <!-- One or two sentences: what changes and why it matters. -->
 

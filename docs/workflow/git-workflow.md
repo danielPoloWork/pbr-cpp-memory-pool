@@ -116,9 +116,15 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 ## Changes
 - bulleted list of meaningful changes (not a file list)
 
+## Design Patterns
+- pattern adopted/refined/rejected, with a one-line rationale and link to the ADR
+- (or) None — straightforward implementation.
+
 ## Verification
-- [ ] Builds cleanly (`cmake --build`)
+- [ ] Builds cleanly on the full toolchain matrix
 - [ ] Unit tests pass
+- [ ] `clang-tidy` clean on the diff
+- [ ] ASan + UBSan clean (TSan when threading is involved)
 - [ ] Valgrind: `ERROR SUMMARY: 0 errors from 0 contexts`
 - [ ] Benchmark numbers attached (when perf-relevant)
 
@@ -126,8 +132,12 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - [ ] README.md updated (if user-facing surface changed)
 - [ ] ROADMAP.md checkbox flipped
 - [ ] ADR added/updated (if a non-trivial design decision was made)
+- [ ] docs/patterns/README.md updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec updated (if behavior diverges from `docs/specs/`)
+- [ ] CHANGELOG.md updated (once that file exists)
 ```
+
+The canonical, kept-in-sync version of this template lives in [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md) — GitHub auto-populates new PR bodies from that file.
 
 ### 4.3 Drafting flow
 
@@ -142,6 +152,24 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - Address review comments with new commits on the same branch. Avoid `--amend` on commits that are already pushed — create fresh commits instead.
 - Squash only when the user requests it.
 - After merge, the user deletes the branch. Agents do not delete branches.
+
+### 4.5 Merge commit message
+
+The repository is configured so that the **PR title and PR body become the merge commit's subject and extended description verbatim**, regardless of which merge strategy is used:
+
+| Setting                           | Value      | Effect                                                                                                  |
+|-----------------------------------|------------|---------------------------------------------------------------------------------------------------------|
+| `squash_merge_commit_title`       | `PR_TITLE` | When "Squash and merge" is picked, the squash commit subject = PR title.                                |
+| `squash_merge_commit_message`     | `PR_BODY`  | When "Squash and merge" is picked, the squash commit body = full PR description.                        |
+| `merge_commit_title`              | `PR_TITLE` | When "Create a merge commit" is picked, the merge commit subject = PR title (not `Merge pull request #N`). |
+| `merge_commit_message`            | `PR_BODY`  | When "Create a merge commit" is picked, the merge commit body = full PR description.                    |
+
+Practical consequences:
+
+- **Write the PR body as you want it to read in `git log`** — Summary, Motivation, Changes, Design Patterns, Verification ticks, Documentation Impact ticks. The body is the durable record of the change.
+- **Strip HTML comments and placeholder hints before merging.** GitHub's merge dialog lets you edit the pre-filled commit message; do that pass before clicking the green button so the resulting `git log` entry reads cleanly.
+- **Preferred strategy is squash-and-merge** for one PR = one commit in `master`. Use a regular merge commit only when a multi-commit branch is genuinely worth preserving as multiple commits (rare for this repo's scale).
+- **Rebase-and-merge is allowed but discouraged** — it bypasses the PR title/body and falls back to the individual commit messages on the branch, which defeats the structured-PR-body approach above.
 
 ## 5. Repository hygiene
 

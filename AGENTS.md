@@ -169,7 +169,9 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - [ ] CHANGELOG.md updated (once that file exists)
 ```
 
-See [`docs/workflow/git-workflow.md`](docs/workflow/git-workflow.md) for the full convention details and examples.
+**Merge commit semantics.** The repository is configured (`squash_merge_commit_message=PR_BODY`, `merge_commit_message=PR_BODY`, both titles set to `PR_TITLE`) so the **PR title and PR body become the merge commit's subject and extended description verbatim**. Write the PR body as you want it to read in `git log` forever — Summary, Motivation, Changes, Design Patterns, Verification, Documentation Impact. The maintainer scrubs HTML comments and placeholders at merge time. Squash-and-merge is the preferred strategy.
+
+See [`docs/workflow/git-workflow.md`](docs/workflow/git-workflow.md) for the full convention details and examples, including §4.5 on merge commit messages.
 
 ## 7. Documentation Maintenance
 
