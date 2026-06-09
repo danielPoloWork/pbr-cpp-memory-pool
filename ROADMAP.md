@@ -148,4 +148,23 @@ When a roadmap item flips from ⏳ to ✅, update the corresponding cell(s) in t
 
 ---
 
-**Status check:** As of 2026-06-09 — Milestone 0 complete; Milestone 1 ready to start.
+## Session Checkpoint
+
+> Living, dated note describing where the project stands at the end of the most recent work session. Updated at the close of each session so the next session resumes from a known point without re-reading the full PR history. Latest entry first; older entries are kept for trail.
+
+### 2026-06-10 — End of M1 build/CI session
+
+- **Done in this session** — Milestone 1 items 1.1 through 1.8, 1.10, 1.11, and 1.15 all closed and merged to `master`. The build matrix (Linux GCC/Clang × {Debug, Release, ASan, UBSan} + Windows MSVC × {Debug, Release} + macOS Apple Clang × {Debug, Release, ASan, UBSan}), the `clang-format` repo-wide check, the `clang-tidy` diff gate, the ANSI C / C99 verification jobs, and the zero-external-dependency audit are all green-gating `master` via `.github/workflows/ci.yml`.
+- **Library state on `master`** — `pbr_memory_pool` static lib + `pbr::memory_pool` alias, header skeletons for `memory_pool.h` / `memory_pool.hpp` / `version.hpp`, M1 stub implementations in `memory_pool.cpp` returning `NULL` / no-op so the library is linkable from day 1. CTest registers one test (`pool_smoke` under labels `smoke;milestone-1`) covering the three TEST_CASEs in `pool_smoke_test.cpp`.
+- **ADRs accepted to date** — 0001 (record ADRs), 0002 (cross-language layout), 0003 (design-patterns policy), 0004 (versioning & release policy), 0005 (toolchain matrix), 0006 (code style + clang-tidy baseline, amended twice during the CI fix-cycle), 0007 (doctest as test framework).
+- **Open issues / follow-ups carried into the next session** — none blocking. The current CI run on `master` is green; build-smoke.yml has been deleted (superseded by ci.yml).
+- **Resume the next session with**, in order:
+  1. **M1.9** — README quickstart verified on Linux + Windows. The commands in `README.md`'s *Build and test* section are already exercised end-to-end by the CI matrix; the PR confirms them in prose and (optionally) attaches a CI-captured output snippet.
+  2. **M1.12** — initial `CHANGELOG.md` at the repo root in Keep a Changelog 1.1.0 format, with an empty `Unreleased` section seeded with the changes accumulated through M1 so the first roll-up to `[0.1.0]` has content.
+  3. **M1.13** — `.github/workflows/release.yml` triggered on `v*` tag push: re-runs the matrix from `ci.yml`, builds per-platform binary artifacts, emits `SHA256SUMS`, and drafts a GitHub Release with `docs/releases/v0.1.0.md` as the body (the file itself is added in M1.14).
+  4. **M1.14** — close Milestone 1: bump `version.hpp` to `0.1.0` (already at that value, so this step is a no-op verification rather than a real bump), roll the `Unreleased` block of `CHANGELOG.md` into `[0.1.0] — YYYY-MM-DD`, add `docs/releases/v0.1.0.md`, open the release PR. The maintainer then tags `v0.1.0`, pushes, and clicks *Publish* on the draft GitHub Release that `release.yml` produces.
+- **State of the Spec Coverage Map** — §3.3 (ANSI C / C++17 / no external deps) is now ✅. All other spec rows remain at ⏳ or 🚧 — the actual algorithm rows flip to ✅ across Milestones 2–6 as the real implementations replace the M1 stubs.
+
+---
+
+**Status check:** As of 2026-06-10 — Milestone 0 complete; Milestone 1 nearly complete (items 1.1–1.8, 1.10, 1.11, 1.15 closed); items 1.9, 1.12, 1.13, 1.14 remain to close Milestone 1 and tag `v0.1.0`.
