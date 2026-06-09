@@ -265,17 +265,47 @@ Every PR must clear, at minimum:
 
 Shortcuts ("just disable the warning", "tests next PR", "docs follow-up") are not allowed. If something is genuinely out of scope, file it as a new `ROADMAP.md` item in the same PR.
 
-## 11. Tool-Specific Notes
+## 11. Versioning & Release
 
-### 11.1 Claude Code
+The project follows **Semantic Versioning 2.0.0**. Tags are annotated and have the form `v<MAJOR>.<MINOR>.<PATCH>` with optional `-alpha.N` / `-beta.N` / `-rc.N` suffixes.
+
+**Pre-1.0 (`0.MINOR.PATCH`)** — `MINOR` increments with each completed roadmap milestone (Milestone 1 → `v0.1.0`, …, Milestone 6 → `v0.6.0`); `PATCH` covers hotfixes between milestones. Breaking changes are allowed in a `MINOR` bump but must be recorded in `CHANGELOG.md`.
+
+**Post-1.0 (`MAJOR.MINOR.PATCH`)** — standard SemVer; `MAJOR` for source-/ABI-incompatible changes, `MINOR` for additions, `PATCH` for fixes.
+
+**`CHANGELOG.md`** — Keep a Changelog 1.1.0 format. Every PR that introduces user-visible change adds a line to the `Unreleased` section in the same PR; release PRs roll `Unreleased` into the new version block.
+
+**Release artifacts** — on each `v*` tag push, the `release` CI workflow re-runs the full test matrix, builds per-platform binaries (Linux x86_64, Windows x86_64, macOS arm64), produces `SHA256SUMS`, and creates a **draft** GitHub Release. The maintainer reviews and clicks *Publish*.
+
+**Package distribution** — Phase 1 (Milestone 7.4): CMake `find_package` config. Phase 2 (post-1.0 stretch, Milestones 7.8/7.9): vcpkg port and Conan recipe.
+
+**Agent-vs-human boundary for releases** mirrors §6.1:
+
+| Action                                                | Who      |
+|-------------------------------------------------------|----------|
+| Bump version constant in source                       | Agent    |
+| Update `CHANGELOG.md` (Unreleased → version)          | Agent    |
+| Draft GitHub Release notes (`docs/releases/v<X.Y.Z>.md`) | Agent  |
+| Open the release PR                                   | **Human**|
+| Merge the release PR                                  | **Human**|
+| Create the annotated git tag                          | **Human**|
+| Push the tag                                          | **Human**|
+| Publish the GitHub Release                            | **Human**|
+| Build & attach release artifacts                      | CI       |
+
+Agents **never** push tags, **never** publish releases. Full policy: [ADR-0004](docs/adr/0004-versioning-and-release-policy.md). Operational guide: [`docs/workflow/release.md`](docs/workflow/release.md).
+
+## 12. Tool-Specific Notes
+
+### 12.1 Claude Code
 
 `CLAUDE.md` defers here. Claude Code-specific config (subagents, hooks) lives under `.claude/`. Use the `TaskCreate` tool to track multi-step work in-session.
 
-### 11.2 Gemini Antigravity
+### 12.2 Gemini Antigravity
 
 `GEMINI.md` defers here. Tool-specific configuration lives under `.gemini/` if added.
 
-### 11.3 ChatGPT Codex
+### 12.3 ChatGPT Codex
 
 Reads `AGENTS.md` natively — no adapter file required.
 
