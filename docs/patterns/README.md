@@ -1,0 +1,126 @@
+# Design Patterns Catalogue
+
+Living index of every design pattern that has been **adopted**, is **planned**, was **considered and rejected**, or is **under evaluation** for `pbr-cpp-memory-pool`. The catalogue is mandatory reading whenever a PR introduces or removes a pattern, and it is updated in the same PR.
+
+- **Policy** — [ADR-0003 — Design Patterns Policy](../adr/0003-design-patterns-policy.md).
+- **Rules summary** — [`AGENTS.md`](../../AGENTS.md) §8.
+- **Canonical taxonomy** — [`design-patterns.md`](design-patterns.md). The full enterprise pattern list across the eight categories (Creational, Structural, Behavioral, EIP, Architectural, Concurrency, Cloud/Distributed, Data & Persistence). All pattern names used in this catalogue, in ADRs, and in commit messages must match the spelling there.
+
+## How to use this catalogue
+
+- **Adding a pattern.** When a PR adopts a pattern, add a row to *Adopted* (or *Planned* if the implementation is staged across milestones), with the ADR link and the code location.
+- **Refining a pattern.** When an existing pattern's implementation shifts substantially, update the row and link the new ADR if one is introduced.
+- **Rejecting a pattern.** When a pattern was a credible candidate for a given problem and was ruled out, add it to *Rejected* with the reason. Do not silently drop it — the rejection has didactic value.
+- **Removing a pattern.** When a previously adopted pattern is supplanted, move its row to *Superseded*, link the superseding ADR, and keep the historical entry.
+
+Status vocabulary:
+
+| Status      | Meaning                                                                                    |
+|-------------|--------------------------------------------------------------------------------------------|
+| Planned     | Adoption decided in an ADR; implementation not yet landed.                                 |
+| Implemented | Pattern is present in `src/main/cpp/...`; the linked ADR is `Accepted`.                    |
+| Considered  | Pattern was evaluated for a specific problem; outcome captured in the row.                 |
+| Rejected    | Considered and ruled out — reason captured.                                                |
+| Superseded  | Was implemented; replaced by a different approach in a later PR.                           |
+
+## Adopted / Planned
+
+*No patterns have been adopted or planned yet. Entries will be added as Milestones 1+ proceed.*
+
+| # | Pattern | Status | Problem it addresses | Code location | ADR / PR |
+|---|---------|--------|----------------------|---------------|----------|
+| — | —       | —      | —                    | —             | —        |
+
+## Rejected
+
+*No rejections have been recorded yet.*
+
+| # | Pattern | Considered for | Rejected because | ADR / PR |
+|---|---------|----------------|------------------|----------|
+| — | —       | —              | —                | —        |
+
+## Superseded
+
+*No superseded patterns yet.*
+
+| # | Pattern | Superseded by | When | ADR / PR |
+|---|---------|---------------|------|----------|
+| — | —       | —             | —    | —        |
+
+## Candidate patterns to consider
+
+The taxonomy in [`design-patterns.md`](design-patterns.md) lists every pattern that is in scope for the PBR series as a whole. This section narrows that universe to **patterns plausibly applicable to *this* artifact** — a fixed-block memory-pool library. Each remains a candidate until either adopted or explicitly rejected in a future ADR; the list is **not** a commitment to apply them.
+
+Patterns are grouped by the taxonomy category they belong to in `design-patterns.md`. Categories not listed here (EIP, Architectural application styles, Cloud & Distributed, Data & Persistence) are treated as **out of scope** for this artifact — see *Out-of-scope categories* below.
+
+### Creational
+
+| Pattern             | Possible application                                                                         |
+|---------------------|----------------------------------------------------------------------------------------------|
+| Object Pool         | The project as a whole *is* this pattern.                                                    |
+| Factory Method      | Construct configured pool variants (thread-safe vs. single-threaded, growable vs. fixed).    |
+| Abstract Factory    | Coherent families of variants (e.g. a debug family pairing instrumented pool + tracer).      |
+| Builder             | Fluent configuration: `PoolBuilder().with_block_size(64).with_count(1024).build()`.          |
+| Prototype           | Clone an existing pool configuration (not its state) to spin sister pools.                   |
+| Lazy Initialization | Deferred backing-storage allocation until the first `alloc()`.                               |
+| Singleton           | Only if a defensibly-scoped default pool emerges. Default stance: **avoid**.                 |
+| Multiton            | Per-block-size registry of named pools. Plausible only if a registry use-case emerges.       |
+| Dependency Injection| Inject the pool into consumers via the STL allocator adapter (overlaps with Adapter).        |
+
+### Structural
+
+| Pattern             | Possible application                                                                         |
+|---------------------|----------------------------------------------------------------------------------------------|
+| Adapter             | STL-compatible allocator over the underlying pool.                                           |
+| Bridge              | Decouple the public `Pool` abstraction from interchangeable backend implementations.         |
+| Composite           | Linked-chunk implementation for the dynamic-growth variant.                                  |
+| Decorator           | Logging / tracing / statistics wrapper around a pool instance.                               |
+| Facade              | High-level convenience entry points over the granular C API.                                 |
+| Flyweight           | Already implicit in block reuse; possible explicit role for shared per-pool metadata.        |
+| Proxy               | Smart-handle types over raw block pointers for bounds-checked debug builds.                  |
+| Private Class Data  | Encapsulate pool internals — overlaps strongly with **Pimpl** (see *Idioms*).                |
+
+### Behavioral
+
+| Pattern               | Possible application                                                                       |
+|-----------------------|--------------------------------------------------------------------------------------------|
+| Strategy              | Pluggable thread-safety policy (no-lock / mutex / lock-free).                              |
+| Template Method       | Allocation algorithm skeleton with hook points for the Strategy.                           |
+| Iterator              | Read-only walk of the free list for diagnostics and tests.                                 |
+| State                 | Explicit pool states: empty / partial / exhausted; transitions drive observer events.      |
+| Observer              | Pool-event notifications (exhaustion, growth, destruction).                                |
+| Memento               | Snapshot a pool's free-list state for deterministic test scenarios.                        |
+| Null Object           | No-op pool for tests that need to exercise the API without allocating.                     |
+| Command               | Defer alloc/free operations for batched or replayable execution (niche; debug tooling).    |
+| Chain of Responsibility | Fallback chain across multiple pools of different block sizes.                           |
+| Specification         | Declarative predicate over candidate blocks for diagnostics queries.                       |
+
+### Concurrency
+
+| Pattern                | Possible application                                                                      |
+|------------------------|-------------------------------------------------------------------------------------------|
+| Monitor Object         | Default lock-based thread-safe Strategy implementation.                                   |
+| Immutable Object       | Configuration objects (block size, count, policy flags) are immutable after construction. |
+| Guarded Suspension     | Block-on-exhaustion variant (`alloc_blocking`) if/when a waiting API is added.            |
+| Active Object          | Async pool service; unlikely for an allocator but kept as a consideration.                |
+| Thread Pool            | Not the pool's concern, but a likely *consumer* — relevant for benchmark design.          |
+
+### C++-idiomatic complements (not in `design-patterns.md` but reflexively expected)
+
+These are not classical GoF patterns but are idiomatic in modern C++ and effectively required:
+
+- **RAII** — every owning C++ type manages its resource lifetime through its destructor.
+- **Pimpl** — opaque pointer to hide the C++ class layout for ABI insulation; overlaps with *Private Class Data*.
+
+When a candidate moves to *Planned* or *Implemented*, it gets its own ADR and its row migrates to the *Adopted / Planned* table above.
+
+## Out-of-scope categories
+
+The following categories from [`design-patterns.md`](design-patterns.md) are pre-classified as **not applicable** to this artifact. They are recorded here so the policy of explicit rejection is honoured without filling the *Rejected* table with N/A noise. If a surprising fit for any of these emerges in a future PR, file an ADR and migrate the relevant pattern out of this section.
+
+| Category                                        | Reason                                                                                       |
+|-------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Enterprise Integration Patterns (EIP)           | This is a library, not a messaging system.                                                   |
+| Architectural application styles (MVC/MVP/MVVM, Hexagonal, Clean, DDD, …) | This is a building block, not an application. Consumers may apply these around it. |
+| Cloud & Distributed Systems Patterns            | A memory allocator is process-local by definition.                                            |
+| Data & Persistence Patterns                     | No persistence layer; pool state is volatile by design.                                       |

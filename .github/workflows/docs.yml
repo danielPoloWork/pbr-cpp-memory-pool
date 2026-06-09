@@ -1,0 +1,90 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [master]
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  markdownlint:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules/**
+
+  linkcheck:
+    name: Check internal links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lychee — offline (internal links only)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress --include-fragments './**/*.md'
+          fail: true
+
+  adr-sanity:
+    name: ADR numbering & index sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sequential numbering and index coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          adrs=(docs/adr/[0-9][0-9][0-9][0-9]-*.md)
+          if [[ ${#adrs[@]} -eq 0 ]]; then
+            echo "::warning::No ADRs found — skipping sanity check."
+            exit 0
+          fi
+          IFS=$'\n' adrs=($(sort <<<"${adrs[*]}")); unset IFS
+
+          # 1. Sequential numbering: 0001, 0002, ... with no gaps or duplicates.
+          expected=1
+          for adr in "${adrs[@]}"; do
+            num=$(basename "$adr" | cut -c1-4)
+            printf -v want "%04d" "$expected"
+            if [[ "$num" != "$want" ]]; then
+              echo "::error file=$adr::ADR numbering gap or duplicate — expected $want, found $num"
+              exit 1
+            fi
+            expected=$((expected + 1))
+          done
+          echo "ADR sequential numbering OK ($((expected - 1)) ADRs)."
+
+          # 2. Every ADR file must appear in the index README.
+          index="docs/adr/README.md"
+          if [[ ! -f "$index" ]]; then
+            echo "::error::Missing $index"
+            exit 1
+          fi
+          missing=0
+          for adr in "${adrs[@]}"; do
+            slug=$(basename "$adr" .md)
+            if ! grep -q -- "$slug" "$index"; then
+              echo "::error file=$adr::ADR '$slug' is not listed in $index"
+              missing=$((missing + 1))
+            fi
+          done
+          if [[ $missing -gt 0 ]]; then
+            exit 1
+          fi
+          echo "All ADRs are listed in $index."
