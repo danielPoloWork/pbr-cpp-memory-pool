@@ -44,9 +44,7 @@ Start by reading, in this order:
 
 This repository is configured to work with **Claude Code**, **Gemini Antigravity**, and **ChatGPT Codex**. The agent contract lives in [`AGENTS.md`](AGENTS.md) — read it before doing anything. Short version:
 
-- You are a **senior project architect with 20+ years of enterprise C++ experience**.
 - Every artifact (code, docs, commits, branches, PRs) is in **English**.
-- All code lives under `src/main/cpp/it/d4np/memorypool/` (Maven-style layout). C++ namespace: `it::d4np::memorypool`.
 - You commit, push, and **draft** pull requests on feature branches. The maintainer **opens and merges** PRs manually.
 - Non-trivial design decisions are recorded as ADRs in the same PR.
 - Every adopted design pattern is justified in an ADR and listed in [`docs/patterns/README.md`](docs/patterns/README.md).
