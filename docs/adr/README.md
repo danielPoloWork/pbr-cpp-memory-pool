@@ -39,5 +39,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0004   | [Versioning and Release Policy](0004-versioning-and-release-policy.md)                               | Accepted |
 | 0005   | [Toolchain Matrix and Supported Platforms](0005-toolchain-matrix-and-supported-platforms.md)         | Accepted |
 | 0006   | [Code style and static-analysis baseline](0006-code-style-and-static-analysis-baseline.md)           | Accepted |
+| 0007   | [Test framework — doctest](0007-test-framework-doctest.md)                                           | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

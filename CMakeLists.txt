@@ -104,7 +104,31 @@ option(PBR_MEMORY_POOL_BUILD_TESTS
     "Build the test targets under src/test/cpp/" OFF)
 if(PBR_MEMORY_POOL_BUILD_TESTS)
     enable_testing()
-    # add_subdirectory(src/test/cpp/it/d4np/memorypool)   # enabled in Milestone 1.7
+
+    # doctest is our test framework (ADR-0007). Pinned to a stable tag,
+    # cloned shallow at configure time. The first configure on a fresh
+    # build tree pays a one-time network cost (a few seconds); subsequent
+    # configures hit the cache under build/_deps/.
+    include(FetchContent)
+    FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest.git
+        GIT_TAG        v2.4.11
+        GIT_SHALLOW    TRUE
+    )
+    # CMake 4.x removed support for `cmake_minimum_required(VERSION < 3.5)`,
+    # and doctest v2.4.11's internal CMakeLists.txt declares a lower minimum.
+    # Without this override the configure fails on any runner with CMake >= 4
+    # ("Compatibility with CMake < 3.5 has been removed"). Scope the policy
+    # floor to doctest only — our own project keeps its modern policy
+    # posture by unsetting the variable immediately after. Remove this block
+    # when doctest publishes a release whose own CMakeLists.txt asks for
+    # >= 3.5.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+    FetchContent_MakeAvailable(doctest)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
+
+    add_subdirectory(src/test/cpp/it/d4np/memorypool)
 endif()
 
 option(PBR_MEMORY_POOL_BUILD_BENCHMARKS
