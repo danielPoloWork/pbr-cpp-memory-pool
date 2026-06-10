@@ -10,11 +10,12 @@
  *
  * Layers an owning, exception-safe handle on top of the C API declared in
  * `<it/d4np/memorypool/memory_pool.h>`. The wrapper is the **RAII** pattern
- * adopted in Milestone 2.2 (ADR pending); function bodies arrive together
- * with the C implementation in Milestone 2. During Milestone 1 the class is
- * declared but not defined, so linking against any member function produces
- * an unresolved-symbol error — intentional, so consumers cannot accidentally
- * rely on a not-yet-implemented surface.
+ * adopted in ADR-0010; bodies live alongside the C implementation in
+ * `memory_pool.cpp` and forward to the four spec §5 functions. The
+ * wrapper is deliberately minimal — ADR-0010 §2 ("the deliberately small
+ * surface") — additional ergonomics (typed allocation,
+ * `std::allocator`-aware adapter, diagnostic iterators) arrive in
+ * Milestone 3.
  */
 
 #include <it/d4np/memorypool/memory_pool.h>
@@ -31,8 +32,17 @@ namespace it::d4np::memorypool {
  * ::deallocate to match `std::allocator`-style naming, with the same
  * semantics as the underlying C calls.
  *
+ * Layout is exactly `sizeof(void*)` — a single `memory_pool_t*` data
+ * member; the C handle is the Pimpl (ADR-0010). Copy operations are
+ * deleted (the pool handle has unique ownership of its backing buffer;
+ * a copy would double-free at destruction). Move operations leave the
+ * source in a valid empty state (`handle_ == nullptr`) so its destructor
+ * is a safe no-op.
+ *
  * The exception policy at the C/C++ boundary (whether to translate `NULL`
- * returns into `std::bad_alloc`) is fixed in Milestone 3.1.
+ * returns from `memory_pool_create` into `std::bad_alloc`) is deferred to
+ * Milestone 3.1; until then a failed `memory_pool_create` leaves the
+ * wrapper's handle null and ::allocate returns `nullptr`.
  */
 class Pool {
 public:
