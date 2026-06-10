@@ -47,6 +47,22 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `Implemented` once M2.3 lands the bodies). Five rejected alternatives
   are recorded.
 
+### Changed (M2.5)
+
+- `memory_pool.hpp` Doxygen polish: the file-level brief drops the
+  *"Milestone 2.2 (ADR pending)"* qualifier and the *"function bodies
+  arrive together with the C implementation in Milestone 2"* paragraph,
+  both now stale. The class-level Doxygen on `Pool` gains a one-paragraph
+  layout note documenting the `sizeof(Pool) == sizeof(void*)` property,
+  the single `memory_pool_t* handle_` member, the copy-deleted /
+  move-only contract, and the `handle_ == nullptr` valid-empty-state
+  invariant ADR-0010 §2 commits to. No code change — the wrapper's
+  surface is unchanged.
+- ROADMAP §2.5 flips to `[x]` formally acknowledging that the C++
+  Pool wrapper is complete; bodies landed in M2.3 (ctor / dtor /
+  moves / forwarders) and M2.4 (allocate / deallocate now exercise
+  the real free list).
+
 ### Changed (M2.4)
 
 - `memory_pool_alloc` and `memory_pool_free` are real O(1) bodies
