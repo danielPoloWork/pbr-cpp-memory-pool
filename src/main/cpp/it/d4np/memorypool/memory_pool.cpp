@@ -269,7 +269,7 @@ std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) 
     if (pool.handle_ == nullptr) {
         return std::nullopt;
     }
-    return std::optional<Pool>(std::move(pool));
+    return {std::move(pool)};
 }
 
 PoolBuilder& PoolBuilder::with_block_size(std::size_t block_size) noexcept {

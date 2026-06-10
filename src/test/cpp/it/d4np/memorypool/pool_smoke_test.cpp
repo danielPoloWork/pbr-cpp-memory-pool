@@ -290,12 +290,20 @@ TEST_CASE("Pool::make returns an engaged optional on valid arguments") {
     // ADR-0011 §1 — successful construction yields std::optional<Pool>
     // engaged with the moved-in Pool. The wrapped Pool's native_handle()
     // is non-null and allocate() returns a real block.
+    //
+    // We use `.value().X` rather than `opt->X` because clang-tidy's
+    // bugprone-unchecked-optional-access does not recognise doctest's
+    // REQUIRE(opt.has_value()) as a control-flow check (REQUIRE is a
+    // do-while macro that throws on failure but is not `[[noreturn]]`
+    // from the static analyser's perspective). `.value()` throws
+    // std::bad_optional_access on an empty optional, which the check
+    // considers safe.
     std::optional<Pool> pool = Pool::make(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
     REQUIRE(pool.has_value());
-    CHECK(pool->native_handle() != nullptr);
-    void* const block = pool->allocate();
+    CHECK(pool.value().native_handle() != nullptr);
+    void* const block = pool.value().allocate();
     CHECK(block != nullptr);
-    pool->deallocate(block);
+    pool.value().deallocate(block);
 }
 
 TEST_CASE("Pool::make returns nullopt on a misaligned block_size") {
@@ -315,12 +323,19 @@ TEST_CASE("Pool::make returns nullopt on block_count == 0") {
 TEST_CASE("PoolBuilder builds a configured Pool fluently") {
     // ADR-0011 §2 — happy path. with_* setters return *this; build()
     // delegates to Pool::make and returns the optional.
-    std::optional<Pool> pool = PoolBuilder{}
-                                   .with_block_size(SAFE_BLOCK_SIZE)
-                                   .with_block_count(SAFE_BLOCK_COUNT)
-                                   .build();
+    //
+    // The single-line form of the fluent chain
+    //   `std::optional<Pool> pool = PoolBuilder{}.with_*(...)*N.build();`
+    // hits 121 columns — one over the .clang-format 120-col soft limit
+    // — so the natural clang-format wrap is a break after the `=`
+    // assignment operator. The continuation lands at column 9
+    // (4 base indent + 4 ContinuationIndentWidth) and stays on a single
+    // line, sidestepping the manual deep-indent column-alignment
+    // anti-pattern recorded in the agent's memory.
+    std::optional<Pool> pool =
+        PoolBuilder{}.with_block_size(SAFE_BLOCK_SIZE).with_block_count(SAFE_BLOCK_COUNT).build();
     REQUIRE(pool.has_value());
-    CHECK(pool->native_handle() != nullptr);
+    CHECK(pool.value().native_handle() != nullptr);
 }
 
 TEST_CASE("PoolBuilder::build returns nullopt on a default-constructed builder") {
@@ -348,5 +363,5 @@ TEST_CASE("PoolBuilder::build is const — same builder produces multiple pools"
     REQUIRE(first.has_value());
     REQUIRE(second.has_value());
     // Independently-owned: the two pools have distinct native handles.
-    CHECK(first->native_handle() != second->native_handle());
+    CHECK(first.value().native_handle() != second.value().native_handle());
 }
