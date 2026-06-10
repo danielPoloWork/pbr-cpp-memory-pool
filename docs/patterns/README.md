@@ -25,11 +25,10 @@ Status vocabulary:
 
 ## Adopted / Planned
 
-*No patterns have been adopted or planned yet. Entries will be added as Milestones 1+ proceed.*
-
-| # | Pattern | Status | Problem it addresses | Code location | ADR / PR |
-|---|---------|--------|----------------------|---------------|----------|
-| — | —       | —      | —                    | —             | —        |
+| # | Pattern | Status  | Problem it addresses                                                                                          | Code location                                                                                                                                                                  | ADR / PR |
+|---|---------|---------|---------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| 1 | RAII    | Planned | The C++ wrapper owns the C handle's lifetime: ctor calls `memory_pool_create`, dtor calls `memory_pool_destroy`; copy deleted, move-only. Makes a forgotten `_destroy` impossible from C++. | Declaration: [`memory_pool.hpp`](../../src/main/cpp/it/d4np/memorypool/memory_pool.hpp). Forwarder bodies already present in [`memory_pool.cpp`](../../src/main/cpp/it/d4np/memorypool/memory_pool.cpp); semantics become meaningful when the C functions stop being M1 stubs in M2.3 / M2.4. | [ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) |
+| 2 | Pimpl   | Planned | `struct memory_pool`'s layout is opaque to every consumer (C and C++): the public C header sees only a forward declaration, the C++ wrapper holds the resulting `memory_pool_t*` as its single state, the struct is defined exclusively in the implementation file. C-style Pimpl; the C handle *is* the Impl. | Forward declaration: [`memory_pool.h`](../../src/main/cpp/it/d4np/memorypool/memory_pool.h). Full struct definition lands in [`memory_pool.cpp`](../../src/main/cpp/it/d4np/memorypool/memory_pool.cpp) at M2.3 (replacing the M1 stubs). | [ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) |
 
 ## Rejected
 

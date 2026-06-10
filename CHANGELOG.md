@@ -33,6 +33,18 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `memory_pool_alloc`; and the `struct memory_pool` field list
   (`backing` / `head` / `block_size` / `block_count` / `alignment`)
   required by the M2.7 foreign-pointer range check.
+- [ADR-0010](docs/adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md)
+  formalises the two patterns that frame the C++ surface and updates the
+  patterns catalogue. **RAII** for `it::d4np::memorypool::Pool` — move-only
+  owner of `memory_pool_t*` (copy deleted, single `handle_` data member,
+  `sizeof(Pool) == sizeof(void*)`); ctor calls `memory_pool_create`, dtor
+  calls `memory_pool_destroy`, both safe on the `NULL` handle from
+  ADR-0009's failure semantics. **Pimpl** across the C/C++ boundary —
+  `struct memory_pool` forward-declared in `memory_pool.h`, defined
+  exclusively in `memory_pool.cpp` (the C handle is the Impl; no separate
+  `Pool::Impl` struct). [`docs/patterns/README.md`](docs/patterns/README.md)
+  gains the two adopted rows (status `Planned` until M2.3 lands the
+  bodies). Five rejected alternatives are recorded.
 
 ### Changed
 
