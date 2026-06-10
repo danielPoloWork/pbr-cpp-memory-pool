@@ -47,6 +47,37 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `Implemented` once M2.3 lands the bodies). Five rejected alternatives
   are recorded.
 
+### Changed (M2.4)
+
+- `memory_pool_alloc` and `memory_pool_free` are real O(1) bodies
+  replacing the Milestone 1 stubs. Alloc is a constant-time pop of the
+  implicit free-list head, advancing `pool->head_` to the next-link
+  stored in the popped slot's first `sizeof(void*)` bytes; free is the
+  symmetric constant-time push, storing the current head in the
+  returned block's first bytes and making the block the new head.
+  Both use the canonical `*static_cast<void**>(slot) = ptr` write
+  idiom (no `std::memcpy`, no multi-level pointer conversion). Alloc
+  returns `NULL` on a null pool or an exhausted pool (fixed-mode
+  semantics per ADR-0009 §7; dynamic growth on exhaustion lands in
+  Milestone 5). Free is a no-op on null pool or null block; the
+  foreign-pointer / out-of-range policy stays M2.7's concern and is
+  documented as UB in the public Doxygen.
+- `pool_smoke_test.cpp` rewrites the "alloc / free still M1 stubs"
+  TEST_CASE into six round-trip cases: happy-path alloc + free,
+  alloc-on-null-pool returns NULL, free no-op on null pool and null
+  block, exhaustion + re-allocation proving the LIFO push/pop, and a
+  distinct-and-aligned guarantee that verifies the ADR-0009 §5
+  alignment contract at runtime (with a narrow NOLINT for the
+  `reinterpret_cast<uintptr_t>` used in the alignment check — the
+  only portable C++17 path for that assertion). The Pool RAII wrapper
+  picks up an `allocate / deallocate` LIFO round-trip case that now
+  observes real allocation rather than the M1 nullptr forwarder.
+- Spec Coverage Map: §2.3 (O(1) deallocation), §5 — alloc, and
+  §5 — free flip from ⏳/🚧 to ✅. §2.2 (O(1) allocation contract)
+  stays 🚧 — the C-side `NULL`-on-exhaustion is in, but the
+  `std::bad_alloc` translation on the C++ side and the dynamic-growth
+  branch are still pending (M3.1 and Milestone 5 respectively).
+
 ### Changed (M2.3)
 
 - `memory_pool_create` and `memory_pool_destroy` are real C++17 bodies

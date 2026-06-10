@@ -186,13 +186,42 @@ void memory_pool_destroy(memory_pool_t* pool) {
     delete pool;
 }
 
-void* memory_pool_alloc(memory_pool_t* /*pool*/) {
-    // M2.4 will pop the head of the implicit free list in O(1).
-    return nullptr;
+void* memory_pool_alloc(memory_pool_t* pool) {
+    // Pop the head of the implicit free list in O(1) (spec §2.2). NULL on
+    // either a null pool or an exhausted pool — fixed-size mode per
+    // ADR-0009 §7; dynamic growth on exhaustion arrives in Milestone 5.
+    if (pool == nullptr) {
+        return nullptr;
+    }
+    if (pool->head_ == nullptr) {
+        return nullptr;
+    }
+    void* const block = pool->head_;
+    // Advance the head to the next-link stored in this slot. The block
+    // returned to the caller still carries the link value in its first
+    // sizeof(void*) bytes; that is acceptable because the slot is now
+    // user-owned and the contents are documented as indeterminate.
+    pool->head_ = *static_cast<void**>(block);
+    return block;
 }
 
-void memory_pool_free(memory_pool_t* /*pool*/, void* /*block*/) {
-    // M2.4 will push the block back onto the implicit free list in O(1).
+void memory_pool_free(memory_pool_t* pool, void* block) {
+    // Push the block onto the head of the implicit free list in O(1)
+    // (spec §2.3). Null pool or null block is a no-op (ADR-0009 §7);
+    // the foreign-pointer / out-of-range policy is M2.7's concern and
+    // is not enforced here — passing a block not previously returned
+    // by memory_pool_alloc on the same pool is documented UB.
+    if (pool == nullptr) {
+        return;
+    }
+    if (block == nullptr) {
+        return;
+    }
+    // Store the current head into the block's first sizeof(void*) bytes,
+    // then make this block the new head. Mirrors the
+    // *static_cast<void**>(slot) = ptr idiom used in initialize_free_list.
+    *static_cast<void**>(block) = pool->head_;
+    pool->head_ = block;
 }
 
 }  // extern "C"
