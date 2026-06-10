@@ -78,6 +78,18 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 - Docs-only CI workflow `.github/workflows/docs.yml` running markdownlint,
   internal-link integrity via Lychee (offline mode), and ADR-numbering &
   index-coverage sanity.
+- Release CI workflow `.github/workflows/release.yml` triggered on `v*` tag
+  push (and `workflow_dispatch` for re-runs). Re-runs the full PR-gating
+  matrix via `workflow_call` into `ci.yml`, builds per-platform binary
+  artifacts (`pbr-memory-pool-<version>-<platform>.tar.gz` for Linux x86_64,
+  Windows x86_64, and macOS arm64 — static library + public headers +
+  LICENSE + README + CHANGELOG), emits a single `SHA256SUMS`, and creates a
+  *draft* GitHub Release whose body is `docs/releases/<tag>.md`. Pre-release
+  suffixes (`-alpha.N` / `-beta.N` / `-rc.N`) are auto-detected and
+  propagated. The workflow never auto-publishes — the maintainer reviews
+  the draft and clicks *Publish* (ADR-0004 §6). `ci.yml` gains a
+  `workflow_call:` trigger so the release workflow can invoke it as a
+  reusable workflow.
 
 ### Changed
 

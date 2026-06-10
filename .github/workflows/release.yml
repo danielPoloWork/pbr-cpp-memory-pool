@@ -1,0 +1,291 @@
+name: release
+
+# Release workflow for pbr-cpp-memory-pool — implements the contract in
+# ADR-0004 (Versioning & Release Policy) and the operational guide in
+# docs/workflow/release.md.
+#
+# Triggered on annotated `v*` tag push: the maintainer-only ritual that closes
+# a milestone. The flow is, in order:
+#
+#   1. `verify` — re-runs the full PR-gating matrix from ci.yml against the
+#      tagged commit. Defense-in-depth: even though the commit passed CI on
+#      the way into master, the release build is the canonical one and must
+#      be reproducible from a cold runner (ADR-0004 §4 item 1).
+#
+#   2. `build-artifacts` — builds the library on Linux x86_64 / Windows x86_64
+#      / macOS arm64 and packages each as
+#      `pbr-memory-pool-<version>-<platform>.tar.gz` (ADR-0004 §4 item 2-3).
+#      In Milestone 1 the library is STATIC only (CMakeLists.txt declares
+#      add_library(... STATIC)); shared libraries become available when
+#      BUILD_SHARED_LIBS lands. The workflow "degrades gracefully" by
+#      shipping whatever CMake produces (per ADR-0004 §4 item 2 — "for
+#      earlier milestone tags the workflow degrades gracefully").
+#
+#   3. `release` — gathers every per-platform artifact, emits a single
+#      `SHA256SUMS` file, and creates a *draft* GitHub Release whose body is
+#      `docs/releases/v<X.Y.Z>.md` (added by the closing milestone PR per
+#      docs/workflow/release.md §4). The workflow never auto-publishes — the
+#      maintainer reviews the draft and clicks *Publish* (ADR-0004 §6).
+#
+# Pre-release tags (`-alpha.N`, `-beta.N`, `-rc.N` per ADR-0004 §2) are
+# detected from the version string and the GitHub Release is automatically
+# marked as a pre-release.
+#
+# `workflow_dispatch` is exposed for two re-build scenarios:
+#   - the artifact build failed transiently after a successful tag push, or
+#   - the maintainer deleted a draft and wants to recreate it without
+#     re-tagging.
+# In dispatch mode the `verify` job is skipped — the assumption is that the
+# user-specified tag has already been verified on its initial push. The
+# build-artifacts and release jobs still run end-to-end.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build the release for, e.g. v0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # required to create GitHub Releases and attach assets
+  actions: read     # required for the workflow_call invocation of ci.yml
+
+# Serialise concurrent runs for the same tag — a tag should never have two
+# release runs racing each other for the artifact upload.
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Re-run the full PR-gating matrix against the tagged commit. ADR-0004 §4
+  # mandates this defense-in-depth even though the commit already passed CI
+  # on its way into master.
+  #
+  # Skipped on workflow_dispatch (see the file header) — see the dependent
+  # job's `if:` for the result handling.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: verify / re-run CI matrix
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+
+  # ---------------------------------------------------------------------------
+  # Per-platform binary artifact build. Each cell installs the headers and
+  # the built static archive into a staging tree, then packages it as a
+  # tar.gz (ADR-0004 §4 item 3 — tar.gz on every platform for uniformity).
+  # ---------------------------------------------------------------------------
+  build-artifacts:
+    name: artifacts / ${{ matrix.platform }}
+    needs: verify
+    # Allow build-artifacts to run when verify was skipped (workflow_dispatch);
+    # fail only when verify actually failed or was cancelled.
+    if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,  platform: linux-x86_64,   compiler: gcc }
+          - { os: windows-2022,  platform: windows-x86_64, compiler: msvc }
+          - { os: macos-14,      platform: macos-arm64,    compiler: apple-clang }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Resolve the tag to build (push or workflow_dispatch)
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          # Strip the leading 'v' to get the bare version used in filenames.
+          version="${tag#v}"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building artifact for tag=$tag (version=$version) on ${{ matrix.platform }}"
+
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Install a recent CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Set up the MSVC environment
+        if: matrix.compiler == 'msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure Release with tests and benchmarks off
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tests OFF so doctest is not fetched (zero-external-dependency
+          # contract spec §3.3 — the artifact must contain only project-local
+          # objects, asserted again by ci.yml's zero-external-deps job).
+          cmake -S . -B build/release-artifact -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DPBR_MEMORY_POOL_BUILD_TESTS=OFF \
+              -DPBR_MEMORY_POOL_BUILD_BENCHMARKS=OFF
+
+      - name: Build the static library
+        shell: bash
+        run: cmake --build build/release-artifact
+
+      - name: Assemble the install tree and package as tar.gz
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.tag.outputs.version }}"
+          platform="${{ matrix.platform }}"
+          # Inner directory name embeds the platform so extractions of
+          # multiple platforms into the same parent dir do not collide.
+          stage="pbr-memory-pool-${version}-${platform}"
+          mkdir -p "${stage}/include/it/d4np/memorypool" "${stage}/lib"
+
+          # Public headers.
+          cp src/main/cpp/it/d4np/memorypool/memory_pool.h   "${stage}/include/it/d4np/memorypool/"
+          cp src/main/cpp/it/d4np/memorypool/memory_pool.hpp "${stage}/include/it/d4np/memorypool/"
+          cp src/main/cpp/it/d4np/memorypool/version.hpp     "${stage}/include/it/d4np/memorypool/"
+
+          # Static archive — file name differs by toolchain
+          # (libpbr_memory_pool.a on GCC/Clang/Apple Clang,
+          # pbr_memory_pool.lib on MSVC). M1 ships STATIC only; shared
+          # libraries arrive in a later milestone, see ADR-0004 §4 item 2.
+          if   [[ -f build/release-artifact/libpbr_memory_pool.a   ]]; then
+            cp build/release-artifact/libpbr_memory_pool.a   "${stage}/lib/"
+          elif [[ -f build/release-artifact/pbr_memory_pool.lib    ]]; then
+            cp build/release-artifact/pbr_memory_pool.lib    "${stage}/lib/"
+          else
+            echo "::error::Could not find the built static library under build/release-artifact/"
+            ls -la build/release-artifact/
+            exit 1
+          fi
+
+          # Top-level project docs that travel with every distribution.
+          cp LICENSE      "${stage}/"
+          cp README.md    "${stage}/"
+          cp CHANGELOG.md "${stage}/"
+
+          echo "Staged tree contents:"
+          find "${stage}" -type f | sort
+
+          # Package — tar.gz on every platform for uniformity per ADR-0004 §4.
+          tar -czf "pbr-memory-pool-${version}-${platform}.tar.gz" "${stage}"
+          ls -la "pbr-memory-pool-${version}-${platform}.tar.gz"
+
+      - name: Upload the platform artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.platform }}
+          path: pbr-memory-pool-${{ steps.tag.outputs.version }}-${{ matrix.platform }}.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Aggregate every per-platform artifact, compute SHA256SUMS, and create the
+  # draft GitHub Release. The body comes from `docs/releases/v<X.Y.Z>.md` —
+  # the file the closing milestone PR added per docs/workflow/release.md §4.
+  # Missing release-notes file → workflow fails with a clear error so the
+  # maintainer fixes the gap before retrying via workflow_dispatch.
+  # ---------------------------------------------------------------------------
+  release:
+    name: release / draft GitHub Release
+    needs: build-artifacts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve the tag to release and detect pre-release suffix
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          version="${tag#v}"
+          # Pre-release suffix detection per ADR-0004 §2 — single integer
+          # counter, no dotted suffixes.
+          if [[ "$version" =~ -(alpha|beta|rc)\.[0-9]+$ ]]; then
+            prerelease="true"
+          else
+            prerelease="false"
+          fi
+          echo "tag=$tag"               >> "$GITHUB_OUTPUT"
+          echo "version=$version"       >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Drafting release for tag=$tag (version=$version, prerelease=$prerelease)"
+
+      - name: Check out the tagged commit (for release notes file)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Verify the release notes file exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="docs/releases/${{ steps.tag.outputs.tag }}.md"
+          if [[ ! -f "$notes" ]]; then
+            echo "::error::Expected release notes at '$notes', but the file does not exist."
+            echo "::error::The closing milestone PR must add docs/releases/<tag>.md before tagging — see docs/workflow/release.md §4."
+            exit 1
+          fi
+          echo "Release notes file present at: $notes"
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: artifact-*
+          merge-multiple: true
+
+      - name: Compute SHA256SUMS across every artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          echo "Artifacts collected:"
+          ls -la
+          sha256sum *.tar.gz > SHA256SUMS
+          echo "--- SHA256SUMS ---"
+          cat SHA256SUMS
+
+      - name: Create draft GitHub Release with artifacts and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.tag }}"
+          notes="docs/releases/${tag}.md"
+          prerelease_flag=""
+          if [[ "${{ steps.tag.outputs.prerelease }}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          # A workflow_dispatch re-run for the same tag finds the existing
+          # draft release and would otherwise fail with "release already
+          # exists". Delete it before recreating so the re-run is idempotent.
+          # On the initial tag-push run there is nothing to delete, and the
+          # `gh release view` exits non-zero, which the conditional handles.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Existing release for $tag found — deleting before recreating."
+            gh release delete "$tag" --yes
+          fi
+          gh release create "$tag" \
+              --draft \
+              --title "$tag" \
+              --notes-file "$notes" \
+              $prerelease_flag \
+              artifacts/*.tar.gz \
+              artifacts/SHA256SUMS
+          echo "Draft release for $tag created."
+          echo "The maintainer reviews the draft on the web UI and clicks Publish (ADR-0004 §6)."
