@@ -43,8 +43,48 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `struct memory_pool` forward-declared in `memory_pool.h`, defined
   exclusively in `memory_pool.cpp` (the C handle is the Impl; no separate
   `Pool::Impl` struct). [`docs/patterns/README.md`](docs/patterns/README.md)
-  gains the two adopted rows (status `Planned` until M2.3 lands the
-  bodies). Five rejected alternatives are recorded.
+  gains the two adopted rows (status flipped from `Planned` to
+  `Implemented` once M2.3 lands the bodies). Five rejected alternatives
+  are recorded.
+
+### Changed (M2.3)
+
+- `memory_pool_create` and `memory_pool_destroy` are real C++17 bodies
+  replacing the Milestone 1 stubs. Construction validates the three
+  `block_size` preconditions from [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md)
+  §2 (`> 0`, `>= sizeof(void*)`, multiple of `alignof(std::max_align_t)`),
+  enforces `block_count > 0` and the `size_t`-overflow guard from §3,
+  obtains the over-aligned contiguous backing via
+  `::operator new(total, std::align_val_t{alignof(std::max_align_t)})`
+  with `std::bad_alloc` caught at the C ABI boundary, and initialises
+  the implicit free list in ascending address order using `std::memcpy`
+  (strict-aliasing-clean). Every failure path returns `NULL`;
+  `memory_pool_destroy(nullptr)` is a defined no-op; non-null destroy
+  releases the backing via the matching aligned `::operator delete` and
+  then frees the metadata struct. `memory_pool_alloc` / `memory_pool_free`
+  remain M1 stubs until M2.4.
+- `struct memory_pool` is defined exclusively in
+  [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp)
+  (Pimpl per ADR-0010 — the C handle is the Impl). Field list is the
+  five-tuple from ADR-0009 §6: `backing`, `head`, `block_size`,
+  `block_count`, `alignment`.
+- `memory_pool.h` and `memory_pool.hpp` Doxygen now spell out the three
+  `block_size` preconditions, the `block_count` / overflow contract, and
+  the `alignof(std::max_align_t)` alignment guarantee on every pointer
+  returned by `memory_pool_alloc`. The remaining "ADR pending" qualifiers
+  are replaced with concrete `ADR-0009` references.
+- Patterns catalogue: **RAII** and **Pimpl** rows flip from `Planned` to
+  `Implemented`.
+- Spec Coverage Map: §2.1 (pre-allocate contiguous), §4 (implicit free
+  list), §5—create, and §5—destroy flip from 🚧 to ✅. §3.1 (no memory
+  leaks at destroy) moves from ⏳ to 🚧 — the implementation is in place,
+  full validation lands with the Valgrind CI cell in M2.8.
+- `pool_smoke_test.cpp` rewritten: the M1-stub-contract test is replaced
+  with the M2.3 round-trip; six new `TEST_CASE`s cover each precondition
+  violation independently (block_size = 0, < `sizeof(void*)`, misaligned,
+  block_count = 0, `size_t` overflow, plus `destroy(nullptr)` safety);
+  the RAII move-construct and move-assign tests now assert
+  handle-transfer rather than the old M1-stub double-null pattern.
 
 ### Changed
 
