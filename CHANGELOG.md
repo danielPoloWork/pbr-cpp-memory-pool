@@ -18,6 +18,22 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added
+
+- [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md)
+  freezes the Milestone 2 layout decisions before any code lands: the implicit
+  free list (next-pointer in the first `sizeof(void*)` bytes of free slots,
+  per spec §4) initialised in ascending address order; strict `block_size`
+  preconditions (`≥ sizeof(void*)` AND `% alignof(std::max_align_t) == 0` —
+  `memory_pool_create` returns `NULL` on violation, never silently rounds);
+  mandatory `size_t` overflow guard on `block_size * block_count`; backing
+  storage via C++17 `::operator new(size, std::align_val_t)` for a single
+  zero-external-dependency code path across the Tier-1 platforms; `malloc`-
+  parity alignment (`alignof(std::max_align_t)`) on every pointer returned by
+  `memory_pool_alloc`; and the `struct memory_pool` field list
+  (`backing` / `head` / `block_size` / `block_count` / `alignment`)
+  required by the M2.7 foreign-pointer range check.
+
 ### Changed
 
 - Agent-vs-human boundary: tag creation (`git tag -a v<X.Y.Z>`) and tag push
