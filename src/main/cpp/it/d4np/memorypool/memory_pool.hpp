@@ -21,6 +21,7 @@
 #include <it/d4np/memorypool/memory_pool.h>
 
 #include <cstddef>
+#include <optional>
 
 namespace it::d4np::memorypool {
 
@@ -59,8 +60,23 @@ public:
      * @throw std::bad_alloc when backing-storage allocation fails (post
      *        Milestone 3.1; until then construction silently leaves the
      *        handle in a null state and ::allocate returns `nullptr`).
+     *
+     * @note Callers wanting an explicit yes/no signal at the construction
+     *       expression should use ::make instead — see ADR-0011.
      */
     Pool(std::size_t block_size, std::size_t block_count);
+
+    /**
+     * Factory function returning an engaged `std::optional<Pool>` on
+     * successful construction or `std::nullopt` on failure (any precondition
+     * violation from ADR-0009 §2 / §3, or backing-storage allocation
+     * failure). See ADR-0011 §1 for the design rationale and the comparison
+     * with direct ctor invocation.
+     *
+     * @param block_size  Same contract as the ctor — ADR-0009 §2.
+     * @param block_count Same contract as the ctor — ADR-0009 §3.
+     */
+    [[nodiscard]] static std::optional<Pool> make(std::size_t block_size, std::size_t block_count);
 
     /** Destroy the pool, releasing all backing storage to the OS. */
     ~Pool() noexcept;
@@ -98,6 +114,49 @@ public:
 
 private:
     memory_pool_t* handle_;
+};
+
+/**
+ * @brief Fluent builder for configured `Pool` instances.
+ *
+ * Accumulates configuration through chainable `with_*` setters and produces
+ * a `std::optional<Pool>` on `build()`. The Builder pattern absorbs the
+ * future configuration-explosion (thread-safety strategy from Milestone 4,
+ * dynamic-growth policy from Milestone 5) without requiring ABI changes to
+ * the `Pool` ctor or to `Pool::make`. Adopted in ADR-0011 §2.
+ *
+ * Usage:
+ * @code
+ *   if (auto pool = PoolBuilder{}
+ *                        .with_block_size(64)
+ *                        .with_block_count(1024)
+ *                        .build();
+ *       pool) {
+ *       void* block = pool->allocate();
+ *       // ...
+ *   }
+ * @endcode
+ *
+ * `build()` is `const`, so a configured builder can produce multiple
+ * identically-configured pools (useful for tests and for benchmark setup).
+ * A default-constructed builder has `block_size_ == 0` and
+ * `block_count_ == 0`; calling `build()` on it returns `std::nullopt` —
+ * the deliberate fail-loud behaviour for forgotten configuration.
+ */
+class PoolBuilder {
+public:
+    /** Set the per-block size in bytes; must satisfy ADR-0009 §2 at build time. */
+    PoolBuilder& with_block_size(std::size_t block_size) noexcept;
+
+    /** Set the block count; must satisfy ADR-0009 §3 at build time. */
+    PoolBuilder& with_block_count(std::size_t block_count) noexcept;
+
+    /** Produce a `std::optional<Pool>` from the accumulated configuration. */
+    [[nodiscard]] std::optional<Pool> build() const;
+
+private:
+    std::size_t block_size_ = 0;
+    std::size_t block_count_ = 0;
 };
 
 }  // namespace it::d4np::memorypool

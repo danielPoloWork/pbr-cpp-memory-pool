@@ -259,4 +259,35 @@ memory_pool_t* Pool::native_handle() noexcept {
     return handle_;
 }
 
+std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) {
+    // Factory Method per ADR-0011 §1 — engage the optional only when the
+    // underlying ctor produced a non-null handle. The ctor itself remains
+    // the lower-level path with its silent-empty-state semantics from
+    // ADR-0010 §2; this factory exists to surface the success/failure
+    // signal at the call site via std::optional.
+    Pool pool(block_size, block_count);
+    if (pool.handle_ == nullptr) {
+        return std::nullopt;
+    }
+    return {std::move(pool)};
+}
+
+PoolBuilder& PoolBuilder::with_block_size(std::size_t block_size) noexcept {
+    block_size_ = block_size;
+    return *this;
+}
+
+PoolBuilder& PoolBuilder::with_block_count(std::size_t block_count) noexcept {
+    block_count_ = block_count;
+    return *this;
+}
+
+std::optional<Pool> PoolBuilder::build() const {
+    // Builder per ADR-0011 §2 — delegate to the Factory Method so the
+    // failure semantics flow through a single point (Pool::make). build()
+    // is const so the same configured builder can produce multiple
+    // identically-configured pools without resetting state.
+    return Pool::make(block_size_, block_count_);
+}
+
 }  // namespace it::d4np::memorypool
