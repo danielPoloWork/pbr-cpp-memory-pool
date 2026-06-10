@@ -39,10 +39,12 @@ public:
     /**
      * Construct a pool with @p block_count blocks of @p block_size bytes each.
      *
-     * @param block_size  Size of each block in bytes; must satisfy the
-     *                    constraint set by the ADR for Milestone 2.1
-     *                    (currently: at least `sizeof(void*)`).
-     * @param block_count Number of blocks the pool can vend.
+     * @param block_size  Size of each block in bytes. Must satisfy ADR-0009 §2:
+     *                    `block_size >= sizeof(void*)` and `block_size` is a
+     *                    multiple of `alignof(std::max_align_t)`.
+     * @param block_count Number of blocks the pool can vend; must be greater
+     *                    than zero, and `block_size * block_count` must not
+     *                    overflow `size_t` (ADR-0009 §3).
      *
      * @throw std::bad_alloc when backing-storage allocation fails (post
      *        Milestone 3.1; until then construction silently leaves the

@@ -34,26 +34,42 @@ typedef struct memory_pool memory_pool_t;
 /**
  * Create a memory pool able to vend @p block_count blocks of @p block_size
  * bytes each. Memory is allocated contiguously and pre-populated as a free
- * list per spec section 4.
+ * list per spec section 4. The full layout and validation contract is
+ * recorded in ADR-0009 (`docs/adr/0009-...`); the summary below is binding.
  *
- * @param block_size  Size of each block in bytes. Must be at least
- *                    `sizeof(void*)` so the free-list link fits inside a
- *                    free block. See ADR (to be filed in Milestone 2.1).
- * @param block_count Number of blocks the pool can vend.
+ * @param block_size  Size of each block in bytes. ADR-0009 §2 requires all
+ *                    of:
+ *                      - `block_size > 0`
+ *                      - `block_size >= sizeof(void*)` (the free-list link
+ *                        must fit in a free slot)
+ *                      - `block_size` is a multiple of `alignof(max_align_t)`
+ *                        (drop-in `malloc`-parity alignment, ADR-0009 §5).
+ *                    Any violation makes the call return `NULL`; the
+ *                    implementation never silently rounds up.
+ * @param block_count Number of blocks the pool can vend. Must be greater
+ *                    than zero. ADR-0009 §3 additionally requires that
+ *                    `block_size * block_count` not overflow `size_t`;
+ *                    overflow is treated as an argument-validation
+ *                    failure and returns `NULL`.
  *
- * @return Pointer to the newly created pool, or `NULL` on invalid arguments
- *         or backing-storage allocation failure.
+ * @return Pointer to the newly created pool, or `NULL` on any precondition
+ *         violation or on backing-storage allocation failure. Allocation
+ *         failure inside the implementation never propagates as a C++
+ *         exception across this C ABI boundary (ADR-0005 §3 + ADR-0009 §7).
  */
 memory_pool_t* memory_pool_create(size_t block_size, size_t block_count);
 
 /**
  * Allocate one block from @p pool in O(1).
  *
- * @param pool Pool returned by ::memory_pool_create. Must not be `NULL`.
+ * @param pool Pool returned by ::memory_pool_create. Passing `NULL` is
+ *             defined and returns `NULL`.
  *
  * @return Pointer to a block of `block_size` bytes, or `NULL` when the pool
  *         is exhausted (fixed-size mode) or, post-Milestone 5, when dynamic
- *         growth itself fails. The pointer is aligned per ADR (Milestone 2.1).
+ *         growth itself fails. The pointer is aligned to
+ *         `alignof(max_align_t)` — drop-in parity with `malloc` per
+ *         ADR-0009 §5.
  */
 void* memory_pool_alloc(memory_pool_t* pool);
 
@@ -71,9 +87,13 @@ void memory_pool_free(memory_pool_t* pool, void* block);
 
 /**
  * Destroy @p pool and release every byte of pre-allocated backing storage
- * back to the operating system, per spec section 3.1.
+ * back to the operating system, per spec section 3.1 and ADR-0009 §7.
  *
- * Passing `NULL` is a no-op. After this call, @p pool must not be reused.
+ * The backing buffer is released through the matching aligned
+ * `::operator delete` overload of the C++17 `::operator new(size,
+ * std::align_val_t)` used at creation; the metadata struct is released
+ * via the matching plain `delete`. Passing `NULL` is a no-op. After this
+ * call, @p pool must not be reused.
  *
  * @param pool Pool to destroy, or `NULL`.
  */
