@@ -43,7 +43,7 @@ namespace {
 // A `block_size` that satisfies ADR-0009 §2 on every Tier-1 platform:
 // 64 is a multiple of alignof(std::max_align_t) (16 on every Tier-1 host)
 // and is comfortably larger than sizeof(void*).
-constexpr std::size_t SAFE_BLOCK_SIZE  = 64U;
+constexpr std::size_t SAFE_BLOCK_SIZE = 64U;
 constexpr std::size_t SAFE_BLOCK_COUNT = 16U;
 
 }  // namespace
@@ -108,9 +108,13 @@ TEST_CASE("memory_pool_create returns NULL on block_count == 0") {
 TEST_CASE("memory_pool_create returns NULL when block_size * block_count overflows size_t") {
     // ADR-0009 §3 — overflow guard. SIZE_MAX / 2 multiplied by 4 overflows
     // by ~2x, well past the wrap-around boundary, while still using a
-    // legitimate block_size that satisfies §2 in isolation.
-    constexpr std::size_t HUGE = (std::numeric_limits<std::size_t>::max() / 2U) & ~(alignof(std::max_align_t) - 1U);
-    CHECK(memory_pool_create(HUGE, 4U) == nullptr);
+    // legitimate block_size that satisfies §2 in isolation. The constant
+    // is named OVERFLOW_TRIGGER rather than the obvious HUGE because
+    // Apple Clang's <math.h> #defines HUGE as a float macro, which
+    // turns a local constexpr declaration into a parse error on macOS.
+    constexpr std::size_t OVERFLOW_TRIGGER =
+        (std::numeric_limits<std::size_t>::max() / 2U) & ~(alignof(std::max_align_t) - 1U);
+    CHECK(memory_pool_create(OVERFLOW_TRIGGER, 4U) == nullptr);
 }
 
 TEST_CASE("C API surface: alloc and free are still Milestone 1 stubs") {
@@ -122,8 +126,8 @@ TEST_CASE("C API surface: alloc and free are still Milestone 1 stubs") {
     REQUIRE(pool != nullptr);
 
     void* block = memory_pool_alloc(pool);
-    CHECK(block == nullptr);            // M2.4 will replace with REQUIRE(block != nullptr).
-    memory_pool_free(pool, block);      // M2.4 will exercise the free-list round-trip.
+    CHECK(block == nullptr);  // M2.4 will replace with REQUIRE(block != nullptr).
+    memory_pool_free(pool, block);  // M2.4 will exercise the free-list round-trip.
 
     memory_pool_destroy(pool);
 }
@@ -138,7 +142,7 @@ TEST_CASE("Pool RAII wrapper: construction acquires a real handle") {
 
     // allocate / deallocate still forward to the M1 stubs of alloc / free.
     void* slot = pool.allocate();
-    CHECK(slot == nullptr);             // M2.4 will replace.
+    CHECK(slot == nullptr);  // M2.4 will replace.
     pool.deallocate(slot);
 }
 

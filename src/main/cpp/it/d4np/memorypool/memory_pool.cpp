@@ -83,8 +83,8 @@ void release_backing(void* backing) noexcept {
 // underscore MemberSuffix convention — they are private to this TU.
 // NOLINTNEXTLINE(readability-identifier-naming)
 struct memory_pool {
-    void*       backing_;
-    void*       head_;
+    void* backing_;
+    void* head_;
     std::size_t block_size_;
     std::size_t block_count_;
     std::size_t alignment_;
@@ -136,10 +136,10 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
         return nullptr;
     }
 
-    pool->backing_     = backing;
-    pool->block_size_  = block_size;
+    pool->backing_ = backing;
+    pool->block_size_ = block_size;
     pool->block_count_ = block_count;
-    pool->alignment_   = POOL_ALIGNMENT;
+    pool->alignment_ = POOL_ALIGNMENT;
 
     // Step 3 — initialise the implicit free list in ascending address
     // order (ADR-0009 §1). Each free slot stores the address of the next
@@ -202,8 +202,7 @@ void memory_pool_free(memory_pool_t* /*pool*/, void* /*block*/) {
 
 namespace it::d4np::memorypool {
 
-Pool::Pool(std::size_t block_size, std::size_t block_count)
-    : handle_(::memory_pool_create(block_size, block_count)) {}
+Pool::Pool(std::size_t block_size, std::size_t block_count) : handle_(::memory_pool_create(block_size, block_count)) {}
 
 Pool::~Pool() noexcept {
     ::memory_pool_destroy(handle_);
@@ -216,7 +215,7 @@ Pool::Pool(Pool&& other) noexcept : handle_(other.handle_) {
 Pool& Pool::operator=(Pool&& other) noexcept {
     if (this != &other) {
         ::memory_pool_destroy(handle_);
-        handle_       = other.handle_;
+        handle_ = other.handle_;
         other.handle_ = nullptr;
     }
     return *this;
