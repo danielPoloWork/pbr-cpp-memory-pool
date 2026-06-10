@@ -27,6 +27,12 @@ on:
       - '.clang-format'
       - '.clang-tidy'
       - '.github/workflows/ci.yml'
+  # Invoked by .github/workflows/release.yml on `v*` tag push to re-run the
+  # full PR-gating matrix against the tagged commit (ADR-0004 §4 item 1).
+  # The `paths:` filter above is intentionally not duplicated here — when
+  # callers reach this workflow via workflow_call they bypass path gating,
+  # which is the desired behaviour for a tag-time verification.
+  workflow_call:
 
 permissions:
   contents: read
