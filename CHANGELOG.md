@@ -18,6 +18,17 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [0.1.0] — 2026-06-10
+
+**Milestone 1 — Build System & Project Skeleton.** First tagged release: a clean,
+reproducible C++17 build that links a public C API skeleton (`memory_pool_create`,
+`memory_pool_alloc`, `memory_pool_free`, `memory_pool_destroy`) with Milestone 1
+stub implementations and passes the full enterprise CI gate on Linux × {GCC, Clang},
+Windows × MSVC, and macOS arm64. The library is *linkable* but the public
+functions still return `NULL` / no-op; the real free-list algorithm arrives in
+Milestone 2 → `v0.2.0`. Full release notes in
+[`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
+
 ### Added
 
 - Cross-tool agent contract in `AGENTS.md` (persona, language, source layout, git
@@ -108,4 +119,5 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/commits/master
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.1.0

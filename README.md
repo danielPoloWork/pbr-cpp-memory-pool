@@ -4,7 +4,7 @@
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0 scaffolding](https://img.shields.io/badge/Status-v0%20scaffolding-orange.svg)](ROADMAP.md)
+[![Status: v0.1.0 build skeleton](https://img.shields.io/badge/Status-v0.1.0%20build%20skeleton-yellow.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.1.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -54,13 +54,13 @@ The free-list layout, the `block_size ≥ sizeof(void*)` constraint, and the ali
 
 ## Status
 
-`v0` — scaffolding phase. Agent configuration, documentation, source-tree shape, CI for docs, and the design-patterns policy are all in place. The C/C++ implementation has **not started yet**.
+`v0.1.0` — build skeleton. Agent configuration, documentation, the cross-language source tree, the CMake build, the enterprise CI matrix (Linux × {GCC, Clang} × {Debug, Release, ASan, UBSan} + Windows × MSVC + macOS arm64), the public C API skeleton, the C++ RAII wrapper skeleton, the doctest harness, and the tag-triggered release pipeline are all in place. The library is **linkable** but the public functions are still Milestone 1 stubs (`memory_pool_*` returning `NULL` / no-op); the real free-list algorithm arrives in Milestone 2 → `v0.2.0`. Release notes for `v0.1.0` live in [`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
 | 0         | Agent & Workflow Scaffolding       | ✅ complete |
-| 1         | Build System & Project Skeleton    | ⏳ next     |
-| 2         | Core Memory Pool (single-threaded) | ⏳ planned  |
+| 1         | Build System & Project Skeleton    | ✅ complete |
+| 2         | Core Memory Pool (single-threaded) | ⏳ next     |
 | 3         | C++ Wrapper & Type Safety          | ⏳ planned  |
 | 4         | Thread-Safe Variant                | ⏳ planned  |
 | 5         | Dynamic Growth Mode                | ⏳ planned  |
