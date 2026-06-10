@@ -32,12 +32,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string_view>
 #include <utility>
 
 #include <doctest/doctest.h>
 
 using it::d4np::memorypool::Pool;
+using it::d4np::memorypool::PoolBuilder;
 namespace mem = it::d4np::memorypool;
 
 namespace {
@@ -278,4 +280,73 @@ TEST_CASE("Pool RAII wrapper: move assignment releases the previous handle") {
     // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
     CHECK(source.native_handle() == nullptr);
     CHECK(target.native_handle() == source_handle);
+}
+
+// ===========================================================================
+// M2.6 — Factory Method (Pool::make) and Builder (PoolBuilder) per ADR-0011.
+// ===========================================================================
+
+TEST_CASE("Pool::make returns an engaged optional on valid arguments") {
+    // ADR-0011 §1 — successful construction yields std::optional<Pool>
+    // engaged with the moved-in Pool. The wrapped Pool's native_handle()
+    // is non-null and allocate() returns a real block.
+    std::optional<Pool> pool = Pool::make(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool.has_value());
+    CHECK(pool->native_handle() != nullptr);
+    void* const block = pool->allocate();
+    CHECK(block != nullptr);
+    pool->deallocate(block);
+}
+
+TEST_CASE("Pool::make returns nullopt on a misaligned block_size") {
+    // ADR-0011 §1 — ADR-0009 §2 violation surfaces as std::nullopt at the
+    // construction expression, rather than as a silent empty wrapper.
+    constexpr std::size_t MISALIGNED = alignof(std::max_align_t) + 1U;
+    std::optional<Pool> pool = Pool::make(MISALIGNED, SAFE_BLOCK_COUNT);
+    CHECK_FALSE(pool.has_value());
+}
+
+TEST_CASE("Pool::make returns nullopt on block_count == 0") {
+    // ADR-0009 §3 — degenerate pool — surfaces as nullopt.
+    std::optional<Pool> pool = Pool::make(SAFE_BLOCK_SIZE, 0U);
+    CHECK_FALSE(pool.has_value());
+}
+
+TEST_CASE("PoolBuilder builds a configured Pool fluently") {
+    // ADR-0011 §2 — happy path. with_* setters return *this; build()
+    // delegates to Pool::make and returns the optional.
+    std::optional<Pool> pool = PoolBuilder{}
+                                   .with_block_size(SAFE_BLOCK_SIZE)
+                                   .with_block_count(SAFE_BLOCK_COUNT)
+                                   .build();
+    REQUIRE(pool.has_value());
+    CHECK(pool->native_handle() != nullptr);
+}
+
+TEST_CASE("PoolBuilder::build returns nullopt on a default-constructed builder") {
+    // ADR-0011 §2 — fail-loud for forgotten configuration: a default
+    // builder has block_size_ = block_count_ = 0, both ADR-0009 §2/§3
+    // violations, so build() flows through Pool::make to std::nullopt.
+    std::optional<Pool> pool = PoolBuilder{}.build();
+    CHECK_FALSE(pool.has_value());
+}
+
+TEST_CASE("PoolBuilder::build returns nullopt on a partially-configured builder") {
+    // Only block_size is set; block_count stays 0 (ADR-0009 §3 violation).
+    std::optional<Pool> pool = PoolBuilder{}.with_block_size(SAFE_BLOCK_SIZE).build();
+    CHECK_FALSE(pool.has_value());
+}
+
+TEST_CASE("PoolBuilder::build is const — same builder produces multiple pools") {
+    // ADR-0011 §2 — build() is const-qualified, so the same configured
+    // builder can produce independently-owned pools. Useful for tests
+    // and for benchmark setup where the same configuration is replayed
+    // under varying conditions.
+    const PoolBuilder builder = PoolBuilder{}.with_block_size(SAFE_BLOCK_SIZE).with_block_count(SAFE_BLOCK_COUNT);
+    std::optional<Pool> first = builder.build();
+    std::optional<Pool> second = builder.build();
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    // Independently-owned: the two pools have distinct native handles.
+    CHECK(first->native_handle() != second->native_handle());
 }

@@ -47,6 +47,35 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `Implemented` once M2.3 lands the bodies). Five rejected alternatives
   are recorded.
 
+### Added (M2.6)
+
+- [ADR-0011](docs/adr/0011-factory-method-and-builder-for-pool-construction.md)
+  formalises two co-introduced creational patterns for `Pool`
+  construction.
+- **Factory Method** — `static std::optional<Pool> Pool::make(block_size,
+  block_count)` returns an engaged optional on successful construction or
+  `std::nullopt` on any ADR-0009 §2 / §3 precondition failure or backing-
+  storage allocation failure. Cleaner yes/no signal than the ctor's
+  silent-empty-state path (which is preserved unchanged per ADR-0010 §2 —
+  both paths coexist). Marked `[[nodiscard]]`. Orthogonal to the eventual
+  M3.1 `std::bad_alloc`-throwing exception-policy decision; that ADR can
+  adopt throwing, keep no-throw, or expose both behind a configurable
+  knob without amending ADR-0011.
+- **Builder** — `class PoolBuilder` in the `it::d4np::memorypool` namespace
+  with fluent `.with_block_size(...)` / `.with_block_count(...)` setters
+  (returning `*this` by reference, `noexcept`) and a const `.build()`
+  returning `std::optional<Pool>` via `Pool::make`. Const `build()`
+  enables the same configured builder to produce multiple independently-
+  owned pools — useful for tests and for benchmark setup. Default-
+  constructed or partially-configured builders return `std::nullopt`
+  from `build()` — fail-loud for forgotten configuration.
+- [`docs/patterns/README.md`](docs/patterns/README.md) gains two new
+  *Adopted / Planned* rows (Factory Method and Builder, both status
+  `Implemented`). The Creational *candidate* rows are annotated with
+  pointers to the now-adopted rows.
+- `pool_smoke_test.cpp` gains seven new `TEST_CASE`s exercising the
+  happy paths and failure modes of both patterns.
+
 ### Changed (M2.5)
 
 - `memory_pool.hpp` Doxygen polish: the file-level brief drops the
