@@ -244,7 +244,7 @@ The toolchain and platform contract is formalised in [ADR-0005](docs/adr/0005-to
 - **Naming:** `snake_case` for functions and variables, `CamelCase` for C++ types, `UPPER_CASE` for macros and `constexpr` constants, trailing `_` on private/protected members. Enforced by `readability-identifier-naming` in [`.clang-tidy`](.clang-tidy).
 - **Formatting:** LLVM-derived style, 4-space indent, 120-col soft limit, pointer-aligned-left. See [`.clang-format`](.clang-format) and ADR-0006 §1 for the full deviation table.
 - **Static analysis:** `bugprone-*`, `cert-*`, `cppcoreguidelines-*`, `modernize-*`, `performance-*`, `portability-*`, `readability-*` baseline with the deviations recorded in ADR-0006 §2. `WarningsAsErrors` enforced on the diff at CI (ROADMAP §1.8); locally advisory.
-- **Documentation:** All public symbols documented with Doxygen-compatible comments (`///` or `/** */`). Private code commented only where the *why* is non-obvious.
+- **Documentation:** All public symbols documented with Doxygen-compatible comments (`///` or `/** */`). Private code commented only where the *why* is non-obvious. The Doxygen-for-API + Markdown-for-narrative split is formalised in [ADR-0013](docs/adr/0013-doxygen-for-api-markdown-for-narrative.md).
 - **Errors:** No exceptions across the C ABI boundary. The C++ wrapper may throw `std::bad_alloc` (configurable). All error paths covered by tests.
 
 ## 10. Enterprise Quality Bar
