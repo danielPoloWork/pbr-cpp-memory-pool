@@ -166,7 +166,7 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - [ ] ADR added/updated (if a non-trivial design decision was made)
 - [ ] docs/patterns/README.md updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec updated (if behavior diverges from `docs/specs/`)
-- [ ] CHANGELOG.md updated (once that file exists)
+- [ ] CHANGELOG.md updated (for user-visible changes; see ADR-0004 §3)
 ```
 
 **Merge commit semantics.** The repository is configured (`squash_merge_commit_message=PR_BODY`, `merge_commit_message=PR_BODY`, both titles set to `PR_TITLE`) so the **PR title and PR body become the merge commit's subject and extended description verbatim**. Write the PR body as you want it to read in `git log` forever — Summary, Motivation, Changes, Design Patterns, Verification, Documentation Impact. The maintainer scrubs HTML comments and placeholders at merge time. Squash-and-merge is the preferred strategy.
@@ -262,7 +262,7 @@ Every PR must clear, at minimum:
 | Coverage                      | New code reasonably covered (target ≥80% line, finalized in an ADR)          |
 | Public API docs               | Doxygen-compatible, builds without warnings                                  |
 | Performance claims            | Backed by a reproducible benchmark under `src/bench/`                        |
-| Versioning                    | SemVer; `CHANGELOG.md` updated for user-visible changes once it exists       |
+| Versioning                    | SemVer; `CHANGELOG.md` updated for user-visible changes (ADR-0004 §3)        |
 
 Shortcuts ("just disable the warning", "tests next PR", "docs follow-up") are not allowed. If something is genuinely out of scope, file it as a new `ROADMAP.md` item in the same PR.
 

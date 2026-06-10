@@ -1,4 +1,4 @@
-# Purpose-built reference High-Performance Memory Pool Manager (C++)
+# High-Performance Memory Pool Manager (C++)
 
 [![ci](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml)
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
@@ -116,6 +116,7 @@ For first-time setup on a fresh clone — installing CMake, Ninja, and the suppo
 | [`CLAUDE.md`](CLAUDE.md)                      | Claude Code adapter — defers to `AGENTS.md`.                                              |
 | [`GEMINI.md`](GEMINI.md)                      | Gemini Antigravity adapter — defers to `AGENTS.md`.                                       |
 | [`ROADMAP.md`](ROADMAP.md)                    | Numbered checkbox plan + Spec Coverage Map.                                               |
+| [`CHANGELOG.md`](CHANGELOG.md)                | Keep a Changelog 1.1.0 history; user-visible changes per release (see [ADR-0004](docs/adr/0004-versioning-and-release-policy.md)). |
 | [`src/`](src/)                                | All source code, Maven-style layout — `src/{main,test,bench}/cpp/it/d4np/memorypool/`.    |
 | [`docs/specs/`](docs/specs/)                  | Functional and technical specifications.                                                  |
 | [`docs/adr/`](docs/adr/)                      | Architecture Decision Records.                                                            |
