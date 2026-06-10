@@ -125,9 +125,11 @@ TEST_CASE("C API surface: alloc and free are still Milestone 1 stubs") {
     memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
     REQUIRE(pool != nullptr);
 
+    // M2.4 will replace with REQUIRE(block != nullptr) and exercise the
+    // free-list round-trip on free.
     void* block = memory_pool_alloc(pool);
-    CHECK(block == nullptr);  // M2.4 will replace with REQUIRE(block != nullptr).
-    memory_pool_free(pool, block);  // M2.4 will exercise the free-list round-trip.
+    CHECK(block == nullptr);
+    memory_pool_free(pool, block);
 
     memory_pool_destroy(pool);
 }
@@ -140,9 +142,10 @@ TEST_CASE("Pool RAII wrapper: construction acquires a real handle") {
     Pool pool(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
     CHECK(pool.native_handle() != nullptr);
 
-    // allocate / deallocate still forward to the M1 stubs of alloc / free.
+    // allocate / deallocate still forward to the M1 stubs of alloc / free;
+    // the assertion below will become `slot != nullptr` once M2.4 lands.
     void* slot = pool.allocate();
-    CHECK(slot == nullptr);  // M2.4 will replace.
+    CHECK(slot == nullptr);
     pool.deallocate(slot);
 }
 

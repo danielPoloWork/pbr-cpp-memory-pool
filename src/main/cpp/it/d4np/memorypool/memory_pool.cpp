@@ -25,7 +25,6 @@
 #include <it/d4np/memorypool/memory_pool.hpp>
 
 #include <cstddef>
-#include <cstring>
 #include <limits>
 #include <new>
 
@@ -66,6 +65,31 @@ void release_backing(void* backing) noexcept {
     // allocation; passing the same `std::align_val_t` keeps the contract
     // closed.
     ::operator delete(backing, std::align_val_t{POOL_ALIGNMENT});
+}
+
+void initialize_free_list(void* backing, std::size_t block_size, std::size_t block_count) noexcept {
+    // Implicit free list per ADR-0009 §1, ascending address order. Each
+    // free slot stores the address of the next free slot in its own first
+    // `sizeof(void*)` bytes; the last slot stores a null pointer.
+    //
+    // The `*static_cast<void**>(slot) = ptr` idiom is the canonical
+    // pool-allocator write: it expresses "treat the slot's first bytes
+    // as storage for a void* and assign the next-link value there" with
+    // a single, named conversion. It is more concise than std::memcpy,
+    // sidesteps clang-tidy's bugprone-multi-level-implicit-pointer-
+    // conversion check (no const-void* destination conversion in the
+    // expression), and compiles to the same single store. The slots are
+    // raw storage from `::operator new`; writing a `void*` through a
+    // `void**` lvalue is the well-defined implicit-object-creation path
+    // every Tier-1 toolchain accepts.
+    auto* const base = static_cast<unsigned char*>(backing);
+    for (std::size_t i = 0; i + 1U < block_count; ++i) {
+        void* const this_slot = base + (i * block_size);
+        void* const next_slot = base + ((i + 1U) * block_size);
+        *static_cast<void**>(this_slot) = next_slot;
+    }
+    void* const last_slot = base + ((block_count - 1U) * block_size);
+    *static_cast<void**>(last_slot) = nullptr;
 }
 
 }  // namespace
@@ -141,36 +165,9 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     pool->block_count_ = block_count;
     pool->alignment_ = POOL_ALIGNMENT;
 
-    // Step 3 — initialise the implicit free list in ascending address
-    // order (ADR-0009 §1). Each free slot stores the address of the next
-    // free slot in its own first `sizeof(void*)` bytes; the last slot
-    // stores a null pointer.
-    //
-    // We use `std::memcpy` rather than `*reinterpret_cast<void**>(slot)`
-    // because the slot is still raw storage with no current object — the
-    // memcpy path is unambiguously well-defined under C++17 lifetime
-    // rules and compiles to the same single store on every Tier-1
-    // toolchain (verified locally on GCC 13 / Clang 18 / MSVC 19.30).
-    // The explicit `static_cast<const void*>(&next_slot)` is required
-    // by clang-tidy's bugprone-multi-level-implicit-pointer-conversion
-    // check: `&next_slot` is `void* const*` and the implicit conversion
-    // to memcpy's `const void*` parameter would be a multi-level pointer
-    // conversion — a common source of "I meant to copy the pointed-to
-    // thing, not the pointer" bugs. The cast says explicitly that we
-    // intend to copy `sizeof(void*)` bytes from the storage of the
-    // local variable into the slot.
-    auto* const base = static_cast<unsigned char*>(backing);
-    for (std::size_t i = 0; i + 1U < block_count; ++i) {
-        void* const this_slot = base + (i * block_size);
-        void* const next_slot = base + ((i + 1U) * block_size);
-        std::memcpy(this_slot, static_cast<const void*>(&next_slot), sizeof(void*));
-    }
-    // Terminate the chain on the last slot.
-    void* const last_slot = base + ((block_count - 1U) * block_size);
-    void* const null_link = nullptr;
-    std::memcpy(last_slot, static_cast<const void*>(&null_link), sizeof(void*));
-
-    pool->head_ = base;
+    // Step 3 — initialise the implicit free list per ADR-0009 §1.
+    initialize_free_list(backing, block_size, block_count);
+    pool->head_ = backing;
 
     return pool;
 }
