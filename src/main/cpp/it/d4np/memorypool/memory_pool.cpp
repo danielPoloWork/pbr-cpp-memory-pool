@@ -25,6 +25,7 @@
 #include <it/d4np/memorypool/memory_pool.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <new>
 
@@ -113,6 +114,39 @@ struct memory_pool {
     std::size_t block_count_;
     std::size_t alignment_;
 };
+
+namespace {
+
+// ADR-0012 — the foreign-pointer / out-of-range pointer detection that
+// gates memory_pool_free. The struct memory_pool is in scope here (the
+// definition above precedes this namespace), so the helper can read
+// the backing pointer, slot size, and slot count directly.
+//
+// Comparing `block_addr < base_addr` and `block_addr >= end_addr` via
+// std::uintptr_t avoids C++17 [expr.rel]/4 unspecified behaviour on
+// cross-allocation pointer `<` comparison — when `block` is genuinely
+// foreign, the direct pointer-comparison form is UB, the uintptr_t
+// form is portable. The two NOLINT annotations are narrow and pointed
+// at exactly the use case the standard documents as the workaround.
+bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto base_addr = reinterpret_cast<std::uintptr_t>(pool->backing_);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto block_addr = reinterpret_cast<std::uintptr_t>(block);
+    const std::uintptr_t end_addr = base_addr + (pool->block_size_ * pool->block_count_);
+    if (block_addr < base_addr) {
+        return false;
+    }
+    if (block_addr >= end_addr) {
+        return false;
+    }
+    if (((block_addr - base_addr) % pool->block_size_) != 0U) {
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
 
 extern "C" {
 
@@ -207,14 +241,15 @@ void* memory_pool_alloc(memory_pool_t* pool) {
 
 void memory_pool_free(memory_pool_t* pool, void* block) {
     // Push the block onto the head of the implicit free list in O(1)
-    // (spec §2.3). Null pool or null block is a no-op (ADR-0009 §7);
-    // the foreign-pointer / out-of-range policy is M2.7's concern and
-    // is not enforced here — passing a block not previously returned
-    // by memory_pool_alloc on the same pool is documented UB.
+    // (spec §2.3). Null pool, null block, and foreign-pointer /
+    // out-of-range pointer are all silent no-ops per ADR-0012.
     if (pool == nullptr) {
         return;
     }
     if (block == nullptr) {
+        return;
+    }
+    if (!is_block_in_range(pool, block)) {
         return;
     }
     // Store the current head into the block's first sizeof(void*) bytes,

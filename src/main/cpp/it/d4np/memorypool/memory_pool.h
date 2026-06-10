@@ -82,12 +82,24 @@ void* memory_pool_alloc(memory_pool_t* pool);
 /**
  * Return a previously allocated block to @p pool in O(1).
  *
- * Passing `NULL` for @p block is a no-op. Passing a pointer not previously
- * returned by ::memory_pool_alloc on the same @p pool is undefined behaviour;
- * the policy for detecting and reporting such misuse is set in Milestone 2.7.
+ * Per ADR-0012, the function is a defined no-op in three cases that the
+ * caller might pass by mistake:
+ *
+ *   - @p pool is `NULL`;
+ *   - @p block is `NULL`;
+ *   - @p block is a foreign pointer — outside `pool`'s backing buffer or
+ *     in-range but not aligned to a slot boundary.
+ *
+ * Detection of the foreign-pointer case is an `O(1)` range + alignment
+ * check against the pool's backing extents (ADR-0009 §6 fields). The
+ * pool state is bit-identical before and after a no-op call. Note that
+ * the policy does NOT detect *double-free* on a legitimately-in-range,
+ * already-on-the-free-list pointer; that case remains undefined
+ * behaviour and is addressed by the optional Decorator instrumentation
+ * landing in Milestone 6.
  *
  * @param pool  Pool the block originally came from.
- * @param block Block to release, or `NULL`.
+ * @param block Block to release, or `NULL`, or a foreign pointer.
  */
 void memory_pool_free(memory_pool_t* pool, void* block);
 
