@@ -29,6 +29,12 @@ extern "C" {
 #endif
 
 /** Opaque handle to a memory pool instance. */
+/* The struct tag is snake_case to match the C convention for forward-
+ * declared opaque types; the .clang-tidy StructCase rule (CamelCase) is
+ * the right default for new C++ types, suppressed here for the C-interop
+ * boundary per the same rationale recorded at the definition site in
+ * memory_pool.cpp. */
+/* NOLINTNEXTLINE(readability-identifier-naming) */
 typedef struct memory_pool memory_pool_t;
 
 /**
