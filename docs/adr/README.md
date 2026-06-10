@@ -41,5 +41,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0006   | [Code style and static-analysis baseline](0006-code-style-and-static-analysis-baseline.md)           | Accepted |
 | 0007   | [Test framework — doctest](0007-test-framework-doctest.md)                                           | Accepted |
 | 0008   | [Delegate tag creation and push to the agent](0008-delegate-tag-creation-and-push-to-the-agent.md)   | Accepted |
+| 0009   | [Free-list layout, block_size constraints, and alignment guarantee](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
