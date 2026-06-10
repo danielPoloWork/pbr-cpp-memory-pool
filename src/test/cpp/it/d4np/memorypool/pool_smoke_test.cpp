@@ -432,10 +432,14 @@ TEST_CASE("memory_pool_free is a no-op on an out-of-range pointer above the back
     // Same NOLINT rationale as the out-of-range-below test above: the
     // int->ptr synthesis is intentional for testing the foreign-pointer
     // policy and trips both pro-type-reinterpret-cast and
-    // performance-no-int-to-ptr.
+    // performance-no-int-to-ptr. Compute the target address into a
+    // uintptr_t local first so the cast itself fits on the single line
+    // that NOLINTNEXTLINE actually suppresses (the directive applies to
+    // the immediately following physical line, not the logical
+    // statement that may span two lines).
+    const std::uintptr_t target_addr = base_addr + (SAFE_BLOCK_SIZE * SAFE_BLOCK_COUNT) + SAFE_BLOCK_SIZE;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    auto* const foreign_above =
-        reinterpret_cast<void*>(base_addr + (SAFE_BLOCK_SIZE * SAFE_BLOCK_COUNT) + SAFE_BLOCK_SIZE);
+    auto* const foreign_above = reinterpret_cast<void*>(target_addr);
     memory_pool_free(pool, foreign_above);
 
     void* const a = memory_pool_alloc(pool);
