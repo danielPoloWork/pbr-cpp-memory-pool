@@ -1,35 +1,37 @@
 # Release Workflow
 
-Operational guide for cutting a release of `pbr-cpp-memory-pool`. The policy that governs this workflow is [ADR-0004](../adr/0004-versioning-and-release-policy.md); the high-level summary lives in [`AGENTS.md`](../../AGENTS.md) §11.
+Operational guide for cutting a release of `pbr-cpp-memory-pool`. The policy that governs this workflow is [ADR-0004](../adr/0004-versioning-and-release-policy.md), amended by [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md) for the tag-push delegation; the high-level summary lives in [`AGENTS.md`](../../AGENTS.md) §11.
 
 ## When to release
 
 A new tag is cut whenever **a milestone closes** (per ADR-0004 §2) or when a hotfix lands between milestones.
 
-| Trigger                                  | Tag form         | Initiator       |
-|------------------------------------------|------------------|-----------------|
-| Milestone N closes (N = 1..6)            | `v0.N.0`         | Maintainer      |
-| Milestone 7 closes (full release)        | `v1.0.0`         | Maintainer      |
-| Milestone feature-complete, under review | `v0.N.0-rc.M`    | Maintainer      |
-| Hotfix between milestones                | `v<X.Y.(Z+1)>`   | Maintainer      |
+| Trigger                                  | Tag form         | Initiator    |
+|------------------------------------------|------------------|--------------|
+| Milestone N closes (N = 1..6)            | `v0.N.0`         | Agent ¹      |
+| Milestone 7 closes (full release)        | `v1.0.0`         | Agent ¹      |
+| Milestone feature-complete, under review | `v0.N.0-rc.M`    | Agent ¹      |
+| Hotfix between milestones                | `v<X.Y.(Z+1)>`   | Agent ¹      |
 
-Agents never initiate tags. Agents *prepare* the release PR; the human merges it and creates the tag.
+¹ The agent creates and pushes the annotated tag immediately after the corresponding release (or hotfix) PR merges to `master`, per [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md). The maintainer still controls *whether* a release happens — they review and merge the release PR, and they retain the final *Publish* checkpoint on the draft GitHub Release that `release.yml` produces.
 
 ## Boundary recap
 
-The agent-vs-human boundary mirrors the PR-merge boundary in [`AGENTS.md`](../../AGENTS.md) §6.1:
+The agent-vs-human boundary mirrors the PR-merge boundary in [`AGENTS.md`](../../AGENTS.md) §6.1, with the tag-creation and tag-push steps delegated to the agent per [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md) (the amendment of [ADR-0004](../adr/0004-versioning-and-release-policy.md) §6 motivated by the `v0.1.0` release). The *Publish* click remains a deliberate human checkpoint:
 
-| Action                                                | Who      |
-|-------------------------------------------------------|----------|
-| Bump version constant in source                       | Agent    |
-| Update `CHANGELOG.md` (Unreleased → version)          | Agent    |
-| Draft GitHub Release notes                            | Agent    |
+| Action                                                | Who        |
+|-------------------------------------------------------|------------|
+| Bump version constant in source                       | Agent      |
+| Update `CHANGELOG.md` (Unreleased → version)          | Agent      |
+| Draft GitHub Release notes                            | Agent      |
 | Open the release PR                                   | Maintainer |
 | Merge the release PR                                  | Maintainer |
-| Create annotated git tag                              | Maintainer |
-| Push the tag                                          | Maintainer |
+| Create annotated git tag                              | Agent ¹    |
+| Push the tag                                          | Agent ¹    |
 | Publish the GitHub Release                            | Maintainer |
-| Build & attach release artifacts                      | CI       |
+| Build & attach release artifacts                      | CI         |
+
+¹ See [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md): the agent runs `git tag -a` and `git push origin v<X.Y.Z>` immediately after the release PR merges to `master`. The agent never amends or deletes a *published* tag; the only acceptable corrective action is delete-and-repush of an *unpublished* tag whose `release.yml` run visibly failed (the escape hatch documented in ADR-0008's Decision section).
 
 ## Step-by-step — milestone close
 
@@ -116,7 +118,9 @@ PR title: `chore(release): v0.1.0`. PR body: the standard template (`.github/PUL
 
 Squash-and-merge, same as any other PR. The merge commit's body becomes the durable `git log` entry; the user-facing release notes live in the GitHub Release created in §8.
 
-### 7. Tag (maintainer)
+### 7. Tag (agent)
+
+Delegated to the agent in [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md). Immediately after §6 merges, the agent runs, from a local clone synchronised with the merge commit:
 
 ```
 git fetch origin
@@ -126,7 +130,17 @@ git tag -a v0.1.0 -m "v0.1.0 — <milestone headline>"
 git push origin v0.1.0
 ```
 
-Tag messages mirror the release-notes headline. Annotated tags only — never lightweight tags (they don't carry a message).
+Tag messages mirror the release-notes headline. Annotated tags only — never lightweight tags (they don't carry a message). The push triggers `release.yml` (§8); the agent's job ends here. The maintainer reviews and Publishes the draft Release that the workflow produces.
+
+If the agent observes a visible failure in the `release.yml` run *before* §8's Publish click — wrong commit tagged, build matrix produced corrupt artifacts, or the release-notes file is missing — it deletes the tag and repushes after the underlying problem is fixed:
+
+```
+git push --delete origin v0.1.0
+git tag -d v0.1.0
+# fix the underlying problem, then re-run the four-line sequence above.
+```
+
+This escape hatch is the *only* legitimate tag-mutation operation after §7. Once the maintainer Publishes (§8), the tag is consumer-visible and effectively immutable.
 
 ### 8. Publish the GitHub Release (maintainer + CI)
 

@@ -18,6 +18,18 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Changed
+
+- Agent-vs-human boundary: tag creation (`git tag -a v<X.Y.Z>`) and tag push
+  (`git push origin v<X.Y.Z>`) are now agent-driven steps, executed immediately
+  after the release (or hotfix) PR merges to `master`. The maintainer keeps
+  control of *whether* a release happens (by reviewing and merging the release
+  PR) and of *when it becomes world-visible* (by clicking *Publish* on the draft
+  GitHub Release that `release.yml` produces). Amends [ADR-0004](docs/adr/0004-versioning-and-release-policy.md)
+  §6 via [ADR-0008](docs/adr/0008-delegate-tag-creation-and-push-to-the-agent.md);
+  [`AGENTS.md`](AGENTS.md) §11 and [`docs/workflow/release.md`](docs/workflow/release.md)
+  §2 + §7 updated in lockstep.
+
 ## [0.1.0] — 2026-06-10
 
 **Milestone 1 — Build System & Project Skeleton.** First tagged release: a clean,

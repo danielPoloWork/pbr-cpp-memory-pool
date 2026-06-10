@@ -280,7 +280,7 @@ The project follows **Semantic Versioning 2.0.0**. Tags are annotated and have t
 
 **Package distribution** — Phase 1 (Milestone 7.4): CMake `find_package` config. Phase 2 (post-1.0 stretch, Milestones 7.8/7.9): vcpkg port and Conan recipe.
 
-**Agent-vs-human boundary for releases** mirrors §6.1:
+**Agent-vs-human boundary for releases** mirrors §6.1 with one delegated step (tag creation and push) per [ADR-0008](docs/adr/0008-delegate-tag-creation-and-push-to-the-agent.md):
 
 | Action                                                | Who      |
 |-------------------------------------------------------|----------|
@@ -289,12 +289,14 @@ The project follows **Semantic Versioning 2.0.0**. Tags are annotated and have t
 | Draft GitHub Release notes (`docs/releases/v<X.Y.Z>.md`) | Agent  |
 | Open the release PR                                   | **Human**|
 | Merge the release PR                                  | **Human**|
-| Create the annotated git tag                          | **Human**|
-| Push the tag                                          | **Human**|
+| Create the annotated git tag                          | Agent ¹  |
+| Push the tag                                          | Agent ¹  |
 | Publish the GitHub Release                            | **Human**|
 | Build & attach release artifacts                      | CI       |
 
-Agents **never** push tags, **never** publish releases. Full policy: [ADR-0004](docs/adr/0004-versioning-and-release-policy.md). Operational guide: [`docs/workflow/release.md`](docs/workflow/release.md).
+¹ Delegated to the agent in [ADR-0008](docs/adr/0008-delegate-tag-creation-and-push-to-the-agent.md), which amends [ADR-0004](docs/adr/0004-versioning-and-release-policy.md) §6. The agent runs `git tag -a v<X.Y.Z> -m "<headline>"` and `git push origin v<X.Y.Z>` immediately after the release PR merges. Publishing the draft GitHub Release (the *Publish* button on the web UI) remains a deliberate human checkpoint — the moment the maintainer reviews the produced artifacts before they become world-visible.
+
+Agents **never** publish releases, **never** amend or delete published tags, and only delete-and-repush an unpublished tag whose `release.yml` run visibly failed (escape hatch documented in ADR-0008). Full policy: [ADR-0004](docs/adr/0004-versioning-and-release-policy.md) + [ADR-0008](docs/adr/0008-delegate-tag-creation-and-push-to-the-agent.md). Operational guide: [`docs/workflow/release.md`](docs/workflow/release.md).
 
 ## 12. Tool-Specific Notes
 
