@@ -18,6 +18,22 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (retroactive — documentation format)
+
+- [ADR-0013](docs/adr/0013-doxygen-for-api-markdown-for-narrative.md)
+  formalises the documentation format split that has been operating in
+  practice since Milestone 0: Doxygen for the per-symbol API contract in
+  public headers, Markdown for the narrative (README, ROADMAP, CHANGELOG,
+  AGENTS, ADRs, spec, workflow guides, patterns catalogue, release
+  notes). Six rejected alternatives recorded — Markdown-only,
+  Doxygen-only, AsciiDoc / RST, Sphinx autodoc without Doxygen, custom
+  in-house format, and "no formal documentation". Companion edits:
+  [`AGENTS.md`](AGENTS.md) §9 gains a one-sentence cross-link to the
+  ADR, and [`docs/workflow/documentation.md`](docs/workflow/documentation.md)
+  gains a *Format* section with the four-row taxonomy table mapping each
+  kind of documentation to its canonical format. The rendering pipeline
+  (Doxygen → MkDocs/Sphinx-Breathe site) stays a ROADMAP §7.1 concern.
+
 ### Changed (M2.7)
 
 - `memory_pool_free` gains an `O(1)` range + alignment check against the

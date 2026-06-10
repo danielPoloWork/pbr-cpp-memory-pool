@@ -45,5 +45,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0010   | [RAII for the Pool wrapper and Pimpl across the C/C++ boundary](0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) | Accepted |
 | 0011   | [Factory Method and Builder for Pool construction](0011-factory-method-and-builder-for-pool-construction.md) | Accepted |
 | 0012   | [Foreign-pointer and out-of-range pointer policy](0012-foreign-pointer-and-out-of-range-pointer-policy.md) | Accepted |
+| 0013   | [Doxygen for the API contract, Markdown for the narrative](0013-doxygen-for-api-markdown-for-narrative.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
