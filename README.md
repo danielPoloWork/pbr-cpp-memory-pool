@@ -1,5 +1,6 @@
 # Purpose-built reference High-Performance Memory Pool Manager (C++)
 
+[![ci](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml)
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
@@ -83,17 +84,27 @@ Every PR must clear, at minimum:
 | Public API docs               | Doxygen-compatible, builds without warnings                                  |
 | Performance claims            | Backed by reproducible benchmark under `src/bench/`                          |
 
-Full quality contract: [`AGENTS.md`](AGENTS.md) §10. Until the C++ build lands in Milestone 1.8, a **docs-only CI** runs on every PR (markdownlint + internal link check + ADR numbering sanity) — its status appears in the badge above.
+Full quality contract: [`AGENTS.md`](AGENTS.md) §10. The C++ build matrix, sanitizers, `clang-format`, `clang-tidy` diff gate, ANSI C / C99 verification, and zero-external-dependency audit run on every PR via [`ci.yml`](.github/workflows/ci.yml); a docs-only workflow ([`docs.yml`](.github/workflows/docs.yml)) covers markdownlint, internal link checks, and ADR numbering sanity. Both badges above gate `master`.
 
 ## Build and test
 
-The canonical commands, once the toolchain is installed:
+The canonical three-step workflow, once the toolchain is installed, is the same on every supported platform — only the shell-level chaining differs.
 
 ```bash
+# Linux, macOS, MinGW/MSYS2, WSL — any POSIX shell
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
 ```
+
+```powershell
+# Windows — Developer PowerShell for VS 2022 (PowerShell 5.1 has no &&)
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
+```
+
+Both invocations are exercised end-to-end on every push to `master` by the [CI matrix](.github/workflows/ci.yml): Linux × {GCC, Clang}, Windows × MSVC, macOS × Apple Clang — across `debug`, `release`, `asan`, and `ubsan` presets (sanitizer presets are POSIX-only per [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md) §3). A green `ci` badge above is the canonical "the quickstart works on Windows and Linux" signal.
 
 For first-time setup on a fresh clone — installing CMake, Ninja, and the supported compilers per platform, plus troubleshooting and the full quality-bar workflow — see the **[Local Build Guide](docs/development/local-build.md)**.
 
