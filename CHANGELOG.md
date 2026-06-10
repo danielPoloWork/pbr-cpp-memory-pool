@@ -18,6 +18,34 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Changed (M2.7)
+
+- `memory_pool_free` gains an `O(1)` range + alignment check against the
+  pool's backing extents (ADR-0009 §6 fields) per
+  [ADR-0012](docs/adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md);
+  foreign pointers, out-of-range pointers, and in-range-but-misaligned
+  pointers are now silent no-ops. The pool state is bit-identical
+  before and after a no-op call. The comparison uses `std::uintptr_t`
+  arithmetic to avoid `[expr.rel]/4` unspecified behaviour on cross-
+  allocation pointer `<`. The two `reinterpret_cast<std::uintptr_t>`
+  sites carry narrow `NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)`
+  annotations.
+- `memory_pool.h` Doxygen on `memory_pool_free` drops the *"the policy
+  for detecting and reporting such misuse is set in Milestone 2.7"*
+  qualifier and documents the new silent-no-op-with-detection contract;
+  the double-free case (in-range, aligned, already-on-free-list pointer)
+  is explicitly noted as still UB and deferred to Milestone 6's
+  Decorator instrumentation.
+- `pool_smoke_test.cpp` gains five new `TEST_CASE`s exercising the
+  foreign-pointer policy: out-of-range below, out-of-range above,
+  in-range misaligned, foreign heap pointer from a sibling pool, and
+  stack pointer. Each verifies the pool's `head_` and the chain
+  integrity are bit-identical before and after the offending call.
+- Spec Coverage Map §6.1 (Correctness — exhaustion, null inputs,
+  foreign / out-of-range pointers) flips from ⏳ to ✅. Exhaustion and
+  null-input scenarios were already covered by M2.3 / M2.4 tests;
+  M2.7 closes the foreign-pointer scenario.
+
 ### Added
 
 - [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md)

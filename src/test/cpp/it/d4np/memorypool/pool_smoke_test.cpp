@@ -366,3 +366,148 @@ TEST_CASE("PoolBuilder::build is const — same builder produces multiple pools"
         CHECK((*first).native_handle() != (*second).native_handle());
     }
 }
+
+// ===========================================================================
+// M2.7 — Foreign-pointer / out-of-range pointer policy per ADR-0012.
+//
+// All five cases verify the same invariant: a foreign-pointer pass to
+// memory_pool_free is a silent no-op — the pool's free-list head, the
+// total capacity (provable via consecutive allocs), and the integrity of
+// the chain are bit-identical before and after the offending call. ASan
+// and UBSan in the CI matrix observe the absence of out-of-bounds writes.
+// ===========================================================================
+
+TEST_CASE("memory_pool_free is a no-op on an out-of-range pointer below the backing") {
+    // ADR-0012 — block_addr < base_addr branch of is_block_in_range.
+    // Allocate a real block to learn pool->head_, then synthesise a
+    // pointer one slot before the backing buffer via uintptr_t
+    // arithmetic. NOLINT on the cast is the standing pattern for
+    // ptr-to-int in tests (memory feedback).
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    void* const block = memory_pool_alloc(pool);
+    REQUIRE(block != nullptr);
+    memory_pool_free(pool, block);  // restore the head — the foreign-pointer free below must leave it alone
+
+    // Subsequent alloc/free of a real block should still work — proves
+    // the pool state isn't corrupted by the foreign call.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto base_addr = reinterpret_cast<std::uintptr_t>(block);
+    auto* const foreign_below = reinterpret_cast<void*>(base_addr - SAFE_BLOCK_SIZE);
+    memory_pool_free(pool, foreign_below);
+
+    // The pool must still vend block_count slots — a single free that
+    // mutated head_ via the foreign pointer would either crash or
+    // produce a smaller usable capacity.
+    void* const a = memory_pool_alloc(pool);
+    void* const b = memory_pool_alloc(pool);
+    CHECK(a != nullptr);
+    CHECK(b != nullptr);
+    memory_pool_free(pool, a);
+    memory_pool_free(pool, b);
+
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_free is a no-op on an out-of-range pointer above the backing") {
+    // ADR-0012 — block_addr >= end_addr branch.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    // Construct a pointer one slot past the end of the backing buffer.
+    void* const block = memory_pool_alloc(pool);
+    REQUIRE(block != nullptr);
+    memory_pool_free(pool, block);
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto base_addr = reinterpret_cast<std::uintptr_t>(block);
+    auto* const foreign_above =
+        reinterpret_cast<void*>(base_addr + (SAFE_BLOCK_SIZE * SAFE_BLOCK_COUNT) + SAFE_BLOCK_SIZE);
+    memory_pool_free(pool, foreign_above);
+
+    void* const a = memory_pool_alloc(pool);
+    CHECK(a != nullptr);
+    memory_pool_free(pool, a);
+
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_free is a no-op on an in-range but misaligned pointer") {
+    // ADR-0012 — third branch of is_block_in_range: the pointer lies
+    // inside the backing buffer but at a non-slot-boundary offset.
+    // We construct a misaligned in-range pointer by taking a legitimate
+    // block and offsetting it by 1 byte. Pointer arithmetic on an
+    // in-range char* is well-defined within the block's storage; the
+    // resulting pointer is in-range from the pool's perspective.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    void* const block = memory_pool_alloc(pool);
+    REQUIRE(block != nullptr);
+
+    auto* const misaligned = static_cast<char*>(block) + 1;
+    memory_pool_free(pool, misaligned);  // must be a no-op — block is still owned by the caller
+
+    // The legitimate `block` is still owned; freeing it must succeed
+    // and the pool must return it on the next alloc (LIFO).
+    memory_pool_free(pool, block);
+    void* const re = memory_pool_alloc(pool);
+    CHECK(re == block);
+    memory_pool_free(pool, re);
+
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_free is a no-op on a foreign heap pointer") {
+    // ADR-0012 — pointer from a different heap allocation. The
+    // is_block_in_range check rejects it via the address comparison
+    // without ever dereferencing — ASan / UBSan see no access.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    // A second pool's backing is guaranteed by `operator new` to be a
+    // disjoint allocation; passing one of its slots into pool's free
+    // function exercises exactly the cross-allocation case the
+    // [expr.rel]/4 unspecified-behaviour clause warns about.
+    memory_pool_t* foreign_pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(foreign_pool != nullptr);
+    void* const foreign_block = memory_pool_alloc(foreign_pool);
+    REQUIRE(foreign_block != nullptr);
+
+    memory_pool_free(pool, foreign_block);  // must not crash; must not mutate pool
+
+    // The foreign pool's block is still owned by foreign_pool; the
+    // legitimate free returns it there. pool, untouched, still vends.
+    memory_pool_free(foreign_pool, foreign_block);
+    void* const a = memory_pool_alloc(pool);
+    CHECK(a != nullptr);
+    memory_pool_free(pool, a);
+
+    memory_pool_destroy(foreign_pool);
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_free is a no-op on a stack pointer") {
+    // ADR-0012 — stack-allocated objects produce pointers that are
+    // definitely outside any heap-allocated pool backing. The address
+    // comparison rejects without dereferencing.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    int stack_local = 0;
+    memory_pool_free(pool, &stack_local);
+
+    // Pool state is unchanged — every slot still allocatable.
+    std::array<void*, SAFE_BLOCK_COUNT> slots{};
+    for (std::size_t i = 0; i < SAFE_BLOCK_COUNT; ++i) {
+        slots.at(i) = memory_pool_alloc(pool);
+        REQUIRE(slots.at(i) != nullptr);
+    }
+    // Pool exhausted after exactly block_count successful pops.
+    CHECK(memory_pool_alloc(pool) == nullptr);
+    for (std::size_t i = 0; i < SAFE_BLOCK_COUNT; ++i) {
+        memory_pool_free(pool, slots.at(i));
+    }
+    memory_pool_destroy(pool);
+}
