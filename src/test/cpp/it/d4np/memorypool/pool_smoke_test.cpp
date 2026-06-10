@@ -159,8 +159,8 @@ TEST_CASE("memory_pool_alloc exhausts the pool after block_count successful pops
 
     std::array<void*, COUNT> slots{};
     for (std::size_t i = 0; i < COUNT; ++i) {
-        slots[i] = memory_pool_alloc(pool);
-        REQUIRE(slots[i] != nullptr);
+        slots.at(i) = memory_pool_alloc(pool);
+        REQUIRE(slots.at(i) != nullptr);
     }
     // Exhausted.
     CHECK(memory_pool_alloc(pool) == nullptr);
@@ -176,7 +176,7 @@ TEST_CASE("memory_pool_alloc exhausts the pool after block_count successful pops
     // Tidy up — return every outstanding block so destroy is leak-clean.
     for (std::size_t i = 0; i < COUNT; ++i) {
         if (i != 2U) {
-            memory_pool_free(pool, slots[i]);
+            memory_pool_free(pool, slots.at(i));
         }
     }
     memory_pool_free(pool, reissued);
@@ -196,8 +196,8 @@ TEST_CASE("memory_pool_alloc returns distinct, aligned pointers") {
 
     std::array<void*, COUNT> slots{};
     for (std::size_t i = 0; i < COUNT; ++i) {
-        slots[i] = memory_pool_alloc(pool);
-        REQUIRE(slots[i] != nullptr);
+        slots.at(i) = memory_pool_alloc(pool);
+        REQUIRE(slots.at(i) != nullptr);
         // The pointer-to-integer conversion is exactly the case
         // cppcoreguidelines-pro-type-reinterpret-cast targets, but for
         // an alignment check in test code there is no portable C++17
@@ -205,17 +205,17 @@ TEST_CASE("memory_pool_alloc returns distinct, aligned pointers") {
         // C++20, and a C-style cast trips the same rule. NOLINT is
         // appropriately narrow here.
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        const auto addr = reinterpret_cast<std::uintptr_t>(slots[i]);
+        const auto addr = reinterpret_cast<std::uintptr_t>(slots.at(i));
         CHECK((addr % alignof(std::max_align_t)) == 0U);
     }
     // Pairwise distinctness — O(N^2) but COUNT is tiny.
     for (std::size_t i = 0; i < COUNT; ++i) {
         for (std::size_t j = i + 1U; j < COUNT; ++j) {
-            CHECK(slots[i] != slots[j]);
+            CHECK(slots.at(i) != slots.at(j));
         }
     }
     for (std::size_t i = 0; i < COUNT; ++i) {
-        memory_pool_free(pool, slots[i]);
+        memory_pool_free(pool, slots.at(i));
     }
     memory_pool_destroy(pool);
 }
