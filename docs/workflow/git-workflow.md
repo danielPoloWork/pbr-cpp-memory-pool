@@ -134,7 +134,7 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - [ ] ADR added/updated (if a non-trivial design decision was made)
 - [ ] docs/patterns/README.md updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec updated (if behavior diverges from `docs/specs/`)
-- [ ] CHANGELOG.md updated (once that file exists)
+- [ ] CHANGELOG.md updated (for user-visible changes; see ADR-0004 §3)
 ```
 
 The canonical, kept-in-sync version of this template lives in [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md) — GitHub auto-populates new PR bodies from that file.

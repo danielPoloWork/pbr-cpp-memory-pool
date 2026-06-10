@@ -43,7 +43,7 @@ Pattern names must match docs/patterns/design-patterns.md.
 - [ ] ADR added/updated (if a non-trivial design decision was made)
 - [ ] `docs/patterns/README.md` updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec under `docs/specs/` updated (if behavior diverges)
-- [ ] `CHANGELOG.md` updated (once that file exists)
+- [ ] `CHANGELOG.md` updated (for user-visible changes; see [ADR-0004](../docs/adr/0004-versioning-and-release-policy.md) §3)
 
 <!--
 Reminder of the agent-vs-human boundary (AGENTS.md §6.1):
