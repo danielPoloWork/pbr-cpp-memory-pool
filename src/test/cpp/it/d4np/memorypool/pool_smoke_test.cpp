@@ -394,6 +394,13 @@ TEST_CASE("memory_pool_free is a no-op on an out-of-range pointer below the back
     // the pool state isn't corrupted by the foreign call.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const auto base_addr = reinterpret_cast<std::uintptr_t>(block);
+    // The reverse int->ptr cast trips two checks:
+    // cppcoreguidelines-pro-type-reinterpret-cast on the cast itself, and
+    // performance-no-int-to-ptr because the synthesised pointer has no
+    // provenance the optimizer can track. Both NOLINTs are justified —
+    // a synthetic out-of-range pointer is precisely the data being
+    // tested by the foreign-pointer policy.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     auto* const foreign_below = reinterpret_cast<void*>(base_addr - SAFE_BLOCK_SIZE);
     memory_pool_free(pool, foreign_below);
 
@@ -422,6 +429,11 @@ TEST_CASE("memory_pool_free is a no-op on an out-of-range pointer above the back
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const auto base_addr = reinterpret_cast<std::uintptr_t>(block);
+    // Same NOLINT rationale as the out-of-range-below test above: the
+    // int->ptr synthesis is intentional for testing the foreign-pointer
+    // policy and trips both pro-type-reinterpret-cast and
+    // performance-no-int-to-ptr.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     auto* const foreign_above =
         reinterpret_cast<void*>(base_addr + (SAFE_BLOCK_SIZE * SAFE_BLOCK_COUNT) + SAFE_BLOCK_SIZE);
     memory_pool_free(pool, foreign_above);
