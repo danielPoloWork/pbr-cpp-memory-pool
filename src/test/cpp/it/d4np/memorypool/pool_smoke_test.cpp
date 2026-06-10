@@ -291,19 +291,22 @@ TEST_CASE("Pool::make returns an engaged optional on valid arguments") {
     // engaged with the moved-in Pool. The wrapped Pool's native_handle()
     // is non-null and allocate() returns a real block.
     //
-    // We use `.value().X` rather than `opt->X` because clang-tidy's
-    // bugprone-unchecked-optional-access does not recognise doctest's
-    // REQUIRE(opt.has_value()) as a control-flow check (REQUIRE is a
-    // do-while macro that throws on failure but is not `[[noreturn]]`
-    // from the static analyser's perspective). `.value()` throws
-    // std::bad_optional_access on an empty optional, which the check
-    // considers safe.
-    std::optional<Pool> pool = Pool::make(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
-    REQUIRE(pool.has_value());
-    CHECK(pool.value().native_handle() != nullptr);
-    void* const block = pool.value().allocate();
-    CHECK(block != nullptr);
-    pool.value().deallocate(block);
+    // Clang-tidy's bugprone-unchecked-optional-access only recognises an
+    // explicit `if (opt)` / `if (opt.has_value())` block as a flow guard;
+    // neither doctest's REQUIRE nor the throwing `.value()` accessor
+    // counts. The REQUIRE catches an unexpected empty optional with a
+    // useful failure message; the if-block then gives clang-tidy the
+    // flow guard it needs and exposes a `Pool&` for the remaining
+    // accesses.
+    std::optional<Pool> opt = Pool::make(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(opt.has_value());
+    if (opt.has_value()) {
+        Pool& pool = *opt;
+        CHECK(pool.native_handle() != nullptr);
+        void* const block = pool.allocate();
+        CHECK(block != nullptr);
+        pool.deallocate(block);
+    }
 }
 
 TEST_CASE("Pool::make returns nullopt on a misaligned block_size") {
@@ -332,10 +335,13 @@ TEST_CASE("PoolBuilder builds a configured Pool fluently") {
     // (4 base indent + 4 ContinuationIndentWidth) and stays on a single
     // line, sidestepping the manual deep-indent column-alignment
     // anti-pattern recorded in the agent's memory.
-    std::optional<Pool> pool =
+    std::optional<Pool> opt =
         PoolBuilder{}.with_block_size(SAFE_BLOCK_SIZE).with_block_count(SAFE_BLOCK_COUNT).build();
-    REQUIRE(pool.has_value());
-    CHECK(pool.value().native_handle() != nullptr);
+    REQUIRE(opt.has_value());
+    if (opt.has_value()) {
+        Pool& pool = *opt;
+        CHECK(pool.native_handle() != nullptr);
+    }
 }
 
 TEST_CASE("PoolBuilder::build returns nullopt on a default-constructed builder") {
@@ -362,6 +368,8 @@ TEST_CASE("PoolBuilder::build is const — same builder produces multiple pools"
     std::optional<Pool> second = builder.build();
     REQUIRE(first.has_value());
     REQUIRE(second.has_value());
-    // Independently-owned: the two pools have distinct native handles.
-    CHECK(first.value().native_handle() != second.value().native_handle());
+    if (first.has_value() && second.has_value()) {
+        // Independently-owned: the two pools have distinct native handles.
+        CHECK((*first).native_handle() != (*second).native_handle());
+    }
 }
