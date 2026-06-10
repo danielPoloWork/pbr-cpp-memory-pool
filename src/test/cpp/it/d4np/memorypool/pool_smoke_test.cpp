@@ -28,7 +28,9 @@
 #include <it/d4np/memorypool/memory_pool.hpp>
 #include <it/d4np/memorypool/version.hpp>
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string_view>
 #include <utility>
@@ -117,36 +119,121 @@ TEST_CASE("memory_pool_create returns NULL when block_size * block_count overflo
     CHECK(memory_pool_create(OVERFLOW_TRIGGER, 4U) == nullptr);
 }
 
-TEST_CASE("C API surface: alloc and free are still Milestone 1 stubs") {
-    // M2.3 has implemented create / destroy. Alloc and free remain stubs
-    // until M2.4 — this TEST_CASE locks in the stub contract so M2.4's
-    // implementation PR has an obvious signal that the bodies have
-    // arrived (the assertions below will need to be replaced).
+TEST_CASE("memory_pool_alloc returns a block from a non-exhausted pool") {
+    // M2.4 happy path — alloc pops the head of the free list and returns
+    // a non-null block. Destroy at the end frees the backing.
     memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
     REQUIRE(pool != nullptr);
-
-    // M2.4 will replace with REQUIRE(block != nullptr) and exercise the
-    // free-list round-trip on free.
-    void* block = memory_pool_alloc(pool);
-    CHECK(block == nullptr);
+    void* const block = memory_pool_alloc(pool);
+    CHECK(block != nullptr);
     memory_pool_free(pool, block);
-
     memory_pool_destroy(pool);
 }
 
-TEST_CASE("Pool RAII wrapper: construction acquires a real handle") {
-    // Post-M2.3, memory_pool_create returns a non-null handle on valid
-    // arguments, so the wrapper exposes the real pointer via
-    // native_handle(). Destruction is exercised at scope exit and is
-    // covered for leaks by the M2.8 Valgrind / ASan jobs.
-    Pool pool(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
-    CHECK(pool.native_handle() != nullptr);
+TEST_CASE("memory_pool_alloc returns NULL on a null pool") {
+    // ADR-0009 §7 — null pool is a defined no-op returning NULL.
+    CHECK(memory_pool_alloc(nullptr) == nullptr);
+}
 
-    // allocate / deallocate still forward to the M1 stubs of alloc / free;
-    // the assertion below will become `slot != nullptr` once M2.4 lands.
-    void* slot = pool.allocate();
-    CHECK(slot == nullptr);
-    pool.deallocate(slot);
+TEST_CASE("memory_pool_free is a no-op on null pool or null block") {
+    // Both branches must not crash; the M2.8 Valgrind / ASan cells observe.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+    memory_pool_free(nullptr, nullptr);
+    memory_pool_free(pool, nullptr);
+    memory_pool_free(nullptr, pool);  // illegal pair, must still no-op via null-pool check
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_alloc exhausts the pool after block_count successful pops") {
+    // ADR-0009 §7 — fixed mode returns NULL on exhaustion. Pulling
+    // block_count blocks must succeed; the (block_count + 1)-th call must
+    // return nullptr. Free a block afterwards and verify the next alloc
+    // succeeds again — proves the push/pop round-trip works without
+    // depending on a specific block ordering (the implicit free list IS
+    // ordered ascending after create, but after free/alloc cycles the
+    // head can be anywhere within the pool).
+    constexpr std::size_t COUNT = 4U;
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, COUNT);
+    REQUIRE(pool != nullptr);
+
+    std::array<void*, COUNT> slots{};
+    for (std::size_t i = 0; i < COUNT; ++i) {
+        slots[i] = memory_pool_alloc(pool);
+        REQUIRE(slots[i] != nullptr);
+    }
+    // Exhausted.
+    CHECK(memory_pool_alloc(pool) == nullptr);
+
+    // Return one block; the next alloc must succeed.
+    memory_pool_free(pool, slots[2]);
+    void* const reissued = memory_pool_alloc(pool);
+    CHECK(reissued != nullptr);
+    // The free list is a stack (push to head, pop from head), so the
+    // re-allocated pointer must equal the most recently freed block.
+    CHECK(reissued == slots[2]);
+
+    // Tidy up — return every outstanding block so destroy is leak-clean.
+    for (std::size_t i = 0; i < COUNT; ++i) {
+        if (i != 2U) {
+            memory_pool_free(pool, slots[i]);
+        }
+    }
+    memory_pool_free(pool, reissued);
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_alloc returns distinct, aligned pointers") {
+    // Every alloc returns a distinct, aligned pointer. Uniqueness
+    // confirms the free list never hands out the same slot twice;
+    // alignment confirms the ADR-0009 §5 contract that every block is
+    // alignof(std::max_align_t)-aligned (the structural argument is
+    // already in the ADR — this is the runtime check that the
+    // construction matches the contract).
+    constexpr std::size_t COUNT = 8U;
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, COUNT);
+    REQUIRE(pool != nullptr);
+
+    std::array<void*, COUNT> slots{};
+    for (std::size_t i = 0; i < COUNT; ++i) {
+        slots[i] = memory_pool_alloc(pool);
+        REQUIRE(slots[i] != nullptr);
+        // The pointer-to-integer conversion is exactly the case
+        // cppcoreguidelines-pro-type-reinterpret-cast targets, but for
+        // an alignment check in test code there is no portable C++17
+        // alternative — std::align is array-oriented, std::bit_cast is
+        // C++20, and a C-style cast trips the same rule. NOLINT is
+        // appropriately narrow here.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        const auto addr = reinterpret_cast<std::uintptr_t>(slots[i]);
+        CHECK((addr % alignof(std::max_align_t)) == 0U);
+    }
+    // Pairwise distinctness — O(N^2) but COUNT is tiny.
+    for (std::size_t i = 0; i < COUNT; ++i) {
+        for (std::size_t j = i + 1U; j < COUNT; ++j) {
+            CHECK(slots[i] != slots[j]);
+        }
+    }
+    for (std::size_t i = 0; i < COUNT; ++i) {
+        memory_pool_free(pool, slots[i]);
+    }
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("Pool RAII wrapper: allocate / deallocate exercise the real free list") {
+    // The wrapper forwards to the M2.4 bodies, so allocate now returns a
+    // non-null block from a valid pool. deallocate returns the block to
+    // the free list; a subsequent allocate re-issues it (LIFO ordering).
+    Pool pool(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool.native_handle() != nullptr);
+
+    void* const first = pool.allocate();
+    REQUIRE(first != nullptr);
+    pool.deallocate(first);
+
+    void* const second = pool.allocate();
+    CHECK(second == first);  // LIFO — most-recently-freed comes back first.
+    pool.deallocate(second);
 }
 
 TEST_CASE("Pool RAII wrapper: invalid construction leaves the wrapper empty") {
