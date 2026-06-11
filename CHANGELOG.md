@@ -58,8 +58,8 @@ agent-driven tag push). Full release notes in
   methodology — hand-rolled `std::chrono` with anti-optimization barriers, two
   scenarios, statistical summary, CI smoke-only gate),
   [0015](docs/adr/0015-metadata-overhead-budget-and-introspection.md)
-  (metadata-overhead budget — 0 bytes per block, ≤ 128 bytes per pool, compile-time
-  + runtime gates).
+  (metadata-overhead budget — 0 bytes per block, ≤ 128 bytes per pool, with both
+  a compile-time and a runtime gate).
 - Public C function
   [`memory_pool_metadata_bytes(const memory_pool_t*)`](src/main/cpp/it/d4np/memorypool/memory_pool.h)
   — reports per-pool metadata cost in bytes, NULL-tolerant, ANSI C C89-compatible.
@@ -101,8 +101,8 @@ agent-driven tag push). Full release notes in
   contributor recipe for adding reports from other hosts; new `bench` build preset.
 - README *Performance* section between *Architecture* and *Status* — three-row
   headline table linking to the full bench report and to ADR-0014.
-- README *At a glance* gains a Metadata overhead bullet documenting the 0-per-block
-  + ≤128-bytes-per-pool guarantee with link to ADR-0015.
+- README *At a glance* gains a Metadata overhead bullet documenting the
+  zero-per-block and ≤128-bytes-per-pool guarantees with link to ADR-0015.
 - Two new design patterns added to
   [`docs/patterns/README.md`](docs/patterns/README.md) *Adopted / Planned* table:
   **Factory Method** (`Pool::make`) and **Builder** (`PoolBuilder`), both status
@@ -127,7 +127,8 @@ agent-driven tag push). Full release notes in
 
 - `memory_pool_create` and `memory_pool_destroy` (M2.3): real C++17 bodies replace
   the Milestone 1 stubs. Construction validates the three `block_size` preconditions
-  + `block_count > 0` + `size_t`-overflow guard from ADR-0009 §2/§3, obtains the
+  together with `block_count > 0` and the `size_t`-overflow guard from ADR-0009 §2
+  and §3, obtains the
   over-aligned contiguous backing via `::operator new(total, std::align_val_t{...})`
   with `std::bad_alloc` caught at the C ABI boundary, and initialises the implicit
   free list in ascending address order. Every failure path returns `NULL`;
