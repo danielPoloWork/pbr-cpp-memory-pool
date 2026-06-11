@@ -18,6 +18,50 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M2.9)
+
+- [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md)
+  freezes the microbenchmark methodology before any numbers ship: hand-rolled
+  `std::chrono::steady_clock` timing (no external dependency in the bench
+  tree), two scenarios (bulk: alloc N then free N; interleaved: alloc +
+  immediate free × N), 1,000,000 iterations × 10 repeats per scenario with
+  the first discarded as warm-up, 64-byte blocks, statistical summary
+  (min / median / mean / max / stddev) plus a headline `malloc_median /
+  pool_median` ratio per region, per-iteration `volatile` byte write +
+  portable `do_not_optimize` barrier to defeat Release-mode dead-code
+  elimination identically on both allocators, TSV output format with a
+  three-section layout (header / table / headline), reporting cadence
+  (one file per release × host under `docs/bench/v<X.Y.Z>-<host>.md`),
+  CI integration (smoke-run only, no numeric thresholds — runner noise
+  makes that gate meaningless), and six rejected alternatives (Google
+  Benchmark, Nanobench, doctest's `BENCHMARK`, single scenario, no
+  repeats, no anti-optimization).
+- `pool_vs_malloc_bench` binary at
+  [`src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench.cpp`](src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench.cpp)
+  implementing the ADR-0014 contract. CLI flags `--iterations N`,
+  `--repeats N`, `--block-size N`, `--scenario {bulk|interleaved|both}`
+  (defaults match the spec §6.3 contract verbatim). Built off by default
+  via the `PBR_MEMORY_POOL_BUILD_BENCHMARKS` option; the new `bench`
+  preset (Release + benchmarks ON + tests OFF) opts in.
+- `bench-smoke` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+  on Ubuntu 24.04 — builds with the `bench` preset and runs
+  `pool_vs_malloc_bench --iterations 10000 --repeats 3`. Asserts exit
+  code 0; deliberately does NOT assert numeric thresholds (ADR-0014 §8 —
+  shared GHA runner noise would produce flaky red without adding signal).
+- Canonical bench report for v0.2.0:
+  [`docs/bench/v0.2.0-windows-msvc-x64.md`](docs/bench/v0.2.0-windows-msvc-x64.md)
+  (Intel Core i5-6600K @ 3.5 GHz Skylake, 32 GB RAM, MSVC 19.51 Release).
+  Headline ratios: **11.02 ×** faster than `malloc` on bulk-alloc, **5.35 ×**
+  on bulk-free, **4.45 ×** on interleaved.
+  [`docs/bench/README.md`](docs/bench/README.md) is the contributor
+  recipe for adding reports from other hosts.
+- README *Performance* section between *Architecture* and *Status* carrying
+  the three-row headline table + link to the full report and ADR.
+- Spec Coverage Map: §6.3 (Benchmark `pool_alloc/free` vs `malloc/free`)
+  flips from ⏳ to 🚧 — single-threaded coverage is complete; full ✅
+  arrives with the M4.5 concurrent comparative rerun that re-uses the
+  same binary.
+
 ### Added (M2.8)
 
 - Valgrind verification job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)

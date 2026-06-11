@@ -50,7 +50,27 @@ The pool manages free memory using a **free list embedded inside the free blocks
 +-------------------------------------------------------------------+
 ```
 
-The free-list layout, the `block_size ≥ sizeof(void*)` constraint, and the alignment guarantees will be locked down in a dedicated ADR landing with Milestone 2.1; meanwhile [ADR-0002](docs/adr/0002-adopt-cross-language-source-layout.md) and [ADR-0003](docs/adr/0003-design-patterns-policy.md) already cover the surrounding decisions (source layout and design-patterns policy).
+The free-list layout, the `block_size ≥ sizeof(void*)` constraint, and the alignment guarantees are locked down in [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md); the surrounding decisions are recorded in [ADR-0002](docs/adr/0002-adopt-cross-language-source-layout.md) and [ADR-0003](docs/adr/0003-design-patterns-policy.md).
+
+## Performance
+
+Headline numbers from the v0.2.0 microbenchmark (M2.9 / spec §6.3) on the maintainer's Windows × MSVC × x64 workstation, 64-byte blocks, 1,000,000 iterations × 10 repeats with the first dropped as warm-up. Full report — host disclosure, raw output, per-region tables, observations — in [`docs/bench/v0.2.0-windows-msvc-x64.md`](docs/bench/v0.2.0-windows-msvc-x64.md). Methodology contract: [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md).
+
+| Scenario     | median `malloc` (ns/op) | median `pool` (ns/op) | `malloc` / `pool` |
+|--------------|------------------------:|----------------------:|------------------:|
+| bulk-alloc   | 75.5                    | 6.9                   | **11.02 ×**       |
+| bulk-free    | 44.5                    | 8.3                   | **5.35 ×**        |
+| interleaved  | 49.9                    | 11.2                  | **4.45 ×**        |
+
+The bench binary is built off by default; the `bench` preset (Release + benchmarks ON + tests OFF) opts in:
+
+```bash
+cmake --preset bench
+cmake --build --preset bench
+./build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench
+```
+
+Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, macOS / Apple Clang) are welcome — see [`docs/bench/README.md`](docs/bench/README.md) for the contribution recipe.
 
 ## Status
 

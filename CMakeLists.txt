@@ -134,7 +134,10 @@ endif()
 option(PBR_MEMORY_POOL_BUILD_BENCHMARKS
     "Build the benchmark targets under src/bench/cpp/" OFF)
 if(PBR_MEMORY_POOL_BUILD_BENCHMARKS)
-    # add_subdirectory(src/bench/cpp/it/d4np/memorypool)  # enabled in Milestone 2.9
+    # Methodology fixed by ADR-0014. The benchmark binary depends only on
+    # pbr::memory_pool and the C/C++ standard library — spec §3.3's zero-
+    # external-dependency posture is preserved into the bench tree.
+    add_subdirectory(src/bench/cpp/it/d4np/memorypool)
 endif()
 
 # ---------------------------------------------------------------------------

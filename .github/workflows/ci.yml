@@ -4,9 +4,10 @@ name: ci
 # fixed by ADR-0005 (toolchain matrix) and the quality bar in AGENTS.md §10.
 # Covers ROADMAP §1.8 (build matrix + clang-tidy + sanitizers + CTest),
 # §1.10 (ANSI C / C99 verification of the public C header), §1.11
-# (zero-external-dependency verification of the library build), and §2.8
+# (zero-external-dependency verification of the library build), §2.8
 # (Valgrind verification of spec §6.2 — `ERROR SUMMARY: 0 errors from 0
-# contexts`).
+# contexts`), and §2.9 (microbenchmark smoke run — proves the bench
+# binary builds, links, and runs to completion; ADR-0014 §8).
 #
 # The configure-smoke job in .github/workflows/build-smoke.yml is removed in
 # the same PR — its work is now a subset of the per-cell configure step here.
@@ -404,3 +405,48 @@ jobs:
             exit 1
           fi
           echo "OK — spec §6.2 success criterion met."
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP §2.9 — microbenchmark smoke run. Builds the bench binary with the
+  # `bench` preset (Release + benchmarks ON + tests OFF) and runs it briefly.
+  # Asserts exit code 0 only — numeric thresholds are not gated because
+  # shared GHA runners exhibit ±30% variance on memory-bound microbenchmarks
+  # and would produce flaky red. Committed numbers in docs/bench/v<X.Y.Z>-
+  # <host>.md come from a controlled host disclosed in the file header.
+  # Full methodology rationale: ADR-0014 §8.
+  # ---------------------------------------------------------------------------
+  bench-smoke:
+    name: bench / pool vs malloc smoke run
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure (bench preset — Release + benchmarks ON)
+        shell: bash
+        run: |
+          export CC=gcc CXX=g++
+          cmake --preset bench
+
+      - name: Build the bench binary
+        shell: bash
+        run: cmake --build --preset bench
+
+      - name: Smoke-run pool_vs_malloc_bench
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
+          if [[ ! -x "$bin" ]]; then
+            echo "FAIL: expected bench binary at $bin"
+            ls -la build/bench/src/bench/cpp/it/d4np/memorypool/
+            exit 1
+          fi
+          # Reduced iterations / repeats — proves the binary runs end-to-end
+          # without measuring the noisy runner. The CI gate is exit-code 0,
+          # not the numbers.
+          "$bin" --iterations 10000 --repeats 3
+          echo "OK — bench binary ran to completion."
