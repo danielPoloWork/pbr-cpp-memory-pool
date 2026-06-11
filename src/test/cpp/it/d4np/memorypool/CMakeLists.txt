@@ -20,3 +20,8 @@ add_test(
 
 set_tests_properties(pool_smoke PROPERTIES
     LABELS "smoke;milestone-1")
+
+# ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
+# carries its own CMakeLists.txt because the target consumes a strict ANSI
+# C89 .c source and overrides the project-wide C99 floor on its own scope.
+add_subdirectory(spec_6_2_valgrind)

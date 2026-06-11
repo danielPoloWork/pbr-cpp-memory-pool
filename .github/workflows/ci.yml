@@ -3,8 +3,10 @@ name: ci
 # Full enterprise CI gate for pbr-cpp-memory-pool — implements the contract
 # fixed by ADR-0005 (toolchain matrix) and the quality bar in AGENTS.md §10.
 # Covers ROADMAP §1.8 (build matrix + clang-tidy + sanitizers + CTest),
-# §1.10 (ANSI C / C99 verification of the public C header), and §1.11
-# (zero-external-dependency verification of the library build).
+# §1.10 (ANSI C / C99 verification of the public C header), §1.11
+# (zero-external-dependency verification of the library build), and §2.8
+# (Valgrind verification of spec §6.2 — `ERROR SUMMARY: 0 errors from 0
+# contexts`).
 #
 # The configure-smoke job in .github/workflows/build-smoke.yml is removed in
 # the same PR — its work is now a subset of the per-cell configure step here.
@@ -303,3 +305,102 @@ jobs:
             exit 1
           fi
           echo "OK — library archive contains only project-local objects."
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP §2.8 — Valgrind verification of spec §6.2.
+  #
+  # The literal command from spec §6.2 is:
+  #
+  #     gcc -g -O0 test_pool.c memory_pool.c -o test_pool
+  #     valgrind --leak-check=full --show-leak-kinds=all ./test_pool
+  #
+  # Success criterion (verbatim): `ERROR SUMMARY: 0 errors from 0 contexts`.
+  #
+  # The implementation is C++17 not C (ADR-0009 §1), so `gcc` is replaced
+  # by `g++` on the implementation TU and `memory_pool.c` is replaced by
+  # `memory_pool.cpp` on the source name. The C test program itself
+  # (src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/test_pool.c) is
+  # unchanged ANSI C89. The side-by-side mapping is in the README at
+  # src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/README.md.
+  #
+  # The `--errors-for-leak-kinds=definite,indirect` flag is the only
+  # non-spec addition — without it, leaks are reported but do not change
+  # the exit code, so a regression that leaked the backing buffer would
+  # pass `--error-exitcode=1` while still violating spec §3.1.
+  # `still reachable` and `possible` stay informational so global
+  # libstdc++ state does not trip the gate.
+  # ---------------------------------------------------------------------------
+  valgrind:
+    name: valgrind / spec §6.2 leak-check=full
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Valgrind
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+          valgrind --version
+
+      - name: Toolchain versions
+        shell: bash
+        run: |
+          gcc --version
+          g++ --version
+
+      - name: Compile, link, run under Valgrind (literal spec §6.2 pattern)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/valgrind
+
+          # 1. Compile the C test program under -std=c89 -pedantic. The
+          #    test file is at the spec-named path
+          #    src/test/cpp/.../spec_6_2_valgrind/test_pool.c so that any
+          #    reader of the spec can grep the repo for the source by name.
+          gcc -std=c89 -pedantic -g -O0 -Isrc/main/cpp \
+              -c src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/test_pool.c \
+              -o build/valgrind/test_pool.o
+
+          # 2. Compile the C++17 implementation TU. -std=c++17 is the
+          #    project's ADR-0005 §3 standard; -g -O0 matches the spec's
+          #    `gcc -g -O0` for human-readable Valgrind stack traces.
+          g++ -std=c++17 -g -O0 -Isrc/main/cpp \
+              -c src/main/cpp/it/d4np/memorypool/memory_pool.cpp \
+              -o build/valgrind/memory_pool.o
+
+          # 3. Link with g++ so libstdc++ is brought in for the C++17
+          #    ::operator new(size, std::align_val_t) overloads.
+          g++ -g -O0 \
+              build/valgrind/test_pool.o build/valgrind/memory_pool.o \
+              -o build/valgrind/test_pool
+
+          # 4. Run Valgrind with the spec flags plus the leak-kind
+          #    promotion. tee the output so we can grep for the literal
+          #    spec success criterion after the exit code is captured.
+          set +e
+          valgrind --leak-check=full --show-leak-kinds=all \
+              --errors-for-leak-kinds=definite,indirect \
+              --error-exitcode=1 \
+              build/valgrind/test_pool \
+              2>&1 | tee build/valgrind/log.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "$rc" -ne 0 ]]; then
+            echo "FAIL: Valgrind exited with code $rc"
+            exit "$rc"
+          fi
+
+          # 5. The literal spec success criterion is the canonical sentence;
+          #    grep is a belt-and-braces check against a future Valgrind
+          #    version that changes the exit-code semantics.
+          if ! grep -E 'ERROR SUMMARY: 0 errors from 0 contexts' \
+                  build/valgrind/log.txt > /dev/null; then
+            echo "FAIL: spec §6.2 success criterion not present in output"
+            exit 1
+          fi
+          echo "OK — spec §6.2 success criterion met."

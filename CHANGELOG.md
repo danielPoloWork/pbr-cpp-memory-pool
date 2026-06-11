@@ -18,6 +18,40 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M2.8)
+
+- Valgrind verification job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+  (Ubuntu 24.04, runs on every PR / `master` push and via `workflow_call` from
+  `release.yml`) gated on the literal spec §6.2 success criterion
+  `ERROR SUMMARY: 0 errors from 0 contexts`. The build path reproduces the
+  spec command modulo the C → C++ structural substitution required by the
+  C++17 implementation (ADR-0009 §1): `gcc -std=c89 -pedantic -g -O0 -c test_pool.c`,
+  then `g++ -std=c++17 -g -O0 -c memory_pool.cpp`, then `g++ -g -O0 ... -o test_pool`,
+  then `valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,indirect --error-exitcode=1`,
+  followed by a grep of the Valgrind output for the literal spec success
+  criterion as a belt-and-braces check against future Valgrind exit-code
+  semantics changes. The `--errors-for-leak-kinds=definite,indirect` flag is
+  the only non-spec addition; without it a leaked backing buffer would pass
+  `--error-exitcode` while violating spec §3.1.
+- Spec §6.2 literal demonstrative test at
+  [`src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/test_pool.c`](src/test/cpp/it/d4np/memorypool/spec_6_2_valgrind/test_pool.c)
+  (strict ANSI C89, matches `src/test/c/.../c_consumer_min.c`'s discipline).
+  Exercises every spec §6.1 scenario that intersects Valgrind's surface —
+  happy path, null inputs, exhaustion, foreign-pointer probes (heap + stack)
+  — plus a two-cycle full alloc / free round-trip before `memory_pool_destroy`
+  releases the backing. The companion `README.md` carries the side-by-side
+  spec-command-vs-CI-command mapping table and the CMake / CTest local
+  reproducibility recipe.
+- Companion CTest target `spec_6_2_valgrind` registered alongside `pool_smoke`
+  so the same scenario is exercisable locally without Valgrind under the
+  standard CMake invocation
+  (`ctest --preset debug --output-on-failure -R spec_6_2_valgrind`). Linker
+  language pinned to CXX so libstdc++ is brought in for the C++17 implementation
+  on every host; C standard pinned to C90 on this target only, overriding the
+  project-wide C99 floor.
+- Spec Coverage Map: §3.1 (no memory leaks — destroy releases everything to
+  the OS) flips from 🚧 to ✅; §6.2 (Valgrind clean) flips from ⏳ to ✅.
+
 ### Added (retroactive — documentation format)
 
 - [ADR-0013](docs/adr/0013-doxygen-for-api-markdown-for-narrative.md)
