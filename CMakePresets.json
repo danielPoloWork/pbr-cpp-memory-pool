@@ -84,6 +84,18 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
             }
+        },
+        {
+            "name": "bench",
+            "displayName": "Benchmark",
+            "description": "Release build with benchmarks ON and tests OFF (ADR-0014 / M2.9). Used to produce the numbers committed under docs/bench/.",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "PBR_MEMORY_POOL_BUILD_TESTS": "OFF",
+                "PBR_MEMORY_POOL_BUILD_BENCHMARKS": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -91,7 +103,8 @@
         {"name": "release", "configurePreset": "release"},
         {"name": "asan",    "configurePreset": "asan"},
         {"name": "ubsan",   "configurePreset": "ubsan"},
-        {"name": "tsan",    "configurePreset": "tsan"}
+        {"name": "tsan",    "configurePreset": "tsan"},
+        {"name": "bench",   "configurePreset": "bench"}
     ],
     "testPresets": [
         {"name": "debug",   "configurePreset": "debug",   "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
