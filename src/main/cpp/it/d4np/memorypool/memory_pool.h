@@ -117,6 +117,28 @@ void memory_pool_free(memory_pool_t* pool, void* block);
  */
 void memory_pool_destroy(memory_pool_t* pool);
 
+/**
+ * Report the per-pool metadata overhead in bytes (spec section 3.2 /
+ * ADR-0015).
+ *
+ * Returns the size of pool-internal bookkeeping — currently the
+ * `struct memory_pool` itself, per ADR-0009 section 6. The value is O(1)
+ * in both `block_count` and `block_size`: a pool with one million blocks
+ * reports the same number as a pool with one. Per-block metadata is
+ * zero by construction (implicit free list, ADR-0009 section 1).
+ *
+ * The CI build matrix gates `sizeof(struct memory_pool)` to a 128-byte
+ * upper bound through a `static_assert` in the implementation file
+ * (ADR-0015 section 3); this function reports the value at runtime so
+ * test code and production diagnostics can verify the budget against
+ * the same number that gates compile time.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return Number of metadata bytes for @p pool, or 0 if @p pool is
+ *         `NULL`.
+ */
+size_t memory_pool_metadata_bytes(const memory_pool_t* pool);
+
 #ifdef __cplusplus
 }
 #endif

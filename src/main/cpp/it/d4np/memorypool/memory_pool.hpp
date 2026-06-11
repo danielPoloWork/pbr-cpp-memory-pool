@@ -112,6 +112,19 @@ public:
      */
     memory_pool_t* native_handle() noexcept;
 
+    /**
+     * Report the per-pool metadata overhead in bytes (spec §3.2 / ADR-0015).
+     *
+     * Forwards to ::memory_pool_metadata_bytes. The returned value is O(1)
+     * in both block_count and block_size — a pool with one million blocks
+     * reports the same number as a pool with one. Per-block external
+     * metadata is zero by construction (implicit free list, ADR-0009 §1).
+     *
+     * @return Bytes of pool-internal metadata, or 0 on a moved-from wrapper
+     *         whose handle is null.
+     */
+    [[nodiscard]] std::size_t metadata_bytes() const noexcept;
+
 private:
     memory_pool_t* handle_;
 };

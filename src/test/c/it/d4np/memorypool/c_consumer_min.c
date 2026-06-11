@@ -21,18 +21,24 @@
 int main(void) {
     memory_pool_t* pool;
     void* block;
+    size_t metadata;
 
     pool = memory_pool_create(64, 16);
 
     block = memory_pool_alloc(pool);
     memory_pool_free(pool, block);
 
+    /* M2.10 / ADR-0015 — exercise the metadata-overhead accessor under
+     * -std=c89 -pedantic -Werror so the C interop contract catches any
+     * accidental C99-or-later construct slipping into its declaration. */
+    metadata = memory_pool_metadata_bytes(pool);
+
     memory_pool_destroy(pool);
 
-    /* M1 stubs return NULL, so block == NULL is the expected state; we never
-     * dereference it. The verification job's success criterion is "compiles
-     * cleanly under -pedantic -Werror", not "runs to a specific value".
-     */
+    /* The verification job's success criterion is "compiles cleanly under
+     * -pedantic -Werror", not "runs to a specific value"; we never
+     * dereference block or assert anything about metadata's value. */
     (void)block;
+    (void)metadata;
     return 0;
 }

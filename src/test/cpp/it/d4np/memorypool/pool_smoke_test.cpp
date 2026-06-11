@@ -527,3 +527,78 @@ TEST_CASE("memory_pool_free is a no-op on a stack pointer") {
     }
     memory_pool_destroy(pool);
 }
+
+// ===========================================================================
+// M2.10 — Metadata-overhead budget and introspection per ADR-0015.
+//
+// Four invariants enforced by the four TEST_CASEs below:
+//   - NULL pool → 0 bytes (defined no-op);
+//   - live pool → > 0 bytes (sanity — the function must report something);
+//   - live pool → <= 128 bytes (the ADR-0015 §3 budget; the same budget is
+//     also gated at compile time via a static_assert in memory_pool.cpp);
+//   - metadata_bytes is O(1) in block_count — a 1024-block pool and a
+//     1,000,000-block pool report identical values.
+//
+// The C++ Pool::metadata_bytes() forwarder is exercised in the same set so
+// the wrapper's noexcept const accessor is covered alongside the C path.
+// ===========================================================================
+
+TEST_CASE("memory_pool_metadata_bytes returns 0 on a null pool") {
+    // ADR-0015 §2 — NULL is a defined input, returning 0 (no metadata
+    // exists for a destroyed / never-created pool).
+    CHECK(memory_pool_metadata_bytes(nullptr) == 0U);
+}
+
+TEST_CASE("memory_pool_metadata_bytes returns a positive value on a live pool") {
+    // Sanity — the struct exists and has at least one byte. The exact
+    // value is gated below; this TEST_CASE only proves the function does
+    // not under-report (e.g., return 0 for a non-null input).
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+    CHECK(memory_pool_metadata_bytes(pool) > 0U);
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_metadata_bytes stays within the ADR-0015 budget") {
+    // ADR-0015 §3 — the per-pool metadata is capped at 128 bytes. The
+    // same constant gates `sizeof(memory_pool)` at compile time in
+    // memory_pool.cpp; this CHECK gates the runtime-reported value
+    // against the same number so a buggy future implementation that
+    // hard-coded a wrong constant would still trip the gate.
+    constexpr std::size_t ADR_0015_BUDGET_BYTES = 128U;
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+    CHECK(memory_pool_metadata_bytes(pool) <= ADR_0015_BUDGET_BYTES);
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_metadata_bytes is O(1) in block_count (spec §3.2)") {
+    // The implicit free list (ADR-0009 §1) means per-block external
+    // metadata is zero. Two pools with vastly different block_count
+    // values must therefore report identical metadata bytes — that is
+    // the operational definition of the spec §3.2 "minimal" guarantee.
+    //
+    // 1024 vs 1,000,000 spans three orders of magnitude — comfortably
+    // wide enough to surface any accidental block_count dependency,
+    // and small enough that the 1M-block pool's 64 MB backing
+    // allocation stays well within every Tier-1 host's memory budget.
+    constexpr std::size_t SMALL_COUNT = 1024U;
+    constexpr std::size_t HUGE_COUNT = 1'000'000U;
+    memory_pool_t* small_pool = memory_pool_create(SAFE_BLOCK_SIZE, SMALL_COUNT);
+    REQUIRE(small_pool != nullptr);
+    memory_pool_t* huge_pool = memory_pool_create(SAFE_BLOCK_SIZE, HUGE_COUNT);
+    REQUIRE(huge_pool != nullptr);
+    CHECK(memory_pool_metadata_bytes(small_pool) == memory_pool_metadata_bytes(huge_pool));
+    memory_pool_destroy(small_pool);
+    memory_pool_destroy(huge_pool);
+}
+
+TEST_CASE("Pool::metadata_bytes() forwards to the C accessor") {
+    // ADR-0015 §2 — the C++ wrapper is a thin noexcept const forwarder.
+    // The reported value must match the C function's report for the same
+    // underlying handle.
+    Pool pool(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool.native_handle() != nullptr);
+    CHECK(pool.metadata_bytes() == memory_pool_metadata_bytes(pool.native_handle()));
+    CHECK(pool.metadata_bytes() > 0U);
+}

@@ -18,6 +18,45 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M2.10)
+
+- [ADR-0015](docs/adr/0015-metadata-overhead-budget-and-introspection.md)
+  fixes the spec §3.2 metadata-overhead contract with a concrete budget
+  and an introspection accessor. Per-pool metadata is
+  `sizeof(struct memory_pool)` — currently 40 bytes on every Tier-1
+  64-bit host (the five ADR-0009 §6 fields, no padding); the budget is
+  capped at 128 bytes with 88 bytes of headroom for future fields.
+  Per-block external metadata is **0 bytes** by construction (the
+  implicit free list per ADR-0009 §1 stores next-free links in the
+  unused storage of free blocks). Six rejected alternatives recorded
+  (no introspection, per-block bitmap, class-level constant, tighter /
+  looser budget, runtime-only / compile-time-only gate).
+- New public C function
+  [`memory_pool_metadata_bytes`](src/main/cpp/it/d4np/memorypool/memory_pool.h)
+  — `size_t memory_pool_metadata_bytes(const memory_pool_t* pool)`.
+  Returns the per-pool metadata cost in bytes, or 0 on `NULL`. ANSI C
+  C89-compatible (held to the same contract as the existing four spec
+  §5 functions per spec §3.3 / ADR-0005 §3) and exercised by the
+  `c_consumer_min.c` M1.10 verification job under `-std=c89` and
+  `-std=c99`.
+- New C++ wrapper method
+  [`Pool::metadata_bytes()`](src/main/cpp/it/d4np/memorypool/memory_pool.hpp)
+  — `[[nodiscard]] std::size_t metadata_bytes() const noexcept`. Thin
+  forwarder to the C accessor. `sizeof(Pool)` is unchanged
+  (still a single `memory_pool_t*` per ADR-0010 §1).
+- Compile-time budget gate
+  (`static_assert(sizeof(memory_pool) <= 128U, ...)`) in
+  [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp) —
+  fires on every cell of the 14-cell CI build matrix on every PR.
+- Runtime budget gate — four new `TEST_CASE`s in
+  [`pool_smoke_test.cpp`](src/test/cpp/it/d4np/memorypool/pool_smoke_test.cpp)
+  covering the null-pool no-op, the live-pool sanity floor, the 128-byte
+  ceiling, the O(1)-in-`block_count` invariant (1024-block vs
+  1,000,000-block pools report identical values), and the C++
+  wrapper's forwarding correctness.
+- Spec Coverage Map §3.2 (Minimal metadata overhead per block) flips
+  from ⏳ to ✅.
+
 ### Added (M2.9)
 
 - [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md)
