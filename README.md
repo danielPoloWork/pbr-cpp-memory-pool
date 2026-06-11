@@ -14,6 +14,7 @@ Many high-performance systems — graphics engines, financial trading servers, d
 
 - **Allocation:** O(1), fixed block size, contiguous backing storage.
 - **Free-list strategy:** implicit — free blocks store the next-free pointer in their own first `sizeof(void*)` bytes, so live blocks carry zero metadata overhead.
+- **Metadata overhead:** 0 bytes per block (the free-list link reuses unused block storage) + a fixed ~40 bytes per pool — independent of `block_count`. CI-gated at ≤ 128 bytes per [ADR-0015](docs/adr/0015-metadata-overhead-budget-and-introspection.md).
 - **Standards:** ANSI C public surface, C++17 internals and wrapper. No external dependencies.
 - **Thread safety:** opt-in, configurable at compile time (Milestone 4).
 - **Dynamic growth:** optional contiguous overflow chunks (Milestone 5).

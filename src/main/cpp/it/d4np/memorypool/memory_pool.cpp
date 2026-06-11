@@ -115,6 +115,15 @@ struct memory_pool {
     std::size_t alignment_;
 };
 
+// ADR-0015 §3 — per-pool metadata budget. The current struct is 40 bytes
+// on every Tier-1 64-bit host; the 128-byte ceiling gives 88 bytes of
+// headroom (room for ~11 additional 8-byte fields) before a future
+// milestone has to renegotiate. Compile-time gate so every cell of the
+// 14-cell build matrix asserts the budget on every PR.
+constexpr std::size_t METADATA_BUDGET_BYTES = 128U;
+static_assert(sizeof(memory_pool) <= METADATA_BUDGET_BYTES,
+              "ADR-0015 §3: per-pool metadata budget exceeded — update the ADR before raising");
+
 namespace {
 
 // ADR-0012 — the foreign-pointer / out-of-range pointer detection that
@@ -220,6 +229,20 @@ void memory_pool_destroy(memory_pool_t* pool) {
     delete pool;
 }
 
+std::size_t memory_pool_metadata_bytes(const memory_pool_t* pool) {
+    // ADR-0015 §1 — per-pool metadata is exactly the struct's footprint;
+    // per-block metadata is 0 by construction (implicit free list,
+    // ADR-0009 §1). The static_assert above gates `sizeof(memory_pool)`
+    // against METADATA_BUDGET_BYTES at compile time so the value
+    // returned here is always under budget. NULL is a defined no-op
+    // returning 0 (no metadata), matching the rest of the API's
+    // NULL-tolerance posture.
+    if (pool == nullptr) {
+        return 0U;
+    }
+    return sizeof(memory_pool);
+}
+
 void* memory_pool_alloc(memory_pool_t* pool) {
     // Pop the head of the implicit free list in O(1) (spec §2.2). NULL on
     // either a null pool or an exhausted pool — fixed-size mode per
@@ -292,6 +315,13 @@ void Pool::deallocate(void* block) noexcept {
 
 memory_pool_t* Pool::native_handle() noexcept {
     return handle_;
+}
+
+std::size_t Pool::metadata_bytes() const noexcept {
+    // ADR-0015 §2 — thin forwarder to the C accessor. The C function
+    // already handles the null-handle case (returns 0) so the wrapper
+    // adds no additional logic.
+    return ::memory_pool_metadata_bytes(handle_);
 }
 
 std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) {
