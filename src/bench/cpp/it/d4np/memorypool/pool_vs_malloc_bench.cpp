@@ -21,6 +21,12 @@
  *   - the binary deliberately performs no numeric self-assertions — the
  *     `bench-smoke` CI cell only verifies exit code 0. Committed numbers
  *     come from a controlled host disclosed in the bench report.
+ *
+ * The deliberate `std::malloc` / `std::free` calls in this TU are the WHOLE
+ * POINT of the comparison and carry narrow NOLINTs against the
+ * `cppcoreguidelines-no-malloc` and `cppcoreguidelines-owning-memory`
+ * checks. The argv array carries a NOLINT against the C-arrays checks
+ * because the standard main signature is non-negotiable.
  */
 
 #include <it/d4np/memorypool/memory_pool.h>
@@ -48,17 +54,17 @@ namespace mem = it::d4np::memorypool;
 namespace {
 
 // ---------------------------------------------------------------------------
-// Configuration carried on the stack through every scenario runner. Keeping
-// the struct small + trivially copyable is intentional — every runner takes
-// it by value so any future parallel runner can shard configurations across
-// threads without aliasing concerns.
+// Configuration carried on the stack through every scenario runner. Member
+// suffix follows the project's MemberSuffix: '_' identifier-naming rule
+// (.clang-tidy). Keeping the struct small + trivially copyable is intentional
+// — every runner takes it by const-ref.
 // ---------------------------------------------------------------------------
 struct Config {
-    std::size_t iterations = 1'000'000U;
-    std::size_t repeats = 10U;
-    std::size_t block_size = 64U;
-    bool run_bulk = true;
-    bool run_interleaved = true;
+    std::size_t iterations_ = 1'000'000U;
+    std::size_t repeats_ = 10U;
+    std::size_t block_size_ = 64U;
+    bool run_bulk_ = true;
+    bool run_interleaved_ = true;
 };
 
 constexpr std::size_t MIN_REPEATS = 2U;
@@ -71,7 +77,7 @@ constexpr unsigned BYTE_MASK = 0xFFU;
 // inline assembly with a "memory" clobber so the compiler must materialise
 // the value and discard any reordering assumptions across the barrier. The
 // MSVC form routes the value through a volatile sink so the optimiser cannot
-// elide stores to it; the cl.exe optimiser respects volatile lvalues.
+// elide stores to it.
 // ---------------------------------------------------------------------------
 #if defined(__GNUC__) || defined(__clang__)
 template <typename T>
@@ -95,8 +101,7 @@ inline void do_not_optimize(const T& value) {
 // One-byte write through a volatile lvalue. Forces the compiler to keep the
 // allocation alive and to actually fault in the page on first touch.
 inline void touch_byte(void* ptr, std::size_t loop_index) {
-    *static_cast<volatile unsigned char*>(ptr) =
-        static_cast<unsigned char>(loop_index & BYTE_MASK);
+    *static_cast<volatile unsigned char*>(ptr) = static_cast<unsigned char>(loop_index & BYTE_MASK);
 }
 
 // ---------------------------------------------------------------------------
@@ -104,11 +109,11 @@ inline void touch_byte(void* ptr, std::size_t loop_index) {
 // the warm-up and is dropped before this function is called.
 // ---------------------------------------------------------------------------
 struct Stats {
-    double min_ns;
-    double median_ns;
-    double mean_ns;
-    double max_ns;
-    double stddev_ns;
+    double min_ns_;
+    double median_ns_;
+    double mean_ns_;
+    double max_ns_;
+    double stddev_ns_;
 };
 
 Stats summarise(std::vector<double> samples) {
@@ -122,16 +127,15 @@ Stats summarise(std::vector<double> samples) {
         sq += d * d;
     }
     const double variance = sq / static_cast<double>(n);
-    return Stats{samples.front(),
-                 samples.at(n / 2U),
-                 mean,
-                 samples.back(),
-                 std::sqrt(variance)};
+    const double stddev = std::sqrt(variance);
+    return Stats{samples.front(), samples.at(n / 2U), mean, samples.back(), stddev};
 }
 
 // ---------------------------------------------------------------------------
 // Timed runners. Each returns the elapsed nanoseconds per iteration for ONE
-// repeat. The outer loop (run_repeats) takes care of warm-up + statistics.
+// repeat. The outer loop (run_* runners below) takes care of warm-up + stats.
+// All malloc helpers take const Config& so the bugprone-easily-swappable
+// check does not see two adjacent std::size_t parameters.
 // ---------------------------------------------------------------------------
 using clock = std::chrono::steady_clock;
 
@@ -140,18 +144,18 @@ inline double ns_per_iter(clock::time_point t0, clock::time_point t1, std::size_
     return static_cast<double>(ns) / static_cast<double>(n);
 }
 
-double time_pool_bulk_alloc(mem::Pool& pool, std::size_t n, std::vector<void*>& out) {
+double time_pool_bulk_alloc(mem::Pool& pool, const Config& cfg, std::vector<void*>& out) {
     out.clear();
-    out.reserve(n);
+    out.reserve(cfg.iterations_);
     const auto t0 = clock::now();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
         void* const p = pool.allocate();
         touch_byte(p, i);
         do_not_optimize(p);
         out.push_back(p);
     }
     const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, n);
+    return ns_per_iter(t0, t1, cfg.iterations_);
 }
 
 double time_pool_bulk_free(mem::Pool& pool, std::vector<void*>& blocks) {
@@ -164,82 +168,89 @@ double time_pool_bulk_free(mem::Pool& pool, std::vector<void*>& blocks) {
     return ns_per_iter(t0, t1, blocks.size());
 }
 
-double time_malloc_bulk_alloc(std::size_t n, std::size_t block_size, std::vector<void*>& out) {
+double time_malloc_bulk_alloc(const Config& cfg, std::vector<void*>& out) {
     out.clear();
-    out.reserve(n);
+    out.reserve(cfg.iterations_);
     const auto t0 = clock::now();
-    for (std::size_t i = 0; i < n; ++i) {
-        void* const p = std::malloc(block_size);
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        // The comparison against std::malloc is the entire purpose of this
+        // benchmark; the cppcoreguidelines-no-malloc / -owning-memory checks
+        // are explicitly suppressed at the call sites that exist for that
+        // comparison.
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        void* const p = std::malloc(cfg.block_size_);
         touch_byte(p, i);
         do_not_optimize(p);
         out.push_back(p);
     }
     const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, n);
+    return ns_per_iter(t0, t1, cfg.iterations_);
 }
 
 double time_malloc_bulk_free(std::vector<void*>& blocks) {
     const auto t0 = clock::now();
     for (void* p : blocks) {
         do_not_optimize(p);
+        // Paired with the suppressed std::malloc above.
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
         std::free(p);
     }
     const auto t1 = clock::now();
     return ns_per_iter(t0, t1, blocks.size());
 }
 
-double time_pool_interleaved(mem::Pool& pool, std::size_t n) {
+double time_pool_interleaved(mem::Pool& pool, const Config& cfg) {
     const auto t0 = clock::now();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
         void* const p = pool.allocate();
         touch_byte(p, i);
         do_not_optimize(p);
         pool.deallocate(p);
     }
     const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, n);
+    return ns_per_iter(t0, t1, cfg.iterations_);
 }
 
-double time_malloc_interleaved(std::size_t n, std::size_t block_size) {
+double time_malloc_interleaved(const Config& cfg) {
     const auto t0 = clock::now();
-    for (std::size_t i = 0; i < n; ++i) {
-        void* const p = std::malloc(block_size);
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        void* const p = std::malloc(cfg.block_size_);
         touch_byte(p, i);
         do_not_optimize(p);
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
         std::free(p);
     }
     const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, n);
+    return ns_per_iter(t0, t1, cfg.iterations_);
 }
 
 // ---------------------------------------------------------------------------
 // Per-repeat orchestration: build a fresh pool, run alloc + free, collect.
-// The first repeat (index 0) is the warm-up and is dropped before statistics
-// are computed.
+// The first repeat (index 0) is the warm-up and is dropped before statistics.
 // ---------------------------------------------------------------------------
 struct BulkMeasurement {
-    std::vector<double> alloc_samples;
-    std::vector<double> free_samples;
+    std::vector<double> alloc_samples_;
+    std::vector<double> free_samples_;
 };
 
 BulkMeasurement run_pool_bulk(const Config& cfg) {
     BulkMeasurement out;
-    out.alloc_samples.reserve(cfg.repeats);
-    out.free_samples.reserve(cfg.repeats);
+    out.alloc_samples_.reserve(cfg.repeats_);
+    out.free_samples_.reserve(cfg.repeats_);
     std::vector<void*> slots;
-    for (std::size_t r = 0; r < cfg.repeats; ++r) {
-        std::optional<mem::Pool> opt = mem::Pool::make(cfg.block_size, cfg.iterations);
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        std::optional<mem::Pool> opt = mem::Pool::make(cfg.block_size_, cfg.iterations_);
         if (!opt.has_value()) {
-            std::cerr << "pool-bulk: Pool::make failed (block_size="
-                      << cfg.block_size << " iterations=" << cfg.iterations << ")\n";
+            std::cerr << "pool-bulk: Pool::make failed\n";
             std::exit(EXIT_FAILURE);
         }
         mem::Pool& pool = *opt;
         if (r != WARMUP_REPEAT_INDEX) {
-            out.alloc_samples.push_back(time_pool_bulk_alloc(pool, cfg.iterations, slots));
-            out.free_samples.push_back(time_pool_bulk_free(pool, slots));
+            out.alloc_samples_.push_back(time_pool_bulk_alloc(pool, cfg, slots));
+            out.free_samples_.push_back(time_pool_bulk_free(pool, slots));
         } else {
-            (void)time_pool_bulk_alloc(pool, cfg.iterations, slots);
+            (void)time_pool_bulk_alloc(pool, cfg, slots);
             (void)time_pool_bulk_free(pool, slots);
         }
     }
@@ -248,15 +259,15 @@ BulkMeasurement run_pool_bulk(const Config& cfg) {
 
 BulkMeasurement run_malloc_bulk(const Config& cfg) {
     BulkMeasurement out;
-    out.alloc_samples.reserve(cfg.repeats);
-    out.free_samples.reserve(cfg.repeats);
+    out.alloc_samples_.reserve(cfg.repeats_);
+    out.free_samples_.reserve(cfg.repeats_);
     std::vector<void*> slots;
-    for (std::size_t r = 0; r < cfg.repeats; ++r) {
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
         if (r != WARMUP_REPEAT_INDEX) {
-            out.alloc_samples.push_back(time_malloc_bulk_alloc(cfg.iterations, cfg.block_size, slots));
-            out.free_samples.push_back(time_malloc_bulk_free(slots));
+            out.alloc_samples_.push_back(time_malloc_bulk_alloc(cfg, slots));
+            out.free_samples_.push_back(time_malloc_bulk_free(slots));
         } else {
-            (void)time_malloc_bulk_alloc(cfg.iterations, cfg.block_size, slots);
+            (void)time_malloc_bulk_alloc(cfg, slots);
             (void)time_malloc_bulk_free(slots);
         }
     }
@@ -265,16 +276,15 @@ BulkMeasurement run_malloc_bulk(const Config& cfg) {
 
 std::vector<double> run_pool_interleaved(const Config& cfg) {
     std::vector<double> samples;
-    samples.reserve(cfg.repeats);
-    std::optional<mem::Pool> opt = mem::Pool::make(cfg.block_size, INTERLEAVED_POOL_CAPACITY);
+    samples.reserve(cfg.repeats_);
+    std::optional<mem::Pool> opt = mem::Pool::make(cfg.block_size_, INTERLEAVED_POOL_CAPACITY);
     if (!opt.has_value()) {
-        std::cerr << "pool-interleaved: Pool::make failed (block_size="
-                  << cfg.block_size << ")\n";
+        std::cerr << "pool-interleaved: Pool::make failed\n";
         std::exit(EXIT_FAILURE);
     }
     mem::Pool& pool = *opt;
-    for (std::size_t r = 0; r < cfg.repeats; ++r) {
-        const double s = time_pool_interleaved(pool, cfg.iterations);
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        const double s = time_pool_interleaved(pool, cfg);
         if (r != WARMUP_REPEAT_INDEX) {
             samples.push_back(s);
         }
@@ -284,9 +294,9 @@ std::vector<double> run_pool_interleaved(const Config& cfg) {
 
 std::vector<double> run_malloc_interleaved(const Config& cfg) {
     std::vector<double> samples;
-    samples.reserve(cfg.repeats);
-    for (std::size_t r = 0; r < cfg.repeats; ++r) {
-        const double s = time_malloc_interleaved(cfg.iterations, cfg.block_size);
+    samples.reserve(cfg.repeats_);
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        const double s = time_malloc_interleaved(cfg);
         if (r != WARMUP_REPEAT_INDEX) {
             samples.push_back(s);
         }
@@ -300,10 +310,9 @@ std::vector<double> run_malloc_interleaved(const Config& cfg) {
 // silently being ignored.
 // ---------------------------------------------------------------------------
 [[noreturn]] void die_with_usage(std::string_view argv0, std::string_view msg) {
-    std::cerr << argv0 << ": " << msg << "\n"
-              << "usage: " << argv0
-              << " [--iterations N] [--repeats N] [--block-size N]"
-              << " [--scenario {bulk|interleaved|both}]\n";
+    std::cerr << argv0 << ": " << msg << "\n";
+    std::cerr << "usage: " << argv0 << " [--iterations N] [--repeats N]";
+    std::cerr << " [--block-size N] [--scenario {bulk|interleaved|both}]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -312,32 +321,40 @@ std::size_t parse_size(std::string_view argv0, std::string_view flag, std::strin
         const auto n = std::stoull(std::string{value});
         return static_cast<std::size_t>(n);
     } catch (const std::exception&) {
-        die_with_usage(argv0, std::string{flag} + " expects a positive integer, got '" +
-                                   std::string{value} + "'");
+        const std::string detail =
+            std::string{flag} + " expects a positive integer, got '" + std::string{value} + "'";
+        die_with_usage(argv0, detail);
     }
 }
 
+// The standard C++ main signature is `int main(int argc, char* argv[])`; the
+// argv parameter is unavoidable as a C-style array per the language spec.
+// parse_args mirrors that signature, so the same NOLINT applies here.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,hicpp-avoid-c-arrays)
 Config parse_args(int argc, char* argv[]) {
     Config cfg;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const std::string_view argv0{argv[0]};
     for (int i = 1; i < argc; ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         const std::string_view a{argv[i]};
         if (a == "--iterations" || a == "--repeats" || a == "--block-size" || a == "--scenario") {
             if (i + 1 >= argc) {
                 die_with_usage(argv0, std::string{a} + " requires a value");
             }
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             const std::string_view v{argv[i + 1]};
             if (a == "--iterations") {
-                cfg.iterations = parse_size(argv0, a, v);
+                cfg.iterations_ = parse_size(argv0, a, v);
             } else if (a == "--repeats") {
-                cfg.repeats = parse_size(argv0, a, v);
+                cfg.repeats_ = parse_size(argv0, a, v);
             } else if (a == "--block-size") {
-                cfg.block_size = parse_size(argv0, a, v);
+                cfg.block_size_ = parse_size(argv0, a, v);
             } else {
                 if (v == "bulk") {
-                    cfg.run_interleaved = false;
+                    cfg.run_interleaved_ = false;
                 } else if (v == "interleaved") {
-                    cfg.run_bulk = false;
+                    cfg.run_bulk_ = false;
                 } else if (v != "both") {
                     die_with_usage(argv0, "--scenario must be bulk | interleaved | both");
                 }
@@ -349,18 +366,19 @@ Config parse_args(int argc, char* argv[]) {
             die_with_usage(argv0, "unknown flag: " + std::string{a});
         }
     }
-    if (cfg.iterations == 0U) {
+    if (cfg.iterations_ == 0U) {
         die_with_usage(argv0, "--iterations must be > 0");
     }
-    if (cfg.repeats < MIN_REPEATS) {
+    if (cfg.repeats_ < MIN_REPEATS) {
         die_with_usage(argv0, "--repeats must be >= 2 (one warm-up + at least one measured)");
     }
     return cfg;
 }
 
 // ---------------------------------------------------------------------------
-// Output: header block, TSV body, headline summary. Everything goes to
-// stdout so the file can be redirected verbatim into the bench report.
+// Output: header block, TSV body, headline summary. Everything goes through
+// std::ostream so the helpers can target std::cout for the body and a local
+// std::ostringstream for the headline tail.
 // ---------------------------------------------------------------------------
 std::string_view compiler_name() {
 #if defined(__clang__)
@@ -375,17 +393,17 @@ std::string_view compiler_name() {
 }
 
 std::string compiler_version() {
+    std::ostringstream s;
 #if defined(__clang__)
-    return std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." +
-           std::to_string(__clang_patchlevel__);
+    s << __clang_major__ << "." << __clang_minor__ << "." << __clang_patchlevel__;
 #elif defined(__GNUC__)
-    return std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." +
-           std::to_string(__GNUC_PATCHLEVEL__);
+    s << __GNUC__ << "." << __GNUC_MINOR__ << "." << __GNUC_PATCHLEVEL__;
 #elif defined(_MSC_VER)
-    return std::to_string(_MSC_FULL_VER);
+    s << _MSC_FULL_VER;
 #else
-    return "unknown";
+    s << "unknown";
 #endif
+    return s.str();
 }
 
 void print_header(std::ostream& os, const Config& cfg) {
@@ -394,64 +412,70 @@ void print_header(std::ostream& os, const Config& cfg) {
     os << "# compiler: " << compiler_name() << " " << compiler_version() << "\n";
     os << "# hardware_concurrency: " << std::thread::hardware_concurrency() << "\n";
     os << "# max_align_t: " << alignof(std::max_align_t) << " bytes\n";
-    os << "# config: iterations=" << cfg.iterations
-       << " repeats=" << cfg.repeats
-       << " block_size=" << cfg.block_size << "\n";
+    os << "# config: iterations=" << cfg.iterations_;
+    os << " repeats=" << cfg.repeats_;
+    os << " block_size=" << cfg.block_size_ << "\n";
     os << "# (the human-runner appends host / cpu / os details when committing the report)\n";
     os << "\n";
 }
 
 void print_row(std::ostream& os, std::string_view scenario, std::string_view alloc,
                std::string_view region, const Stats& s) {
-    os << scenario << "\t" << alloc << "\t" << region << "\t"
-       << s.min_ns << "\t" << s.median_ns << "\t" << s.mean_ns << "\t"
-       << s.max_ns << "\t" << s.stddev_ns << "\n";
+    os << scenario << "\t" << alloc << "\t" << region << "\t";
+    os << s.min_ns_ << "\t" << s.median_ns_ << "\t" << s.mean_ns_ << "\t";
+    os << s.max_ns_ << "\t" << s.stddev_ns_ << "\n";
 }
 
 void print_table_header(std::ostream& os) {
-    os << "scenario\tallocator\tregion\tmin_ns/op\tmedian_ns/op\tmean_ns/op"
-          "\tmax_ns/op\tstddev_ns/op\n";
+    os << "scenario\tallocator\tregion\tmin_ns/op\tmedian_ns/op\tmean_ns/op";
+    os << "\tmax_ns/op\tstddev_ns/op\n";
 }
 
-void print_headline(std::ostream& os, std::string_view scenario,
-                    double malloc_median, double pool_median) {
+void print_headline(std::ostream& os, std::string_view scenario, double malloc_median,
+                    double pool_median) {
     if (pool_median <= 0.0) {
         os << "# headline: " << scenario << ": pool median is 0 — measurement invalid\n";
         return;
     }
-    os << "# headline: " << scenario
-       << ": malloc / pool = " << (malloc_median / pool_median) << "x\n";
+    os << "# headline: " << scenario << ": malloc / pool = ";
+    os << (malloc_median / pool_median) << "x\n";
 }
 
-// Inlining the headline emission into the same scope as the run avoids the
-// std::optional<Stats> pattern that bugprone-unchecked-optional-access does
-// not recognise as flow-guarded through assignment + later dereference.
-void run_and_report_bulk(const Config& cfg, std::ostream& body, std::ostream& tail) {
+// Returns the headline-summary string that the caller appends to the tail of
+// the report. Avoids passing both `body` and `tail` ostreams as adjacent
+// parameters (which would trip bugprone-easily-swappable-parameters).
+std::string run_and_report_bulk(const Config& cfg, std::ostream& body) {
     const auto pm = run_pool_bulk(cfg);
     const auto mm = run_malloc_bulk(cfg);
-    const Stats pa = summarise(pm.alloc_samples);
-    const Stats pf = summarise(pm.free_samples);
-    const Stats ma = summarise(mm.alloc_samples);
-    const Stats mf = summarise(mm.free_samples);
+    const Stats pa = summarise(pm.alloc_samples_);
+    const Stats pf = summarise(pm.free_samples_);
+    const Stats ma = summarise(mm.alloc_samples_);
+    const Stats mf = summarise(mm.free_samples_);
     print_row(body, "bulk", "pool", "alloc", pa);
     print_row(body, "bulk", "pool", "free", pf);
     print_row(body, "bulk", "malloc", "alloc", ma);
     print_row(body, "bulk", "malloc", "free", mf);
-    print_headline(tail, "bulk-alloc", ma.median_ns, pa.median_ns);
-    print_headline(tail, "bulk-free", mf.median_ns, pf.median_ns);
+    std::ostringstream tail;
+    tail << std::fixed << std::setprecision(3);
+    print_headline(tail, "bulk-alloc", ma.median_ns_, pa.median_ns_);
+    print_headline(tail, "bulk-free", mf.median_ns_, pf.median_ns_);
+    return tail.str();
 }
 
-void run_and_report_interleaved(const Config& cfg, std::ostream& body, std::ostream& tail) {
+std::string run_and_report_interleaved(const Config& cfg, std::ostream& body) {
     const Stats ip = summarise(run_pool_interleaved(cfg));
     const Stats im = summarise(run_malloc_interleaved(cfg));
     print_row(body, "interleaved", "pool", "alloc+free", ip);
     print_row(body, "interleaved", "malloc", "alloc+free", im);
-    print_headline(tail, "interleaved", im.median_ns, ip.median_ns);
+    std::ostringstream tail;
+    tail << std::fixed << std::setprecision(3);
+    print_headline(tail, "interleaved", im.median_ns_, ip.median_ns_);
+    return tail.str();
 }
 
 }  // namespace
 
-// NOLINTNEXTLINE(bugprone-exception-escape)
+// NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,hicpp-avoid-c-arrays)
 int main(int argc, char* argv[]) {
     const Config cfg = parse_args(argc, argv);
     // Three-decimal fixed precision so the TSV columns line up across runs;
@@ -462,17 +486,13 @@ int main(int argc, char* argv[]) {
     print_header(std::cout, cfg);
     print_table_header(std::cout);
 
-    // Buffer the headline summary so the body table prints first and the
-    // tail block (blank line + headlines) prints last, regardless of which
-    // scenarios run.
-    std::ostringstream tail;
-    tail << std::fixed << std::setprecision(3);
-    if (cfg.run_bulk) {
-        run_and_report_bulk(cfg, std::cout, tail);
+    std::string tail;
+    if (cfg.run_bulk_) {
+        tail += run_and_report_bulk(cfg, std::cout);
     }
-    if (cfg.run_interleaved) {
-        run_and_report_interleaved(cfg, std::cout, tail);
+    if (cfg.run_interleaved_) {
+        tail += run_and_report_interleaved(cfg, std::cout);
     }
-    std::cout << "\n" << tail.str();
+    std::cout << "\n" << tail;
     return 0;
 }
