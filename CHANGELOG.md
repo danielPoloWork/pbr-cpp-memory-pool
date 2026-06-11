@@ -25,9 +25,9 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `release.yml`) gated on the literal spec §6.2 success criterion
   `ERROR SUMMARY: 0 errors from 0 contexts`. The build path reproduces the
   spec command modulo the C → C++ structural substitution required by the
-  C++17 implementation (ADR-0009 §1): `gcc -std=c89 -pedantic -g -O0 -c test_pool.c`
-  + `g++ -std=c++17 -g -O0 -c memory_pool.cpp` + `g++ -g -O0 ... -o test_pool`
-  + `valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,indirect --error-exitcode=1`,
+  C++17 implementation (ADR-0009 §1): `gcc -std=c89 -pedantic -g -O0 -c test_pool.c`,
+  then `g++ -std=c++17 -g -O0 -c memory_pool.cpp`, then `g++ -g -O0 ... -o test_pool`,
+  then `valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,indirect --error-exitcode=1`,
   followed by a grep of the Valgrind output for the literal spec success
   criterion as a belt-and-braces check against future Valgrind exit-code
   semantics changes. The `--errors-for-leak-kinds=definite,indirect` flag is

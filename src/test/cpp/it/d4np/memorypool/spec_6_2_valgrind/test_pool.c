@@ -30,11 +30,11 @@
  * variable-length arrays. Matches src/test/c/it/d4np/memorypool/c_consumer_min.c.
  */
 
-#include <stdlib.h>
-
 #include <it/d4np/memorypool/memory_pool.h>
 
-#define BLOCK_SIZE  ((size_t)64)
+#include <stdlib.h>
+
+#define BLOCK_SIZE ((size_t)64)
 #define BLOCK_COUNT ((size_t)16)
 
 int main(void) {
