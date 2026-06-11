@@ -308,7 +308,16 @@ std::vector<double> run_malloc_interleaved(const Config& cfg) {
 // CLI parsing. Long-form flags only — keeps the surface tiny and the help
 // readable. Unrecognised flags terminate with a usage hint rather than
 // silently being ignored.
+//
+// argv0 + flag travel together to every diagnostic site so they are folded
+// into a single `ParseLoc` struct rather than passed as two adjacent
+// string_view parameters (which would trip bugprone-easily-swappable).
 // ---------------------------------------------------------------------------
+struct ParseLoc {
+    std::string_view argv0_;
+    std::string_view flag_;
+};
+
 [[noreturn]] void die_with_usage(std::string_view argv0, std::string_view msg) {
     std::cerr << argv0 << ": " << msg << "\n";
     std::cerr << "usage: " << argv0 << " [--iterations N] [--repeats N]";
@@ -316,14 +325,14 @@ std::vector<double> run_malloc_interleaved(const Config& cfg) {
     std::exit(EXIT_FAILURE);
 }
 
-std::size_t parse_size(std::string_view argv0, std::string_view flag, std::string_view value) {
+std::size_t parse_size(ParseLoc loc, std::string_view value) {
     try {
         const auto n = std::stoull(std::string{value});
         return static_cast<std::size_t>(n);
     } catch (const std::exception&) {
-        const std::string detail =
-            std::string{flag} + " expects a positive integer, got '" + std::string{value} + "'";
-        die_with_usage(argv0, detail);
+        std::ostringstream oss;
+        oss << loc.flag_ << " expects a positive integer, got '" << value << "'";
+        die_with_usage(loc.argv0_, oss.str());
     }
 }
 
@@ -344,12 +353,13 @@ Config parse_args(int argc, char* argv[]) {
             }
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             const std::string_view v{argv[i + 1]};
+            const ParseLoc loc{argv0, a};
             if (a == "--iterations") {
-                cfg.iterations_ = parse_size(argv0, a, v);
+                cfg.iterations_ = parse_size(loc, v);
             } else if (a == "--repeats") {
-                cfg.repeats_ = parse_size(argv0, a, v);
+                cfg.repeats_ = parse_size(loc, v);
             } else if (a == "--block-size") {
-                cfg.block_size_ = parse_size(argv0, a, v);
+                cfg.block_size_ = parse_size(loc, v);
             } else {
                 if (v == "bulk") {
                     cfg.run_interleaved_ = false;
@@ -419,9 +429,18 @@ void print_header(std::ostream& os, const Config& cfg) {
     os << "\n";
 }
 
-void print_row(std::ostream& os, std::string_view scenario, std::string_view alloc,
-               std::string_view region, const Stats& s) {
-    os << scenario << "\t" << alloc << "\t" << region << "\t";
+// Row labels for the TSV body. The struct folds the three label string_views
+// into a single parameter, sidestepping bugprone-easily-swappable that would
+// fire on three adjacent string_view params, and keeps the print_row
+// signature short enough for clang-format to leave on one line.
+struct RowKey {
+    std::string_view scenario_;
+    std::string_view allocator_;
+    std::string_view region_;
+};
+
+void print_row(std::ostream& os, RowKey key, const Stats& s) {
+    os << key.scenario_ << "\t" << key.allocator_ << "\t" << key.region_ << "\t";
     os << s.min_ns_ << "\t" << s.median_ns_ << "\t" << s.mean_ns_ << "\t";
     os << s.max_ns_ << "\t" << s.stddev_ns_ << "\n";
 }
@@ -431,14 +450,20 @@ void print_table_header(std::ostream& os) {
     os << "\tmax_ns/op\tstddev_ns/op\n";
 }
 
-void print_headline(std::ostream& os, std::string_view scenario, double malloc_median,
-                    double pool_median) {
-    if (pool_median <= 0.0) {
+// `ratio` is malloc_median / pool_median, precomputed by the caller to a
+// single double — avoids two adjacent same-typed parameters and gives the
+// caller one canonical place to handle the pool_median == 0 invalid case
+// (ratio == 0.0 sentinel).
+void print_headline(std::ostream& os, std::string_view scenario, double ratio) {
+    if (ratio == 0.0) {
         os << "# headline: " << scenario << ": pool median is 0 — measurement invalid\n";
         return;
     }
-    os << "# headline: " << scenario << ": malloc / pool = ";
-    os << (malloc_median / pool_median) << "x\n";
+    os << "# headline: " << scenario << ": malloc / pool = " << ratio << "x\n";
+}
+
+inline double safe_ratio(double numerator, double denominator) {
+    return denominator <= 0.0 ? 0.0 : numerator / denominator;
 }
 
 // Returns the headline-summary string that the caller appends to the tail of
@@ -451,25 +476,25 @@ std::string run_and_report_bulk(const Config& cfg, std::ostream& body) {
     const Stats pf = summarise(pm.free_samples_);
     const Stats ma = summarise(mm.alloc_samples_);
     const Stats mf = summarise(mm.free_samples_);
-    print_row(body, "bulk", "pool", "alloc", pa);
-    print_row(body, "bulk", "pool", "free", pf);
-    print_row(body, "bulk", "malloc", "alloc", ma);
-    print_row(body, "bulk", "malloc", "free", mf);
+    print_row(body, RowKey{"bulk", "pool", "alloc"}, pa);
+    print_row(body, RowKey{"bulk", "pool", "free"}, pf);
+    print_row(body, RowKey{"bulk", "malloc", "alloc"}, ma);
+    print_row(body, RowKey{"bulk", "malloc", "free"}, mf);
     std::ostringstream tail;
     tail << std::fixed << std::setprecision(3);
-    print_headline(tail, "bulk-alloc", ma.median_ns_, pa.median_ns_);
-    print_headline(tail, "bulk-free", mf.median_ns_, pf.median_ns_);
+    print_headline(tail, "bulk-alloc", safe_ratio(ma.median_ns_, pa.median_ns_));
+    print_headline(tail, "bulk-free", safe_ratio(mf.median_ns_, pf.median_ns_));
     return tail.str();
 }
 
 std::string run_and_report_interleaved(const Config& cfg, std::ostream& body) {
     const Stats ip = summarise(run_pool_interleaved(cfg));
     const Stats im = summarise(run_malloc_interleaved(cfg));
-    print_row(body, "interleaved", "pool", "alloc+free", ip);
-    print_row(body, "interleaved", "malloc", "alloc+free", im);
+    print_row(body, RowKey{"interleaved", "pool", "alloc+free"}, ip);
+    print_row(body, RowKey{"interleaved", "malloc", "alloc+free"}, im);
     std::ostringstream tail;
     tail << std::fixed << std::setprecision(3);
-    print_headline(tail, "interleaved", im.median_ns_, ip.median_ns_);
+    print_headline(tail, "interleaved", safe_ratio(im.median_ns_, ip.median_ns_));
     return tail.str();
 }
 
