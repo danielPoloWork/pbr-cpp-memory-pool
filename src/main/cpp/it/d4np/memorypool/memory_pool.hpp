@@ -40,10 +40,13 @@ namespace it::d4np::memorypool {
  * source in a valid empty state (`handle_ == nullptr`) so its destructor
  * is a safe no-op.
  *
- * The exception policy at the C/C++ boundary (whether to translate `NULL`
- * returns from `memory_pool_create` into `std::bad_alloc`) is deferred to
- * Milestone 3.1; until then a failed `memory_pool_create` leaves the
- * wrapper's handle null and ::allocate returns `nullptr`.
+ * The exception policy at the C/C++ boundary is fixed by ADR-0016: the C
+ * ABI never throws (every C failure is `NULL` / no-op), while the C++
+ * surface offers both policies side by side — ::allocate throws
+ * `std::bad_alloc` on failure, ::try_allocate is `noexcept` and returns
+ * `nullptr`. Construction follows the same split: this ctor throws
+ * `std::bad_alloc` when the underlying `memory_pool_create` fails, while
+ * ::make and `PoolBuilder` report failure as `std::nullopt`.
  */
 class Pool {
 public:
@@ -57,12 +60,15 @@ public:
      *                    than zero, and `block_size * block_count` must not
      *                    overflow `size_t` (ADR-0009 §3).
      *
-     * @throw std::bad_alloc when backing-storage allocation fails (post
-     *        Milestone 3.1; until then construction silently leaves the
-     *        handle in a null state and ::allocate returns `nullptr`).
+     * @throw std::bad_alloc when `memory_pool_create` returns `NULL` — on
+     *        backing-storage allocation failure or on any ADR-0009 §2 / §3
+     *        precondition violation. The two causes collapse to one
+     *        exception because the C boundary reports both as `NULL`
+     *        (ADR-0016 §3).
      *
-     * @note Callers wanting an explicit yes/no signal at the construction
-     *       expression should use ::make instead — see ADR-0011.
+     * @note Callers wanting failure as a value instead of an exception
+     *       should use ::make or `PoolBuilder` — see ADR-0011 and
+     *       ADR-0016 §3.
      */
     Pool(std::size_t block_size, std::size_t block_count);
 
@@ -91,13 +97,30 @@ public:
     Pool& operator=(Pool&& other) noexcept;
 
     /**
-     * Allocate one block in O(1).
+     * Allocate one block in O(1) — throwing verb (ADR-0016 §2).
      *
-     * @return Pointer to the block, or `nullptr` when the pool is exhausted.
-     *         Post-Milestone 3.1 this may instead throw `std::bad_alloc`
-     *         depending on the configured exception policy.
+     * @return Pointer to the block; never `nullptr`.
+     *
+     * @throw std::bad_alloc when the pool is exhausted, or when the wrapper
+     *        is empty (moved-from) — the null handle is indistinguishable
+     *        from exhaustion at the C boundary (ADR-0016 §2).
+     *
+     * @note The non-throwing variant is ::try_allocate. The verb naming
+     *       follows `std::allocator::allocate` / the Cpp17Allocator
+     *       requirements, which the Milestone 3.3 Adapter forwards to.
      */
-    void* allocate();
+    [[nodiscard]] void* allocate();
+
+    /**
+     * Allocate one block in O(1) — non-throwing verb (ADR-0016 §2).
+     *
+     * Exact v0.2.0 `allocate()` semantics: a thin `noexcept` forwarder to
+     * ::memory_pool_alloc with failure reported in-band.
+     *
+     * @return Pointer to the block, or `nullptr` when the pool is exhausted
+     *         or the wrapper is empty (moved-from).
+     */
+    [[nodiscard]] void* try_allocate() noexcept;
 
     /**
      * Return a previously allocated block to the pool in O(1).
@@ -126,6 +149,14 @@ public:
     [[nodiscard]] std::size_t metadata_bytes() const noexcept;
 
 private:
+    /**
+     * Adopt-handle ctor used by ::make so the non-throwing construction
+     * path never routes through the throwing public ctor (ADR-0016 §3).
+     * @p handle may be null only transiently inside ::make, which returns
+     * `std::nullopt` instead of wrapping a null handle.
+     */
+    explicit Pool(memory_pool_t* handle) noexcept;
+
     memory_pool_t* handle_;
 };
 

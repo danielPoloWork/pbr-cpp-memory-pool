@@ -18,6 +18,31 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M3.1)
+
+- [ADR-0016](docs/adr/0016-exception-policy-at-the-c-cpp-boundary.md) — exception
+  policy at the C/C++ boundary: the C ABI is exception-free forever (every C failure
+  is `NULL` / no-op), and the C++ surface adopts a dual-verb convention where the
+  spec §2.2 "configurable knob" is resolved per call site, not per build.
+- `Pool::try_allocate()` — new `noexcept` allocation verb returning `nullptr` on
+  exhaustion or on an empty (moved-from) wrapper; the exact `Pool::allocate()`
+  semantics of v0.2.0.
+
+### Changed (M3.1)
+
+- **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on
+  exhaustion (and on a moved-from wrapper) instead of returning `nullptr` —
+  migration: `allocate()` → `try_allocate()` for the in-band-failure behaviour.
+- **Breaking (pre-1.0):** the `Pool(block_size, block_count)` constructor now throws
+  `std::bad_alloc` when the underlying `memory_pool_create` fails, retiring the
+  ADR-0010 §2 silent-empty-state semantics — migration: use `Pool::make` or
+  `PoolBuilder::build` for failure-as-a-value construction. `Pool::make` is
+  restructured around a private adopt-handle constructor so the non-throwing path
+  contains no try/catch.
+- The microbenchmark's timed loops call `try_allocate()` instead of `allocate()` —
+  the apples-to-apples comparison against `malloc`'s in-band `NULL`, byte-identical
+  to the code path that produced the committed v0.2.0 numbers (ADR-0016 §4).
+
 ## [0.2.0] — 2026-06-11
 
 **Milestone 2 — Core Memory Pool (single-threaded MVP).** The Milestone 1 stubs are

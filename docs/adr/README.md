@@ -48,5 +48,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0013   | [Doxygen for the API contract, Markdown for the narrative](0013-doxygen-for-api-markdown-for-narrative.md) | Accepted |
 | 0014   | [Microbenchmark methodology — pool vs. malloc](0014-microbenchmark-methodology-pool-vs-malloc.md)    | Accepted |
 | 0015   | [Metadata-overhead budget and introspection contract](0015-metadata-overhead-budget-and-introspection.md) | Accepted |
+| 0016   | [Exception policy at the C/C++ boundary](0016-exception-policy-at-the-c-cpp-boundary.md)             | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

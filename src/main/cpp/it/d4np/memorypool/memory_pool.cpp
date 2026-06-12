@@ -7,8 +7,11 @@
  *        `memory_pool_destroy` per ADR-0009) and the C++ RAII forwarders
  *        for `it::d4np::memorypool::Pool` (per ADR-0010).
  *
- * `memory_pool_alloc` and `memory_pool_free` are still Milestone 1 stubs;
- * they are replaced in Milestone 2.4 with their O(1) free-list bodies.
+ * All four spec §5 functions carry their real O(1) free-list bodies
+ * (Milestones 2.3 / 2.4). The C++ wrapper implements the ADR-0016
+ * exception policy: the C surface never throws, `Pool::allocate` and the
+ * `Pool` ctor translate `NULL` into `std::bad_alloc`, and
+ * `Pool::try_allocate` / `Pool::make` keep the non-throwing path.
  *
  * The `struct memory_pool` definition lives in this translation unit — it
  * is forward-declared in [`memory_pool.h`](memory_pool.h) and never visible
@@ -286,7 +289,17 @@ void memory_pool_free(memory_pool_t* pool, void* block) {
 
 namespace it::d4np::memorypool {
 
-Pool::Pool(std::size_t block_size, std::size_t block_count) : handle_(::memory_pool_create(block_size, block_count)) {}
+Pool::Pool(std::size_t block_size, std::size_t block_count) : handle_(::memory_pool_create(block_size, block_count)) {
+    // ADR-0016 §3 — the throwing construction path. Precondition
+    // violations (ADR-0009 §2/§3) and backing-storage OOM both collapse
+    // to NULL at the C boundary, so both surface as std::bad_alloc here.
+    // Callers wanting failure as a value use Pool::make / PoolBuilder.
+    if (handle_ == nullptr) {
+        throw std::bad_alloc{};
+    }
+}
+
+Pool::Pool(memory_pool_t* handle) noexcept : handle_(handle) {}
 
 Pool::~Pool() noexcept {
     ::memory_pool_destroy(handle_);
@@ -306,6 +319,17 @@ Pool& Pool::operator=(Pool&& other) noexcept {
 }
 
 void* Pool::allocate() {
+    // ADR-0016 §2 — throwing verb. Exhaustion and a null (moved-from)
+    // handle are indistinguishable at the C boundary; both throw.
+    void* const block = ::memory_pool_alloc(handle_);
+    if (block == nullptr) {
+        throw std::bad_alloc{};
+    }
+    return block;
+}
+
+void* Pool::try_allocate() noexcept {
+    // ADR-0016 §2 — non-throwing verb; the exact v0.2.0 forwarder.
     return ::memory_pool_alloc(handle_);
 }
 
@@ -325,16 +349,15 @@ std::size_t Pool::metadata_bytes() const noexcept {
 }
 
 std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) {
-    // Factory Method per ADR-0011 §1 — engage the optional only when the
-    // underlying ctor produced a non-null handle. The ctor itself remains
-    // the lower-level path with its silent-empty-state semantics from
-    // ADR-0010 §2; this factory exists to surface the success/failure
-    // signal at the call site via std::optional.
-    Pool pool(block_size, block_count);
-    if (pool.handle_ == nullptr) {
+    // Factory Method per ADR-0011 §1, restructured by ADR-0016 §3: the
+    // public ctor now throws on failure, so the non-throwing factory
+    // calls memory_pool_create directly and adopts the handle through
+    // the private noexcept ctor — no try/catch on this path.
+    memory_pool_t* const handle = ::memory_pool_create(block_size, block_count);
+    if (handle == nullptr) {
         return std::nullopt;
     }
-    return {std::move(pool)};
+    return {Pool{handle}};
 }
 
 PoolBuilder& PoolBuilder::with_block_size(std::size_t block_size) noexcept {

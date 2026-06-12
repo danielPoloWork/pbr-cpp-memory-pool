@@ -149,7 +149,10 @@ double time_pool_bulk_alloc(mem::Pool& pool, const Config& cfg, std::vector<void
     out.reserve(cfg.iterations_);
     const auto t0 = clock::now();
     for (std::size_t i = 0; i < cfg.iterations_; ++i) {
-        void* const p = pool.allocate();
+        // try_allocate is the apples-to-apples verb vs std::malloc — both
+        // report failure in-band with NULL (ADR-0016 §4). It is also the
+        // exact code path that produced the committed v0.2.0 numbers.
+        void* const p = pool.try_allocate();
         touch_byte(p, i);
         do_not_optimize(p);
         out.push_back(p);
@@ -202,7 +205,8 @@ double time_malloc_bulk_free(std::vector<void*>& blocks) {
 double time_pool_interleaved(mem::Pool& pool, const Config& cfg) {
     const auto t0 = clock::now();
     for (std::size_t i = 0; i < cfg.iterations_; ++i) {
-        void* const p = pool.allocate();
+        // Same in-band-failure verb as the bulk scenario (ADR-0016 §4).
+        void* const p = pool.try_allocate();
         touch_byte(p, i);
         do_not_optimize(p);
         pool.deallocate(p);
