@@ -67,7 +67,7 @@ Goal: a correct, leak-free, O(1) fixed-block pool matching the spec — single-t
 
 Goal: an idiomatic C++17 wrapper around the C core, with RAII and allocator-aware ergonomics.
 
-- [ ] 3.1 ADR: exception policy at the C / C++ boundary — `NULL` on the C side, `std::bad_alloc` on the C++ side, behind a configurable knob (spec §2.2 — "restituire `NULL` o lanciare un'eccezione in C++").
+- [x] 3.1 ADR: exception policy at the C / C++ boundary — `NULL` on the C side, `std::bad_alloc` on the C++ side, behind a configurable knob (spec §2.2 — "restituire `NULL` o lanciare un'eccezione in C++"). Implemented as [ADR-0016](docs/adr/0016-exception-policy-at-the-c-cpp-boundary.md): the C ABI is exception-free forever (every C failure is `NULL` / no-op, formalising ADR-0005 §3); the C++ side adopts a **dual-verb surface** where the "configurable knob" is resolved per call site, not per build — `allocate()` throws `std::bad_alloc` on exhaustion (and on a moved-from wrapper), the new `try_allocate()` is `noexcept` and returns `nullptr` with the exact v0.2.0 semantics. The `Pool` ctor now throws `std::bad_alloc` on construction failure (amends ADR-0010 §2's silent empty state — recorded on its Status line); `Pool::make` / `PoolBuilder::build` remain the non-throwing path, restructured around a private adopt-handle ctor so no try/catch is involved. The benchmark's timed loops switch to `try_allocate()` (apples-to-apples with `malloc`'s in-band `NULL`; byte-identical to the code path that produced the committed v0.2.0 numbers). Six rejected alternatives recorded (compile-time macro fork, policy template parameter, `allocate_or_throw` naming inversion, `std::invalid_argument` split, `std::expected` clone, runtime per-pool flag). Five new / updated `TEST_CASE`s cover ctor-throws, allocate-throws-on-exhaustion, try_allocate-nullptr-on-exhaustion, and the moved-from wrapper behaviour of both verbs.
 - [ ] 3.2 `it::d4np::memorypool::TypedPool<T>` template with RAII lifetime and `try_allocate` / `allocate` variants.
 - [ ] 3.3 ADR + impl: **Adapter** — STL-compatible allocator over the underlying pool; propagation traits specified in the ADR.
 - [ ] 3.4 ADR + impl: **Iterator** (read-only) over the free list for diagnostics — disabled in release builds unless explicitly enabled.
@@ -129,7 +129,7 @@ Legend: ⏳ pending · 🚧 in progress · ✅ done · ❎ not applicable (with 
 | Spec section | Requirement                                                                       | Roadmap items   | Status |
 |--------------|-----------------------------------------------------------------------------------|-----------------|--------|
 | §2.1         | Pre-allocate contiguous pool given `block_size` and `block_count`                 | 1.6, 2.1, 2.3   | ✅     |
-| §2.2         | O(1) allocation; return `NULL` (C) or `std::bad_alloc` (C++); dynamic growth opt. | 2.4, 3.1, 5.x   | ⏳     |
+| §2.2         | O(1) allocation; return `NULL` (C) or `std::bad_alloc` (C++); dynamic growth opt. | 2.4, 3.1, 5.x   | 🚧     |
 | §2.3         | O(1) deallocation; block marked free without returning to OS                      | 2.4             | ✅     |
 | §2.4         | Optional, configurable thread safety; single-thread fast path preserved           | 4.1–4.5         | ⏳     |
 | §3.1         | No memory leaks — destroy releases everything to the OS                           | 2.3, 2.8        | ✅     |

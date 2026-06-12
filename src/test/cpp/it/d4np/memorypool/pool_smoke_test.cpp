@@ -3,7 +3,7 @@
 
 /**
  * @file pool_smoke_test.cpp
- * @brief Smoke tests for the public C and C++ surface across Milestones 1–2.
+ * @brief Smoke tests for the public C and C++ surface across Milestones 1–3.
  *
  * The cases below prove that:
  *   - the public headers compile cleanly under our standards (C++17 here,
@@ -14,12 +14,11 @@
  *     the `size_t` overflow guard — by returning `NULL` on each violation;
  *   - the `Pool` RAII wrapper correctly owns the C handle's lifetime,
  *     including move-construction / move-assignment that leave the source
- *     in a valid empty state (ADR-0010).
- *
- * `memory_pool_alloc` and `memory_pool_free` are still Milestone 1 stubs
- * here — their O(1) bodies arrive in M2.4, at which point the relevant
- * TEST_CASE below earns real assertions instead of the current "still a
- * stub" expectations.
+ *     in a valid empty state (ADR-0010);
+ *   - the ADR-0016 exception policy holds on the C++ surface — the ctor
+ *     and `allocate()` throw `std::bad_alloc` on failure, while
+ *     `try_allocate()` / `Pool::make` / `PoolBuilder` report failure
+ *     in-band and never throw.
  */
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
@@ -32,6 +31,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <new>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -238,16 +238,57 @@ TEST_CASE("Pool RAII wrapper: allocate / deallocate exercise the real free list"
     pool.deallocate(second);
 }
 
-TEST_CASE("Pool RAII wrapper: invalid construction leaves the wrapper empty") {
-    // ADR-0010 §2 — when memory_pool_create fails (here: misaligned
-    // block_size from ADR-0009 §2), the wrapper's handle_ stays null and
-    // the destructor is a safe no-op. allocate() returns nullptr because
-    // the underlying handle is null.
+TEST_CASE("Pool ctor throws std::bad_alloc on invalid configuration (ADR-0016 §3)") {
+    // ADR-0016 §3 amends ADR-0010 §2: the silent-empty-state ctor is
+    // retired. A precondition violation (misaligned block_size, ADR-0009
+    // §2) collapses to NULL at the C boundary and surfaces as
+    // std::bad_alloc from the ctor. The lambda keeps the unnamed Pool
+    // temporary out of a bare expression statement, so the throw happens
+    // inside a call and bugprone-unused-raii stays quiet.
     constexpr std::size_t MISALIGNED = alignof(std::max_align_t) + 1U;
-    Pool empty(MISALIGNED, SAFE_BLOCK_COUNT);
-    CHECK(empty.native_handle() == nullptr);
-    CHECK(empty.allocate() == nullptr);
-    empty.deallocate(nullptr);
+    const auto construct = []() -> Pool { return {MISALIGNED, SAFE_BLOCK_COUNT}; };
+    CHECK_THROWS_AS(construct(), std::bad_alloc);
+}
+
+TEST_CASE("Pool::allocate throws std::bad_alloc on exhaustion (ADR-0016 §2)") {
+    // The throwing verb: a single-block pool vends once, then the second
+    // allocate() throws instead of returning nullptr. After returning the
+    // block, allocation succeeds again — the throw left the free list
+    // untouched.
+    Pool pool(SAFE_BLOCK_SIZE, 1U);
+    void* const only = pool.allocate();
+    REQUIRE(only != nullptr);
+    // The static_cast<void> discards the [[nodiscard]] result inside the
+    // macro — the call is expected to throw, not to produce a block.
+    CHECK_THROWS_AS(static_cast<void>(pool.allocate()), std::bad_alloc);
+    pool.deallocate(only);
+    void* const again = pool.allocate();
+    CHECK(again == only);
+    pool.deallocate(again);
+}
+
+TEST_CASE("Pool::try_allocate returns nullptr on exhaustion (ADR-0016 §2)") {
+    // The non-throwing verb keeps the exact v0.2.0 allocate() semantics:
+    // in-band nullptr on exhaustion, noexcept.
+    Pool pool(SAFE_BLOCK_SIZE, 1U);
+    void* const only = pool.try_allocate();
+    REQUIRE(only != nullptr);
+    CHECK(pool.try_allocate() == nullptr);
+    pool.deallocate(only);
+}
+
+TEST_CASE("moved-from Pool: try_allocate returns nullptr, allocate throws (ADR-0016 §2)") {
+    // The moved-from wrapper's null handle is indistinguishable from
+    // exhaustion at the C boundary, so the two verbs report it the same
+    // way they report exhaustion.
+    Pool source(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    const Pool target(std::move(source));
+    REQUIRE(target.metadata_bytes() > 0U);  // the handle really moved
+    // The use-after-move below is the behaviour under test.
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
+    CHECK(source.try_allocate() == nullptr);
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
+    CHECK_THROWS_AS(static_cast<void>(source.allocate()), std::bad_alloc);
 }
 
 TEST_CASE("Pool RAII wrapper: move construction transfers the handle") {

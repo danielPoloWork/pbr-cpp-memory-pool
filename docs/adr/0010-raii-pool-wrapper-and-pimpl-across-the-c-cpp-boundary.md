@@ -1,6 +1,6 @@
 # ADR-0010: RAII for the `Pool` Wrapper and Pimpl Across the C/C++ Boundary
 
-- **Status:** Accepted
+- **Status:** Accepted — ctor failure semantics (the §2 silent empty state) amended by [ADR-0016](0016-exception-policy-at-the-c-cpp-boundary.md)
 - **Date:** 2026-06-10
 - **Deciders:** Daniel Polo (maintainer)
 - **Related:** [ADR-0003](0003-design-patterns-policy.md) (design-patterns policy — requires every adoption to be justified in an ADR), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §6 (the `struct memory_pool` field list this ADR decides *where* to put), [`src/main/cpp/it/d4np/memorypool/memory_pool.h`](../../src/main/cpp/it/d4np/memorypool/memory_pool.h) (the public C header that already forward-declares `struct memory_pool`), [`src/main/cpp/it/d4np/memorypool/memory_pool.hpp`](../../src/main/cpp/it/d4np/memorypool/memory_pool.hpp) (the C++ wrapper this ADR formalises), [`docs/patterns/README.md`](../patterns/README.md) (catalogue updated in the same PR), [ROADMAP](../../ROADMAP.md) §2.2.
