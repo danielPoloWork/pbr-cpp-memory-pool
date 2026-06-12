@@ -28,6 +28,18 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   exhaustion or on an empty (moved-from) wrapper; the exact `Pool::allocate()`
   semantics of v0.2.0.
 
+### Added (M3.2)
+
+- [ADR-0017](docs/adr/0017-typed-pool-design.md) and
+  [`typed_pool.hpp`](src/main/cpp/it/d4np/memorypool/typed_pool.hpp) —
+  `it::d4np::memorypool::TypedPool<T>`, the header-only type-safe pool: the
+  spec-conformant `block_size` is derived from `T` at compile time (ADR-0009 §2
+  satisfied by construction, over-aligned `T` rejected with a `static_assert`),
+  the typed storage verbs follow the ADR-0016 dual-verb policy, and the
+  `construct` / `destroy` object-lifetime pair offers the strong exception
+  guarantee on throwing `T` constructors. Dedicated `typed_pool` CTest binary
+  with eight `TEST_CASE`s.
+
 ### Changed (M3.1)
 
 - **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on
