@@ -93,6 +93,8 @@ Subdivision inside `memorypool/` is by **component** (`pool/`, `freelist/`, `thr
 
 Agents **never merge**, **never force-push `master`**, and **never push directly to `master`**. When unsure, push the branch and ask.
 
+**One roadmap item per PR — and one PR at a time.** Every `ROADMAP.md` item ships in its own standalone PR, branched from the `master` commit current at the time the work starts. After pushing the branch and drafting the PR, the agent **stops and waits for the maintainer to merge it** before starting the next roadmap item. Stacked PRs (a feature branch based on another open feature branch) are not used: the repository squash-merges, which orphans the stack's history and makes every downstream PR's diff misleading. *(Rule set by the maintainer on 2026-06-12, after the M3.1–M3.3 stacked-PR experiment.)*
+
 ### 6.2 Branch naming
 
 Format: `<type>/<short-kebab-description>`
