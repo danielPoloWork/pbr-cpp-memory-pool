@@ -50,5 +50,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0015   | [Metadata-overhead budget and introspection contract](0015-metadata-overhead-budget-and-introspection.md) | Accepted |
 | 0016   | [Exception policy at the C/C++ boundary](0016-exception-policy-at-the-c-cpp-boundary.md)             | Accepted |
 | 0017   | [TypedPool design — block-size derivation and typed surface](0017-typed-pool-design.md)              | Accepted |
+| 0018   | [Adapter — STL-compatible allocator over the pool](0018-adapter-stl-compatible-allocator.md)         | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

@@ -40,6 +40,24 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   guarantee on throwing `T` constructors. Dedicated `typed_pool` CTest binary
   with eight `TEST_CASE`s.
 
+### Added (M3.3)
+
+- [ADR-0018](docs/adr/0018-adapter-stl-compatible-allocator.md) and
+  [`pool_allocator.hpp`](src/main/cpp/it/d4np/memorypool/pool_allocator.hpp) —
+  `PoolAllocator<T>`, the **Adapter** pattern: a C++17 Cpp17Allocator over the
+  pool with hybrid node-allocator semantics (pool fast path for single-element
+  requests that fit a slot, `::operator new` fallback for bulk / oversized /
+  exhausted requests) and provenance-based deallocation routing. Propagation
+  traits: POCCA / POCMA / POCS `true_type`, `is_always_equal` `false_type`,
+  handle-identity equality.
+- Two new public C introspection functions, C89-held:
+  `memory_pool_block_size` (the configured slot size, 0 on `NULL`) and
+  `memory_pool_owns` (the ADR-0012 O(1) range + alignment check promoted to
+  public API — address ownership, deliberately blind to allocation state).
+- New `pool_allocator` CTest binary (seven `TEST_CASE`s, including a
+  `std::list` that provably draws its nodes from the pool) plus two C-surface
+  cases in `pool_smoke`.
+
 ### Changed (M3.1)
 
 - **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on

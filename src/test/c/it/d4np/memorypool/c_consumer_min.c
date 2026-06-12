@@ -22,10 +22,18 @@ int main(void) {
     memory_pool_t* pool;
     void* block;
     size_t metadata;
+    size_t slot_size;
+    int owned;
 
     pool = memory_pool_create(64, 16);
 
     block = memory_pool_alloc(pool);
+
+    /* M3.3 / ADR-0018 — exercise the two introspection functions backing
+     * the STL allocator adapter under the same C89/C99 contract. */
+    slot_size = memory_pool_block_size(pool);
+    owned = memory_pool_owns(pool, block);
+
     memory_pool_free(pool, block);
 
     /* M2.10 / ADR-0015 — exercise the metadata-overhead accessor under
@@ -37,8 +45,10 @@ int main(void) {
 
     /* The verification job's success criterion is "compiles cleanly under
      * -pedantic -Werror", not "runs to a specific value"; we never
-     * dereference block or assert anything about metadata's value. */
+     * dereference block or assert anything about the values. */
     (void)block;
     (void)metadata;
+    (void)slot_size;
+    (void)owned;
     return 0;
 }

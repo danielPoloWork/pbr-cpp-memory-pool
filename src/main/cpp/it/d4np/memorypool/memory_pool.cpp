@@ -246,6 +246,31 @@ std::size_t memory_pool_metadata_bytes(const memory_pool_t* pool) {
     return sizeof(memory_pool);
 }
 
+std::size_t memory_pool_block_size(const memory_pool_t* pool) {
+    // ADR-0018 §2 — introspection for capacity planning and for the STL
+    // allocator adapter's fits-a-slot decision. The stored value is the
+    // caller's original request verbatim (no silent rounding, ADR-0009
+    // §2). NULL is a defined no-op returning 0, matching the C surface's
+    // NULL-tolerance posture.
+    if (pool == nullptr) {
+        return 0U;
+    }
+    return pool->block_size_;
+}
+
+int memory_pool_owns(const memory_pool_t* pool, const void* block) {
+    // ADR-0018 §2 — the ADR-0012 range + alignment check promoted to a
+    // public predicate. Reports address ownership only (a free slot and
+    // a live slot answer identically); never dereferences `block`.
+    if (pool == nullptr) {
+        return 0;
+    }
+    if (block == nullptr) {
+        return 0;
+    }
+    return is_block_in_range(pool, block) ? 1 : 0;
+}
+
 void* memory_pool_alloc(memory_pool_t* pool) {
     // Pop the head of the implicit free list in O(1) (spec §2.2). NULL on
     // either a null pool or an exhausted pool — fixed-size mode per

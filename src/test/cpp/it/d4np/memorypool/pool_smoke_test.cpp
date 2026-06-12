@@ -634,6 +634,45 @@ TEST_CASE("memory_pool_metadata_bytes is O(1) in block_count (spec §3.2)") {
     memory_pool_destroy(huge_pool);
 }
 
+// ===========================================================================
+// M3.3 — public C introspection backing the STL allocator Adapter per
+// ADR-0018 §2: memory_pool_block_size and memory_pool_owns.
+// ===========================================================================
+
+TEST_CASE("memory_pool_block_size reports the configured slot size verbatim (ADR-0018 §2)") {
+    // No silent rounding (ADR-0009 §2), so the reported value is exactly
+    // the creation argument. NULL is a defined no-op returning 0.
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+    CHECK(memory_pool_block_size(pool) == SAFE_BLOCK_SIZE);
+    CHECK(memory_pool_block_size(nullptr) == 0U);
+    memory_pool_destroy(pool);
+}
+
+TEST_CASE("memory_pool_owns reports address ownership, not allocation state (ADR-0018 §2)") {
+    memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
+    REQUIRE(pool != nullptr);
+
+    void* const block = memory_pool_alloc(pool);
+    REQUIRE(block != nullptr);
+    CHECK(memory_pool_owns(pool, block) == 1);
+
+    // A freed slot answers identically — the predicate is the ADR-0012
+    // range + alignment check, deliberately blind to allocation state.
+    memory_pool_free(pool, block);
+    CHECK(memory_pool_owns(pool, block) == 1);
+
+    // Foreign, misaligned, and NULL probes all answer 0 without being
+    // dereferenced.
+    int stack_local = 0;
+    CHECK(memory_pool_owns(pool, &stack_local) == 0);
+    CHECK(memory_pool_owns(pool, static_cast<const char*>(block) + 1) == 0);
+    CHECK(memory_pool_owns(pool, nullptr) == 0);
+    CHECK(memory_pool_owns(nullptr, block) == 0);
+
+    memory_pool_destroy(pool);
+}
+
 TEST_CASE("Pool::metadata_bytes() forwards to the C accessor") {
     // ADR-0015 §2 — the C++ wrapper is a thin noexcept const forwarder.
     // The reported value must match the C function's report for the same
