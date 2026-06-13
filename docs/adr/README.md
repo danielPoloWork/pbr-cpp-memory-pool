@@ -55,5 +55,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0020   | [Thread-safety Strategy and compile-time configuration knob](0020-thread-safety-strategy-and-compile-time-knob.md) | Accepted |
 | 0021   | [Template Method allocation skeleton with thread-safety hook points](0021-template-method-allocation-skeleton.md) | Accepted |
 | 0022   | [Dynamic-growth policy and chunk-linking strategy](0022-dynamic-growth-policy-and-chunk-linking.md) | Accepted |
+| 0023   | [Composite chunk-list representation](0023-composite-chunk-list-representation.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
