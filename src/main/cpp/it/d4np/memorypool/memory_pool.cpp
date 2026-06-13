@@ -297,6 +297,47 @@ void memory_pool_free(memory_pool_t* pool, void* block) {
     pool->head_ = block;
 }
 
+#if PBR_MEMORY_POOL_DIAGNOSTICS
+
+const void* memory_pool_debug_free_list_head(const memory_pool_t* pool) {
+    // ADR-0019 §2 — the free-list head. NULL pool or exhausted pool both
+    // yield NULL. Read-only diagnostic surface, gated out of release builds.
+    if (pool == nullptr) {
+        return nullptr;
+    }
+    return pool->head_;
+}
+
+const void* memory_pool_debug_free_list_next(const memory_pool_t* pool, const void* current) {
+    // ADR-0019 §2 — advance one link. The next-free pointer lives in the
+    // first sizeof(void*) bytes of the current free slot (ADR-0009 §1);
+    // reading it through `void* const*` is the const-correct mirror of the
+    // `*static_cast<void**>(slot) = ptr` write idiom and provably casts
+    // away no const ([expr.static.cast]: cv2 == cv1 here). Keeping the
+    // layout knowledge in this TU honours the Pimpl boundary.
+    if (pool == nullptr || current == nullptr) {
+        return nullptr;
+    }
+    return *static_cast<void* const*>(current);
+}
+
+std::size_t memory_pool_debug_free_count(const memory_pool_t* pool) {
+    // ADR-0019 §2 — O(free_count) walk. Cross-checked in the tests against
+    // std::distance over the C++ FreeListView.
+    if (pool == nullptr) {
+        return 0U;
+    }
+    std::size_t count = 0U;
+    const void* slot = pool->head_;
+    while (slot != nullptr) {
+        ++count;
+        slot = *static_cast<void* const*>(slot);
+    }
+    return count;
+}
+
+#endif  // PBR_MEMORY_POOL_DIAGNOSTICS
+
 }  // extern "C"
 
 namespace it::d4np::memorypool {

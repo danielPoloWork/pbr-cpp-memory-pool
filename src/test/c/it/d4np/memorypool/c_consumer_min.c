@@ -38,6 +38,22 @@ int main(void) {
      * block-size introspection accessor the allocator adapter relies on. */
     block_size = memory_pool_block_size(pool);
 
+#if PBR_MEMORY_POOL_DIAGNOSTICS
+    /* M3.4 / ADR-0019 — exercise the gated free-list diagnostic accessors
+     * under -std=c89 -pedantic -Werror so the C interop contract covers
+     * them too when the diagnostics surface is enabled. Declarations only
+     * need to compile cleanly; we make no assertion about the values. */
+    {
+        const void* head;
+        size_t free_count;
+        head = memory_pool_debug_free_list_head(pool);
+        head = memory_pool_debug_free_list_next(pool, head);
+        free_count = memory_pool_debug_free_count(pool);
+        (void)head;
+        (void)free_count;
+    }
+#endif
+
     memory_pool_destroy(pool);
 
     /* The verification job's success criterion is "compiles cleanly under

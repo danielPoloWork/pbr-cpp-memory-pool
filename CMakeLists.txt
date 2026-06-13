@@ -98,6 +98,21 @@ set_target_properties(pbr_memory_pool PROPERTIES
     SOVERSION ${PROJECT_VERSION_MAJOR})
 
 # ---------------------------------------------------------------------------
+# Free-list diagnostics gate (ADR-0019). The diagnostic surface (the
+# memory_pool_debug_* C accessors and the C++ free_list_iterator.hpp) is
+# driven by the PBR_MEMORY_POOL_DIAGNOSTICS macro, which defaults to ON in
+# debug builds and OFF in release builds (NDEBUG). This option is the
+# documented "explicitly enable" channel: when ON it forces the macro to 1
+# PUBLIC-ly on the library target, so the library and every consumer that
+# links it agree regardless of build type.
+# ---------------------------------------------------------------------------
+option(PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS
+    "Force the free-list diagnostics surface on regardless of build type (ADR-0019)" OFF)
+if(PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS)
+    target_compile_definitions(pbr_memory_pool PUBLIC PBR_MEMORY_POOL_DIAGNOSTICS=1)
+endif()
+
+# ---------------------------------------------------------------------------
 # Optional sub-trees, wired in by later milestones.
 # ---------------------------------------------------------------------------
 option(PBR_MEMORY_POOL_BUILD_TESTS
