@@ -24,6 +24,7 @@ int main(void) {
     void* block;
     size_t metadata;
     size_t block_size;
+    size_t growths;
 
     pool = memory_pool_create(64, 16);
 
@@ -44,6 +45,10 @@ int main(void) {
     /* M3.3 / ADR-0018 — same C89/C99 compatibility guard for the
      * block-size introspection accessor the allocator adapter relies on. */
     block_size = memory_pool_block_size(pool);
+
+    /* M6.2 / ADR-0026 — the growth-count accessor the Observer reads, held to
+     * the same C89/C99 compatibility contract. */
+    growths = memory_pool_growths(pool);
 
 #if PBR_MEMORY_POOL_DIAGNOSTICS
     /* M3.4 / ADR-0019 — exercise the gated free-list diagnostic accessors
@@ -69,5 +74,6 @@ int main(void) {
     (void)block;
     (void)metadata;
     (void)block_size;
+    (void)growths;
     return 0;
 }

@@ -18,6 +18,26 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M6.2)
+
+- [ADR-0026](docs/adr/0026-observer-for-pool-lifecycle-events.md) — the GoF
+  runtime **Observer** for pool-lifecycle events, wired into `InstrumentedPool`:
+  a `PoolObserver` interface (`virtual on_pool_event(PoolEvent, const PoolStats&)
+  noexcept`) registered via `add_observer`, notified on `exhausted` (alloc found
+  the pool empty), `grew` (a dynamic pool acquired a chunk), and `destroyed`
+  (dtor; a moved-from instance notifies nobody).
+- Public C accessor `size_t memory_pool_growths(const memory_pool_t*)` — O(1),
+  NULL-tolerant, ANSI C C89-compatible, always present. Backed by a new
+  `std::atomic<std::size_t> grow_count_` in `struct memory_pool`, incremented
+  only on the growth slow path (`grow_pool`), so the hot path is untouched; the
+  Observer reads it to detect growth in O(1). The field adds 8 bytes (NONE
+  struct → 64, MUTEX → 144, within the ADR-0015 192 budget).
+- Three new `instrumented_pool` `TEST_CASE`s (exhaustion / destruction / growth
+  notification) passing under NONE / MUTEX / LOCKFREE; `c_consumer_min.c`
+  exercises `memory_pool_growths` under the C89/C99 jobs.
+- **Observer** moves to `Implemented` (row #11) in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ### Added (M6.1)
 
 - [ADR-0025](docs/adr/0025-decorator-for-instrumented-pool.md) and

@@ -29,11 +29,35 @@
 
 using it::d4np::memorypool::InstrumentedPool;
 using it::d4np::memorypool::Pool;
+using it::d4np::memorypool::PoolEvent;
+using it::d4np::memorypool::PoolObserver;
 using it::d4np::memorypool::PoolStats;
 
 namespace {
 
 constexpr std::size_t BLOCK_SIZE = 64U;
+
+// Counts each event type. Uses plain counters (no allocation) so the override
+// is genuinely noexcept, as the PoolObserver contract requires.
+struct RecordingObserver : PoolObserver {
+    int exhausted_ = 0;
+    int grew_ = 0;
+    int destroyed_ = 0;
+
+    void on_pool_event(PoolEvent event, const PoolStats& /*stats*/) noexcept override {
+        switch (event) {
+        case PoolEvent::exhausted:
+            ++exhausted_;
+            break;
+        case PoolEvent::grew:
+            ++grew_;
+            break;
+        case PoolEvent::destroyed:
+            ++destroyed_;
+            break;
+        }
+    }
+};
 
 }  // namespace
 
@@ -153,5 +177,48 @@ TEST_CASE("InstrumentedPool over a dynamic pool never fails and tracks the risin
 
     for (void* const block : blocks) {
         pool.deallocate(block);
+    }
+}
+
+TEST_CASE("an observer is notified of exhaustion (ADR-0026)") {
+    RecordingObserver obs;  // declared first → out-lives the pool it observes
+    InstrumentedPool pool{Pool(BLOCK_SIZE, 1U)};
+    pool.add_observer(obs);
+
+    void* const a = pool.try_allocate();
+    REQUIRE(a != nullptr);
+    CHECK(pool.try_allocate() == nullptr);  // exhausted → notifies
+    CHECK(obs.exhausted_ == 1);
+
+    pool.deallocate(a);
+}
+
+TEST_CASE("an observer is notified of destruction (ADR-0026)") {
+    RecordingObserver obs;
+    {
+        InstrumentedPool pool{Pool(BLOCK_SIZE, 4U)};
+        pool.add_observer(obs);
+    }  // pool destroyed here → notifies once
+    CHECK(obs.destroyed_ == 1);
+}
+
+TEST_CASE("an observer is notified of growth on a dynamic pool (ADR-0026)") {
+    RecordingObserver obs;
+    std::optional<InstrumentedPool> opt = InstrumentedPool::make_dynamic(BLOCK_SIZE, 2U, 2U);
+    if (!opt.has_value()) {
+        return;  // lock-free build: dynamic mode rejected — no growth to observe
+    }
+    opt->add_observer(obs);
+
+    std::vector<void*> blocks;
+    for (int i = 0; i < 50; ++i) {
+        void* const block = opt->try_allocate();
+        REQUIRE(block != nullptr);  // grows
+        blocks.push_back(block);
+    }
+    CHECK(obs.grew_ >= 1);  // grew at least once past the initial 2
+
+    for (void* const block : blocks) {
+        opt->deallocate(block);
     }
 }
