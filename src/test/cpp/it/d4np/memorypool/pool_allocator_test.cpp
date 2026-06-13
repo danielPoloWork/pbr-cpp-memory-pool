@@ -24,6 +24,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <type_traits>
@@ -74,9 +75,23 @@ TEST_CASE("single-element requests are pool-served with LIFO reuse (ADR-0018 §1
     REQUIRE(slot != nullptr);
     CHECK(memory_pool_owns(pool.native_handle(), slot) == 1);
 
+    // Capture the slot's identity as an integer while it is still live.
+    // The LIFO assertion below must compare *addresses*, not the freed
+    // `slot` pointer itself: reading a deallocated pointer variable inside
+    // doctest's CHECK machinery trips clang-analyzer-cplusplus.NewDelete
+    // (the analyzer cannot see through the opaque pool C boundary and
+    // models allocate() as ::operator new). Comparing the uintptr_t copy
+    // is the same ptr-to-int idiom used elsewhere in the suite and is
+    // immune to that false positive.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto slot_addr = reinterpret_cast<std::uintptr_t>(slot);
+
     alloc.deallocate(slot, 1U);
     int* const reissued = alloc.allocate(1U);
-    CHECK(reissued == slot);  // LIFO — the slot went back to the pool, not the heap
+    // LIFO — the slot went back to the pool, not the heap, so the reissued
+    // address matches the one just returned.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    CHECK(reinterpret_cast<std::uintptr_t>(reissued) == slot_addr);
     alloc.deallocate(reissued, 1U);
 }
 
@@ -102,6 +117,12 @@ TEST_CASE("pool exhaustion degrades gracefully to the heap (ADR-0018 §1)") {
     int* const from_pool = alloc.allocate(1U);
     REQUIRE(from_pool != nullptr);
     CHECK(memory_pool_owns(pool.native_handle(), from_pool) == 1);
+    // Capture the pool slot's identity as an integer while live — see the
+    // LIFO test above for why the post-deallocate comparison must be on
+    // addresses rather than on the freed pointer (NewDelete false positive
+    // across the opaque pool boundary).
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto from_pool_addr = reinterpret_cast<std::uintptr_t>(from_pool);
 
     // Second single-element request: pool exhausted, allocator stays total.
     int* const from_heap = alloc.allocate(1U);
@@ -112,7 +133,9 @@ TEST_CASE("pool exhaustion degrades gracefully to the heap (ADR-0018 §1)") {
     alloc.deallocate(from_heap, 1U);
     alloc.deallocate(from_pool, 1U);
     int* const reissued = alloc.allocate(1U);
-    CHECK(reissued == from_pool);  // the slot is back on the free list
+    // The slot is back on the free list, so the reissued address matches.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    CHECK(reinterpret_cast<std::uintptr_t>(reissued) == from_pool_addr);
     alloc.deallocate(reissued, 1U);
 }
 
