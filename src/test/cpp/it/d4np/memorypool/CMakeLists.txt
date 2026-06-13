@@ -158,6 +158,25 @@ add_test(
 set_tests_properties(dynamic_growth PROPERTIES
     LABELS "growth;milestone-5")
 
+# ROADMAP item 6.1 — the InstrumentedPool Decorator (ADR-0025). Header-only;
+# the test handles make_dynamic's nullopt under a lock-free build, so no macro
+# mirror is needed.
+add_executable(instrumented_pool_test
+    instrumented_pool_test.cpp)
+
+target_link_libraries(instrumented_pool_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(instrumented_pool_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    instrumented_pool
+    COMMAND instrumented_pool_test)
+
+set_tests_properties(instrumented_pool PROPERTIES
+    LABELS "smoke;milestone-6")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

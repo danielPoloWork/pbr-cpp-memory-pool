@@ -57,5 +57,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0022   | [Dynamic-growth policy and chunk-linking strategy](0022-dynamic-growth-policy-and-chunk-linking.md) | Accepted |
 | 0023   | [Composite chunk-list representation](0023-composite-chunk-list-representation.md) | Accepted |
 | 0024   | [Dynamic-growth synchronization, creation surface, and the lock-free deferral](0024-dynamic-growth-synchronization-and-creation-surface.md) | Accepted |
+| 0025   | [Decorator for an instrumented pool variant](0025-decorator-for-instrumented-pool.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

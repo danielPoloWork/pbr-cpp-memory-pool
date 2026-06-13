@@ -18,6 +18,28 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M6.1)
+
+- [ADR-0025](docs/adr/0025-decorator-for-instrumented-pool.md) and
+  [`instrumented_pool.hpp`](src/main/cpp/it/d4np/memorypool/instrumented_pool.hpp) —
+  `it::d4np::memorypool::InstrumentedPool`, the **Decorator** that composes a
+  `Pool` and counts allocation activity: `allocations_`, `deallocations_`,
+  `allocation_failures_`, `live_`, and the high-water mark `peak_live_`, exposed
+  as a `PoolStats` snapshot via `stats()` plus a `write_summary(std::ostream&)`.
+  Counters are relaxed atomics (safe to wrap a thread-safe pool), with a
+  hand-written move keeping the type factory-returnable (`make` / `make_dynamic`
+  mirror `Pool`). Instrumentation is opt-in by type — undecorated `Pool` pays
+  nothing (the §6 zero-overhead goal; verified in M6.3). For a fixed-block pool
+  a size histogram is degenerate, so `peak_live_` is the occupancy signal;
+  event-stream logging is the M6.2 Observer's job.
+- Dedicated `instrumented_pool` CTest binary
+  ([`instrumented_pool_test.cpp`](src/test/cpp/it/d4np/memorypool/instrumented_pool_test.cpp))
+  — five cases (counters/live/peak, exhaustion-failure counting + LIFO
+  forwarding, `write_summary`, move semantics + pass-throughs, over-a-dynamic-pool)
+  passing under NONE / MUTEX / LOCKFREE.
+- **Decorator** moves to `Implemented` (row #10) in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ## [0.5.0] — 2026-06-13
 
 **Milestone 5 — Dynamic Growth Mode.** Optional, runtime, per-pool dynamic growth
