@@ -18,6 +18,27 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M4.2)
+
+- [ADR-0021](docs/adr/0021-template-method-allocation-skeleton.md) — the
+  **Template Method** allocation skeleton hosting the ADR-0020 thread-safety
+  Strategy. `memory_pool_alloc` / `memory_pool_free` are refactored into the
+  `alloc_skeleton` / `free_skeleton` templates: the skeleton owns the invariant
+  race-free guards (null pool / null block / foreign-pointer range check), and
+  delegates the synchronized free-list head mutation to two compile-time policy
+  hooks — `Policy::pop_head` / `Policy::push_head`. The exhaustion test lives
+  inside `pop_head` so a future lock-free policy can re-test inside its CAS loop.
+- `SingleThreadedPolicy` (the v0.3.0 head pop/push verbatim, no synchronization)
+  is the only policy in this milestone and is hard-wired via
+  `using ActivePolicy = SingleThreadedPolicy;`. The policy and skeletons are
+  internal to [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp)
+  (anonymous namespace), so the public C ABI, the C++ wrapper, `struct memory_pool`,
+  and the ADR-0015 metadata budget are unchanged; behavior is byte-identical to
+  v0.3.0. The `MutexPolicy` / `LockFreePolicy` classes and the
+  `PBR_MEMORY_POOL_THREAD_SAFETY` macro selector arrive in M4.3 without touching
+  the skeleton. **Template Method** moves to `Implemented` (row #8) in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ### Added (M4.1)
 
 - [ADR-0020](docs/adr/0020-thread-safety-strategy-and-compile-time-knob.md) — the
