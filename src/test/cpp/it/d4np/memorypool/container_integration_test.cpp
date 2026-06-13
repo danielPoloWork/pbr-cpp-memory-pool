@@ -235,7 +235,7 @@ TEST_CASE("std::list<std::string> exercises non-trivial construct/destroy throug
 
     values.emplace_back("alpha");
     values.emplace_back("beta");
-    values.push_front(std::string(64, 'x'));  // long string → heap-backed payload
+    values.emplace_front(64U, 'x');  // long string → heap-backed payload
     REQUIRE(values.size() == 3U);
     CHECK(values.back() == "beta");
 
