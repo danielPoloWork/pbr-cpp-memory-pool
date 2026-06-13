@@ -128,6 +128,14 @@ if(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "MUTEX")
 elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
     target_compile_definitions(pbr_memory_pool PRIVATE
         PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
+    # The ABA-tagged head is a 16-byte (double-width) std::atomic. GCC/Clang
+    # lower its compare_exchange to libatomic calls (__atomic_*_16) unless
+    # -mcx16 is set, so the library and its consumers must link libatomic.
+    # MSVC lowers it to cmpxchg16b intrinsically and Apple Clang provides the
+    # builtins, so neither needs (or ships) libatomic — exclude them.
+    if(NOT MSVC AND NOT APPLE)
+        target_link_libraries(pbr_memory_pool PUBLIC atomic)
+    endif()
 elseif(NOT PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "NONE")
     message(FATAL_ERROR
         "PBR_MEMORY_POOL_THREAD_SAFETY must be NONE, MUTEX, or LOCKFREE "
