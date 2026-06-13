@@ -69,9 +69,10 @@ public:
      * `TypedPool<int>` slot costs this many bytes, not `sizeof(int)`.
      */
     static constexpr std::size_t block_size() noexcept {
-        constexpr std::size_t floor = sizeof(T) < sizeof(void*) ? sizeof(void*) : sizeof(T);
-        constexpr std::size_t align = alignof(std::max_align_t);
-        return ((floor + align - 1U) / align) * align;
+        // UPPER_CASE per readability-identifier-naming.ConstexprVariableCase.
+        constexpr std::size_t FLOOR = sizeof(T) < sizeof(void*) ? sizeof(void*) : sizeof(T);
+        constexpr std::size_t ALIGN = alignof(std::max_align_t);
+        return ((FLOOR + ALIGN - 1U) / ALIGN) * ALIGN;
     }
 
     /**
@@ -160,6 +161,12 @@ public:
     [[nodiscard]] T* construct(Args&&... args) {
         void* const raw = pool_.allocate();
         try {
+            // Placement new constructs in pool-owned storage — it does not
+            // allocate, so it transfers no ownership in the gsl sense.
+            // cppcoreguidelines-owning-memory misreads the `T*` return as a
+            // freshly allocated resource; the slot is owned by the pool and
+            // released through ::destroy / ::deallocate.
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             return ::new (raw) T(std::forward<Args>(args)...);
         } catch (...) {
             pool_.deallocate(raw);
