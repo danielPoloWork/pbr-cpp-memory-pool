@@ -4,7 +4,7 @@
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0.2.0 single-thread MVP](https://img.shields.io/badge/Status-v0.2.0%20single--thread%20MVP-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.2.0)
+[![Status: v0.3.0 C++ wrapper & type safety](https://img.shields.io/badge/Status-v0.3.0%20C%2B%2B%20wrapper%20%26%20type%20safety-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -75,15 +75,15 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
-`v0.2.0` — single-threaded MVP. The Milestone 1 stubs that returned `NULL` / no-op are replaced with the real O(1) implementation: contiguous over-aligned backing, implicit free list, foreign-pointer detection, Valgrind-clean destruction. The C++ surface ships a move-only RAII `Pool` wrapper, a static `Pool::make` Factory Method, and a fluent `PoolBuilder`. A microbenchmark binary measures the pool at **11.02 × / 5.35 × / 4.45 ×** faster than `malloc` on the maintainer's Skylake reference host. Eight new ADRs freeze the design contracts (free-list layout, C/C++ boundary, Factory + Builder, foreign-pointer policy, documentation format, microbenchmark methodology, metadata-overhead budget, agent-driven tag push). Release notes for `v0.2.0` live in [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
+`v0.3.0` — C++ wrapper & type safety. A C++-ergonomics layer over the v0.2.0 single-threaded core (the C ABI and its O(1) algorithm are unchanged): a resolved exception policy at the C/C++ boundary (dual-verb `allocate` / `try_allocate`, throwing `Pool` constructor), the type-safe `TypedPool<T>`, an STL-compatible `PoolAllocator<T>` **Adapter** that lets `std::list` / `std::vector` / custom containers draw storage from a pool, and a read-only free-list diagnostic **Iterator** gated out of release builds. Four new ADRs (0016–0019) bring the total to 19; **Adapter** and **Iterator** flip to Implemented in the patterns catalogue. Release notes for `v0.3.0` live in [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
 | 0         | Agent & Workflow Scaffolding       | ✅ complete |
 | 1         | Build System & Project Skeleton    | ✅ complete |
 | 2         | Core Memory Pool (single-threaded) | ✅ complete |
-| 3         | C++ Wrapper & Type Safety          | ⏳ next     |
-| 4         | Thread-Safe Variant                | ⏳ planned  |
+| 3         | C++ Wrapper & Type Safety          | ✅ complete |
+| 4         | Thread-Safe Variant                | ⏳ next     |
 | 5         | Dynamic Growth Mode                | ⏳ planned  |
 | 6         | Observability & Decorators         | ⏳ planned  |
 | 7         | Release & Polish                   | ⏳ planned  |
