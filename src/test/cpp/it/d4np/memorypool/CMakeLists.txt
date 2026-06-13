@@ -21,6 +21,25 @@ add_test(
 set_tests_properties(pool_smoke PROPERTIES
     LABELS "smoke;milestone-1")
 
+# ROADMAP item 3.2 — TypedPool<T> type-safe surface (ADR-0017). The
+# template is header-only, so this binary is also the compile-time proof
+# that typed_pool.hpp instantiates cleanly under the full warning set.
+add_executable(typed_pool_test
+    typed_pool_test.cpp)
+
+target_link_libraries(typed_pool_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(typed_pool_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    typed_pool
+    COMMAND typed_pool_test)
+
+set_tests_properties(typed_pool PROPERTIES
+    LABELS "smoke;milestone-3")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

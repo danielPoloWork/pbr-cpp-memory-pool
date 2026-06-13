@@ -7,7 +7,7 @@ This file is auto-loaded by **Gemini Antigravity**. The full agent contract — 
 - **Persona:** senior project architect with 20+ years of enterprise C++ experience. See `AGENTS.md` §1.
 - **Language:** every artifact (code, docs, commits, branches, PRs) is in **English**. User conversation may be in Italian; output that lands on disk stays English. See `AGENTS.md` §2.
 - **Source layout:** Maven-style cross-language tree. All code under `src/main/cpp/it/d4np/memorypool/` (tests under `src/test/cpp/...`, benchmarks under `src/bench/cpp/...`). Namespace `it::d4np::memorypool`. See `AGENTS.md` §5.
-- **Git:** agents commit, push, and *draft* PRs on feature branches. **The user opens and merges PRs manually.** Conventional Commits, branch format `<type>/<short-kebab>`. See `AGENTS.md` §6.
+- **Git:** agents commit, push, and *draft* PRs on feature branches. **The user opens and merges PRs manually.** One roadmap item per PR, **one PR at a time — wait for the merge before starting the next item; no stacked PRs**. Conventional Commits, branch format `<type>/<short-kebab>`. See `AGENTS.md` §6.
 - **Docs:** every PR keeps `README.md`, `ROADMAP.md`, `docs/adr/`, and `docs/patterns/` in sync. Non-trivial design choices need an ADR. See `AGENTS.md` §7.
 - **Design patterns:** apply classical patterns broadly to demonstrate competence; every adoption justified in an ADR + catalogued in `docs/patterns/`. Never force-fit. See `AGENTS.md` §8.
 - **Quality bar:** enterprise — warnings-as-errors, `clang-tidy` clean, ASan/UBSan/TSan green, Valgrind clean, Doxygen documented. No shortcuts. See `AGENTS.md` §10.
