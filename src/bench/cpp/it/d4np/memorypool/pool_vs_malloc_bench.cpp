@@ -8,8 +8,13 @@
  *
  * Methodology fixed by ADR-0014 (`docs/adr/0014-...`); the summary below is
  * binding:
- *   - two scenarios: **bulk** (alloc N back-to-back, then free N
- *     back-to-back) and **interleaved** (alloc + immediate free, repeated N);
+ *   - scenarios: **bulk** (alloc N back-to-back, then free N back-to-back),
+ *     **interleaved** (alloc + immediate free, repeated N), and — added in
+ *     M4.5 — **concurrent** (T threads each running the interleaved loop on a
+ *     shared pool, aggregate ns/op), the single-thread fast path vs concurrent
+ *     path comparison (re-runs spec §6.3 across the ADR-0020 policies). The
+ *     concurrent scenario is opt-in (`--scenario concurrent|all`) and is
+ *     clamped to one thread under the `NONE` (single-threaded, racy) build;
  *   - 1,000,000 iterations per scenario by default (overridable via
  *     `--iterations`); 10 repeats by default, the first treated as warm-up
  *     and discarded;
@@ -33,6 +38,7 @@
 #include <it/d4np/memorypool/memory_pool.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -63,12 +69,15 @@ struct Config {
     std::size_t iterations_ = 1'000'000U;
     std::size_t repeats_ = 10U;
     std::size_t block_size_ = 64U;
+    std::size_t threads_ = 0U;  // 0 = auto (hardware_concurrency); concurrent scenario only
     bool run_bulk_ = true;
     bool run_interleaved_ = true;
+    bool run_concurrent_ = false;  // M4.5 — opt-in (single-thread fast path vs concurrent path)
 };
 
 constexpr std::size_t MIN_REPEATS = 2U;
 constexpr std::size_t INTERLEAVED_POOL_CAPACITY = 16U;
+constexpr std::size_t CONCURRENT_POOL_CAPACITY = 4096U;
 constexpr std::size_t WARMUP_REPEAT_INDEX = 0U;
 constexpr unsigned BYTE_MASK = 0xFFU;
 
@@ -230,6 +239,99 @@ double time_malloc_interleaved(const Config& cfg) {
 }
 
 // ---------------------------------------------------------------------------
+// Concurrent scenario (M4.5). T threads each run cfg.iterations_ interleaved
+// alloc/free against a SHARED pool, started together via a release/acquire
+// flag so the timed region is the contended work. The metric is aggregate
+// ns per op (wall time / total ops) — under contention MutexPolicy serializes
+// and this rises, LockFreePolicy CAS-contends on the same head. malloc is the
+// thread-safe reference.
+// ---------------------------------------------------------------------------
+std::string_view policy_name() {
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
+    return "mutex";
+#elif PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    return "lockfree";
+#else
+    return "none";
+#endif
+}
+
+unsigned effective_threads(const Config& cfg) {
+    unsigned t = cfg.threads_ == 0U ? std::thread::hardware_concurrency() : static_cast<unsigned>(cfg.threads_);
+    if (t == 0U) {
+        t = 1U;  // hardware_concurrency() may report 0 — fall back to 1
+    }
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_NONE
+    // The single-threaded build is intentionally racy (spec §2.4); never run
+    // the concurrent scenario with more than one thread against it. The T=1
+    // number is the fast-path baseline the thread-safe modes are compared to.
+    t = 1U;
+#endif
+    return t;
+}
+
+double time_pool_concurrent(mem::Pool& pool, const Config& cfg, unsigned threads) {
+    std::atomic<bool> go{false};
+    std::vector<std::thread> workers;
+    workers.reserve(threads);
+    const auto worker = [&pool, &cfg, &go] {
+        while (!go.load(std::memory_order_acquire)) {
+            // spin until all workers are ready, so the timed region excludes
+            // thread-creation cost
+        }
+        for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+            void* const p = pool.try_allocate();
+            if (p != nullptr) {
+                touch_byte(p, i);
+                do_not_optimize(p);
+                pool.deallocate(p);
+            }
+        }
+    };
+    for (unsigned w = 0; w < threads; ++w) {
+        workers.emplace_back(worker);
+    }
+    const auto t0 = clock::now();
+    go.store(true, std::memory_order_release);
+    for (std::thread& th : workers) {
+        th.join();
+    }
+    const auto t1 = clock::now();
+    return ns_per_iter(t0, t1, cfg.iterations_ * static_cast<std::size_t>(threads));
+}
+
+double time_malloc_concurrent(const Config& cfg, unsigned threads) {
+    std::atomic<bool> go{false};
+    std::vector<std::thread> workers;
+    workers.reserve(threads);
+    const auto worker = [&cfg, &go] {
+        while (!go.load(std::memory_order_acquire)) {
+            // spin until all workers are ready (excludes thread-creation cost)
+        }
+        for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+            // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+            void* const p = std::malloc(cfg.block_size_);
+            if (p != nullptr) {
+                touch_byte(p, i);
+                do_not_optimize(p);
+                // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+                std::free(p);
+            }
+        }
+    };
+    for (unsigned w = 0; w < threads; ++w) {
+        workers.emplace_back(worker);
+    }
+    const auto t0 = clock::now();
+    go.store(true, std::memory_order_release);
+    for (std::thread& th : workers) {
+        th.join();
+    }
+    const auto t1 = clock::now();
+    return ns_per_iter(t0, t1, cfg.iterations_ * static_cast<std::size_t>(threads));
+}
+
+// ---------------------------------------------------------------------------
 // Per-repeat orchestration: build a fresh pool, run alloc + free, collect.
 // The first repeat (index 0) is the warm-up and is dropped before statistics.
 // ---------------------------------------------------------------------------
@@ -308,6 +410,38 @@ std::vector<double> run_malloc_interleaved(const Config& cfg) {
     return samples;
 }
 
+std::vector<double> run_pool_concurrent(const Config& cfg, unsigned threads) {
+    std::vector<double> samples;
+    samples.reserve(cfg.repeats_);
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        // Fresh pool per repeat so each measured region starts from a full
+        // free list. Capacity comfortably exceeds the in-flight set (at most
+        // `threads` blocks held at once in interleaved mode).
+        std::optional<mem::Pool> opt = mem::Pool::make(cfg.block_size_, CONCURRENT_POOL_CAPACITY);
+        if (!opt.has_value()) {
+            std::cerr << "pool-concurrent: Pool::make failed\n";
+            std::exit(EXIT_FAILURE);
+        }
+        const double s = time_pool_concurrent(*opt, cfg, threads);
+        if (r != WARMUP_REPEAT_INDEX) {
+            samples.push_back(s);
+        }
+    }
+    return samples;
+}
+
+std::vector<double> run_malloc_concurrent(const Config& cfg, unsigned threads) {
+    std::vector<double> samples;
+    samples.reserve(cfg.repeats_);
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        const double s = time_malloc_concurrent(cfg, threads);
+        if (r != WARMUP_REPEAT_INDEX) {
+            samples.push_back(s);
+        }
+    }
+    return samples;
+}
+
 // ---------------------------------------------------------------------------
 // CLI parsing. Long-form flags only — keeps the surface tiny and the help
 // readable. Unrecognised flags terminate with a usage hint rather than
@@ -325,7 +459,8 @@ struct ParseLoc {
 [[noreturn]] void die_with_usage(std::string_view argv0, std::string_view msg) {
     std::cerr << argv0 << ": " << msg << "\n";
     std::cerr << "usage: " << argv0 << " [--iterations N] [--repeats N]";
-    std::cerr << " [--block-size N] [--scenario {bulk|interleaved|both}]\n";
+    std::cerr << " [--block-size N] [--threads N]";
+    std::cerr << " [--scenario {bulk|interleaved|concurrent|both|all}]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -351,7 +486,7 @@ Config parse_args(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         const std::string_view a{argv[i]};
-        if (a == "--iterations" || a == "--repeats" || a == "--block-size" || a == "--scenario") {
+        if (a == "--iterations" || a == "--repeats" || a == "--block-size" || a == "--threads" || a == "--scenario") {
             if (i + 1 >= argc) {
                 die_with_usage(argv0, std::string{a} + " requires a value");
             }
@@ -364,13 +499,31 @@ Config parse_args(int argc, char* argv[]) {
                 cfg.repeats_ = parse_size(loc, v);
             } else if (a == "--block-size") {
                 cfg.block_size_ = parse_size(loc, v);
+            } else if (a == "--threads") {
+                cfg.threads_ = parse_size(loc, v);
             } else {
                 if (v == "bulk") {
+                    cfg.run_bulk_ = true;
                     cfg.run_interleaved_ = false;
+                    cfg.run_concurrent_ = false;
                 } else if (v == "interleaved") {
                     cfg.run_bulk_ = false;
-                } else if (v != "both") {
-                    die_with_usage(argv0, "--scenario must be bulk | interleaved | both");
+                    cfg.run_interleaved_ = true;
+                    cfg.run_concurrent_ = false;
+                } else if (v == "concurrent") {
+                    cfg.run_bulk_ = false;
+                    cfg.run_interleaved_ = false;
+                    cfg.run_concurrent_ = true;
+                } else if (v == "both") {
+                    cfg.run_bulk_ = true;
+                    cfg.run_interleaved_ = true;
+                    cfg.run_concurrent_ = false;
+                } else if (v == "all") {
+                    cfg.run_bulk_ = true;
+                    cfg.run_interleaved_ = true;
+                    cfg.run_concurrent_ = true;
+                } else {
+                    die_with_usage(argv0, "--scenario must be bulk | interleaved | concurrent | both | all");
                 }
             }
             ++i;
@@ -426,9 +579,14 @@ void print_header(std::ostream& os, const Config& cfg) {
     os << "# compiler: " << compiler_name() << " " << compiler_version() << "\n";
     os << "# hardware_concurrency: " << std::thread::hardware_concurrency() << "\n";
     os << "# max_align_t: " << alignof(std::max_align_t) << " bytes\n";
+    os << "# thread_safety_policy: " << policy_name() << "\n";
     os << "# config: iterations=" << cfg.iterations_;
     os << " repeats=" << cfg.repeats_;
-    os << " block_size=" << cfg.block_size_ << "\n";
+    os << " block_size=" << cfg.block_size_;
+    if (cfg.run_concurrent_) {
+        os << " concurrent_threads=" << effective_threads(cfg);
+    }
+    os << "\n";
     os << "# (the human-runner appends host / cpu / os details when committing the report)\n";
     os << "\n";
 }
@@ -502,6 +660,20 @@ std::string run_and_report_interleaved(const Config& cfg, std::ostream& body) {
     return tail.str();
 }
 
+std::string run_and_report_concurrent(const Config& cfg, std::ostream& body) {
+    const unsigned threads = effective_threads(cfg);
+    const Stats cp = summarise(run_pool_concurrent(cfg, threads));
+    const Stats cm = summarise(run_malloc_concurrent(cfg, threads));
+    print_row(body, RowKey{"concurrent", "pool", "alloc+free"}, cp);
+    print_row(body, RowKey{"concurrent", "malloc", "alloc+free"}, cm);
+    std::ostringstream tail;
+    tail << std::fixed << std::setprecision(3);
+    // Aggregate ns/op: malloc / pool. > 1 means the pool's contended path is
+    // faster per op than malloc's at this thread count.
+    print_headline(tail, "concurrent", safe_ratio(cm.median_ns_, cp.median_ns_));
+    return tail.str();
+}
+
 }  // namespace
 
 // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,hicpp-avoid-c-arrays)
@@ -521,6 +693,9 @@ int main(int argc, char* argv[]) {
     }
     if (cfg.run_interleaved_) {
         tail += run_and_report_interleaved(cfg, std::cout);
+    }
+    if (cfg.run_concurrent_) {
+        tail += run_and_report_concurrent(cfg, std::cout);
     }
     std::cout << "\n" << tail;
     return 0;

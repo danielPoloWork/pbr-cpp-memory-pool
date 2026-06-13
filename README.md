@@ -63,6 +63,8 @@ Headline numbers from the v0.2.0 microbenchmark (M2.9 / spec §6.3) on the maint
 | bulk-free    | 44.5                    | 8.3                   | **5.35 ×**        |
 | interleaved  | 49.9                    | 11.2                  | **4.45 ×**        |
 
+**Threading (M4.5).** The same binary's `--scenario concurrent` runs `T` threads against a shared pool, built per thread-safety policy. The single-thread fast path is preserved (`NONE` ≈ 9 ns/op interleaved, unchanged); under 4-thread contention `LOCKFREE` (41.8 ns/op) beats `MUTEX` (69.5 ns/op), though a single-shared-head pool does not out-scale `malloc`'s per-thread arenas — full analysis in [`docs/bench/v0.4.0-windows-msvc-x64-threading.md`](docs/bench/v0.4.0-windows-msvc-x64-threading.md).
+
 The bench binary is built off by default; the `bench` preset (Release + benchmarks ON + tests OFF) opts in:
 
 ```bash

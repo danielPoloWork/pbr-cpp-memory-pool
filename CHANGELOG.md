@@ -18,6 +18,25 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M4.5)
+
+- Concurrent scenario in `pool_vs_malloc_bench` (ADR-0014): `T` threads run the
+  interleaved alloc/free loop against a shared pool, reporting aggregate `ns/op`
+  vs `malloc`. New CLI `--threads N` and `--scenario {bulk|interleaved|concurrent|both|all}`;
+  the binary prints the `thread_safety_policy` it was built against and clamps
+  the concurrent scenario to one thread under the racy `NONE` build (spec §2.4).
+- Comparative benchmark report
+  [`docs/bench/v0.4.0-windows-msvc-x64-threading.md`](docs/bench/v0.4.0-windows-msvc-x64-threading.md):
+  the single-thread fast path is preserved (`NONE` interleaved ≈ 9 ns/op,
+  matching M2.9); uncontended synchronization cost is `MUTEX` 47 / `LOCKFREE`
+  32 ns/op; under 4-thread contention `LOCKFREE` (41.8) beats `MUTEX` (69.5),
+  while a single-shared-head pool cannot out-scale `malloc`'s per-thread arenas
+  — motivating the deferred per-thread caches (ADR-0020 §4).
+- `bench-concurrent-smoke` CI job — builds + briefly runs the concurrent
+  scenario under MUTEX and LOCKFREE (exit-code gate, ADR-0014 §8).
+- **Spec Coverage Map §6.3 flips 🚧 → ✅** — the concurrent comparative re-run
+  completes the benchmark contract.
+
 ### Added (M4.4)
 
 - `concurrency_stress` CTest binary
