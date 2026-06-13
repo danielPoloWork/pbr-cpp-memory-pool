@@ -80,6 +80,24 @@ add_test(
 set_tests_properties(free_list_iterator PROPERTIES
     LABELS "smoke;milestone-3")
 
+# ROADMAP item 3.5 — end-to-end integration of PoolAllocator<T> (ADR-0018)
+# with std::list, std::vector, and a hand-written allocator-aware container.
+add_executable(container_integration_test
+    container_integration_test.cpp)
+
+target_link_libraries(container_integration_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(container_integration_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    container_integration
+    COMMAND container_integration_test)
+
+set_tests_properties(container_integration PROPERTIES
+    LABELS "integration;milestone-3")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.
