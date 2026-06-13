@@ -15,6 +15,9 @@
  *     path comparison (re-runs spec §6.3 across the ADR-0020 policies). The
  *     concurrent scenario is opt-in (`--scenario concurrent|all`) and is
  *     clamped to one thread under the `NONE` (single-threaded, racy) build;
+ *     M5.4 adds **growth** (`--scenario growth|all`) — a dynamic pool that
+ *     starts small and grows geometrically during a bulk alloc, measuring the
+ *     amortized cost including growth; skipped under the lock-free build;
  *   - 1,000,000 iterations per scenario by default (overridable via
  *     `--iterations`); 10 repeats by default, the first treated as warm-up
  *     and discarded;
@@ -73,11 +76,14 @@ struct Config {
     bool run_bulk_ = true;
     bool run_interleaved_ = true;
     bool run_concurrent_ = false;  // M4.5 — opt-in (single-thread fast path vs concurrent path)
+    bool run_growth_ = false;      // M5.4 — opt-in (amortized cost of dynamic growth)
 };
 
 constexpr std::size_t MIN_REPEATS = 2U;
 constexpr std::size_t INTERLEAVED_POOL_CAPACITY = 16U;
 constexpr std::size_t CONCURRENT_POOL_CAPACITY = 4096U;
+constexpr std::size_t GROWTH_INITIAL_BLOCKS = 256U;  // M5.4 — small initial; grows to `iterations`
+constexpr std::size_t GROWTH_FACTOR = 2U;
 constexpr std::size_t WARMUP_REPEAT_INDEX = 0U;
 constexpr unsigned BYTE_MASK = 0xFFU;
 
@@ -444,6 +450,32 @@ std::vector<double> run_malloc_concurrent(const Config& cfg, unsigned threads) {
     return samples;
 }
 
+// M5.4 — a dynamic pool that starts at GROWTH_INITIAL_BLOCKS grows to hold
+// `iterations` blocks during a bulk alloc, so the timing captures the
+// amortized alloc cost *including* the periodic geometric growth. Returns an
+// empty sample set if dynamic mode is unsupported (lock-free build — ADR-0024
+// §2), which the reporter renders as a skip.
+std::vector<double> run_pool_growth(const Config& cfg) {
+    std::vector<double> samples;
+    samples.reserve(cfg.repeats_);
+    std::vector<void*> slots;
+    for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+        std::optional<mem::Pool> opt = mem::Pool::make_dynamic(cfg.block_size_, GROWTH_INITIAL_BLOCKS, GROWTH_FACTOR);
+        if (!opt.has_value()) {
+            return {};  // dynamic unsupported in this build — reporter prints a skip
+        }
+        mem::Pool& pool = *opt;
+        const double alloc_ns = time_pool_bulk_alloc(pool, cfg, slots);
+        for (void* const p : slots) {
+            pool.deallocate(p);  // untimed cleanup so destroy is leak-free
+        }
+        if (r != WARMUP_REPEAT_INDEX) {
+            samples.push_back(alloc_ns);
+        }
+    }
+    return samples;
+}
+
 // ---------------------------------------------------------------------------
 // CLI parsing. Long-form flags only — keeps the surface tiny and the help
 // readable. Unrecognised flags terminate with a usage hint rather than
@@ -462,7 +494,7 @@ struct ParseLoc {
     std::cerr << argv0 << ": " << msg << "\n";
     std::cerr << "usage: " << argv0 << " [--iterations N] [--repeats N]";
     std::cerr << " [--block-size N] [--threads N]";
-    std::cerr << " [--scenario {bulk|interleaved|concurrent|both|all}]\n";
+    std::cerr << " [--scenario {bulk|interleaved|concurrent|growth|both|all}]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -508,24 +540,34 @@ Config parse_args(int argc, char* argv[]) {
                     cfg.run_bulk_ = true;
                     cfg.run_interleaved_ = false;
                     cfg.run_concurrent_ = false;
+                    cfg.run_growth_ = false;
                 } else if (v == "interleaved") {
                     cfg.run_bulk_ = false;
                     cfg.run_interleaved_ = true;
                     cfg.run_concurrent_ = false;
+                    cfg.run_growth_ = false;
                 } else if (v == "concurrent") {
                     cfg.run_bulk_ = false;
                     cfg.run_interleaved_ = false;
                     cfg.run_concurrent_ = true;
+                    cfg.run_growth_ = false;
+                } else if (v == "growth") {
+                    cfg.run_bulk_ = false;
+                    cfg.run_interleaved_ = false;
+                    cfg.run_concurrent_ = false;
+                    cfg.run_growth_ = true;
                 } else if (v == "both") {
                     cfg.run_bulk_ = true;
                     cfg.run_interleaved_ = true;
                     cfg.run_concurrent_ = false;
+                    cfg.run_growth_ = false;
                 } else if (v == "all") {
                     cfg.run_bulk_ = true;
                     cfg.run_interleaved_ = true;
                     cfg.run_concurrent_ = true;
+                    cfg.run_growth_ = true;
                 } else {
-                    die_with_usage(argv0, "--scenario must be bulk | interleaved | concurrent | both | all");
+                    die_with_usage(argv0, "--scenario must be bulk | interleaved | concurrent | growth | both | all");
                 }
             }
             ++i;
@@ -676,6 +718,24 @@ std::string run_and_report_concurrent(const Config& cfg, std::ostream& body) {
     return tail.str();
 }
 
+std::string run_and_report_growth(const Config& cfg, std::ostream& body) {
+    const std::vector<double> growth = run_pool_growth(cfg);
+    std::ostringstream tail;
+    tail << std::fixed << std::setprecision(3);
+    if (growth.empty()) {
+        tail << "# headline: growth: skipped (dynamic mode unsupported in this build — ADR-0024 §2)\n";
+        return tail.str();
+    }
+    const Stats gp = summarise(growth);
+    const Stats gm = summarise(run_malloc_bulk(cfg).alloc_samples_);
+    print_row(body, RowKey{"growth", "pool", "alloc"}, gp);
+    print_row(body, RowKey{"growth", "malloc", "alloc"}, gm);
+    // Amortized alloc ns/op of a pool growing from a small initial capacity
+    // vs malloc — the geometric-growth overhead is folded into the median.
+    print_headline(tail, "growth-alloc", safe_ratio(gm.median_ns_, gp.median_ns_));
+    return tail.str();
+}
+
 }  // namespace
 
 // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,hicpp-avoid-c-arrays)
@@ -698,6 +758,9 @@ int main(int argc, char* argv[]) {
     }
     if (cfg.run_concurrent_) {
         tail += run_and_report_concurrent(cfg, std::cout);
+    }
+    if (cfg.run_growth_) {
+        tail += run_and_report_growth(cfg, std::cout);
     }
     std::cout << "\n" << tail;
     return 0;
