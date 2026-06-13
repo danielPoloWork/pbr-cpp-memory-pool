@@ -450,3 +450,52 @@ jobs:
           # not the numbers.
           "$bin" --iterations 10000 --repeats 3
           echo "OK — bench binary ran to completion."
+
+  # ---------------------------------------------------------------------------
+  # thread-safety — build and run the existing (single-threaded) test suite
+  # under each non-default PBR_MEMORY_POOL_THREAD_SAFETY policy (ADR-0020 /
+  # M4.3), proving the compile-time switch compiles and stays single-thread
+  # correct on both Linux compilers. The concurrent stress tests + TSan land
+  # in M4.4; this job is the build-correctness gate for the switch.
+  # ---------------------------------------------------------------------------
+  thread-safety:
+    name: thread-safety / ${{ matrix.compiler }} / ${{ matrix.mode }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        mode: [MUTEX, LOCKFREE]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Select compiler
+        shell: bash
+        run: |
+          if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+            echo "CC=gcc"  >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          else
+            echo "CC=clang"   >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure with the thread-safety policy
+        shell: bash
+        run: |
+          cmake -S . -B build/ts -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPBR_MEMORY_POOL_BUILD_TESTS=ON \
+            -DPBR_MEMORY_POOL_THREAD_SAFETY=${{ matrix.mode }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build/ts
+
+      - name: Test (single-threaded suite under the selected policy)
+        shell: bash
+        run: ctest --test-dir build/ts --output-on-failure

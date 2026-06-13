@@ -113,6 +113,37 @@ if(PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS)
 endif()
 
 # ---------------------------------------------------------------------------
+# Thread-safety policy (ADR-0020). Selects how the implementation
+# synchronizes the free-list head, fixed library-wide at build time. The
+# default NONE preserves the single-thread fast path (spec §2.4). The macro
+# is defined PRIVATE — it changes only memory_pool.cpp's internal policy, not
+# the public ABI or any public declaration, so consumers need not see it.
+# ---------------------------------------------------------------------------
+set(PBR_MEMORY_POOL_THREAD_SAFETY "NONE" CACHE STRING
+    "Thread-safety policy: NONE (default, single-threaded) | MUTEX | LOCKFREE (ADR-0020)")
+set_property(CACHE PBR_MEMORY_POOL_THREAD_SAFETY PROPERTY STRINGS NONE MUTEX LOCKFREE)
+if(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "MUTEX")
+    target_compile_definitions(pbr_memory_pool PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX)
+elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
+    target_compile_definitions(pbr_memory_pool PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
+    # The ABA-tagged head is a 16-byte (double-width) std::atomic. GCC/Clang
+    # lower its compare_exchange to libatomic calls (__atomic_*_16) unless
+    # -mcx16 is set, so the library and its consumers must link libatomic.
+    # MSVC lowers it to cmpxchg16b intrinsically and Apple Clang provides the
+    # builtins, so neither needs (or ships) libatomic — exclude them.
+    if(NOT MSVC AND NOT APPLE)
+        target_link_libraries(pbr_memory_pool PUBLIC atomic)
+    endif()
+elseif(NOT PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "NONE")
+    message(FATAL_ERROR
+        "PBR_MEMORY_POOL_THREAD_SAFETY must be NONE, MUTEX, or LOCKFREE "
+        "(got '${PBR_MEMORY_POOL_THREAD_SAFETY}').")
+endif()
+# NONE leaves the macro at the memory_pool.h default — no compile definition.
+
+# ---------------------------------------------------------------------------
 # Optional sub-trees, wired in by later milestones.
 # ---------------------------------------------------------------------------
 option(PBR_MEMORY_POOL_BUILD_TESTS
