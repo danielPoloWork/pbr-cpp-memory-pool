@@ -543,15 +543,16 @@ jobs:
         run: ctest --test-dir build/tsan --output-on-failure
 
   # ---------------------------------------------------------------------------
-  # bench-concurrent-smoke — build the M4.5 concurrent benchmark under each
-  # thread-safe policy and run it briefly (exit-code gate only; no numeric
-  # thresholds — shared GHA runners are too noisy, ADR-0014 §8). Proves the
-  # concurrent scenario compiles, links (incl. libatomic for LOCKFREE), and
-  # runs to completion under MUTEX and LOCKFREE. Committed numbers come from a
-  # controlled host (docs/bench/).
+  # bench-policy-smoke — build the benchmark under each thread-safe policy and
+  # run every scenario briefly (exit-code gate only; no numeric thresholds —
+  # shared GHA runners are too noisy, ADR-0014 §8). Proves the concurrent
+  # (M4.5) and growth (M5.4) scenarios compile, link (incl. libatomic for
+  # LOCKFREE), and run to completion under MUTEX and LOCKFREE — including the
+  # growth scenario's clean skip under the lock-free build. Committed numbers
+  # come from a controlled host (docs/bench/).
   # ---------------------------------------------------------------------------
-  bench-concurrent-smoke:
-    name: bench / concurrent smoke / ${{ matrix.mode }}
+  bench-policy-smoke:
+    name: bench / policy smoke / ${{ matrix.mode }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -575,7 +576,7 @@ jobs:
         shell: bash
         run: cmake --build build/bench-${{ matrix.mode }}
 
-      - name: Smoke-run the concurrent scenario
+      - name: Smoke-run every scenario (incl. concurrent + growth)
         shell: bash
         run: |
           set -euo pipefail
@@ -584,5 +585,7 @@ jobs:
             echo "FAIL: expected bench binary at $bin"
             exit 1
           fi
-          "$bin" --scenario concurrent --threads 4 --iterations 20000 --repeats 3
-          echo "OK — concurrent bench ran to completion under ${{ matrix.mode }}."
+          # --scenario all covers bulk / interleaved / concurrent / growth. The
+          # growth scenario grows under MUTEX and cleanly skips under LOCKFREE.
+          "$bin" --scenario all --threads 4 --iterations 20000 --repeats 3
+          echo "OK — all bench scenarios ran to completion under ${{ matrix.mode }}."

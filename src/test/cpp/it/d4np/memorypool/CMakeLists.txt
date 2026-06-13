@@ -130,6 +130,34 @@ add_test(
 set_tests_properties(concurrency_stress PROPERTIES
     LABELS "stress;milestone-4")
 
+# ROADMAP item 5.4 — exhaustion-and-grow tests for dynamic growth (ADR-0022 /
+# ADR-0023 / ADR-0024). Mirrors the library's PRIVATE thread-safety macro onto
+# the target so the TU knows whether it is a lock-free build (which rejects
+# dynamic mode) or a NONE/MUTEX build (which exercises the full growth matrix).
+add_executable(dynamic_growth_test
+    dynamic_growth_test.cpp)
+
+target_link_libraries(dynamic_growth_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(dynamic_growth_test PRIVATE cxx_std_17)
+
+if(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "MUTEX")
+    target_compile_definitions(dynamic_growth_test PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX)
+elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
+    target_compile_definitions(dynamic_growth_test PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
+endif()
+
+add_test(
+    NAME    dynamic_growth
+    COMMAND dynamic_growth_test)
+
+set_tests_properties(dynamic_growth PROPERTIES
+    LABELS "growth;milestone-5")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

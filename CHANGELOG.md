@@ -18,6 +18,26 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M5.4)
+
+- `dynamic_growth` CTest binary
+  ([`dynamic_growth_test.cpp`](src/test/cpp/it/d4np/memorypool/dynamic_growth_test.cpp))
+  — exhaustion-and-grow tests. The target mirrors the library's thread-safety
+  mode: under NONE / MUTEX it covers repeated geometric growth, multiple
+  factors, cross-chunk distinctness, full recovery / no leak (ASan- and
+  Valgrind-checked), the ADR-0012 range check across grown chunks, and the C++
+  `make_dynamic` / `PoolBuilder` surface; under LOCKFREE it asserts the
+  rejection contract (ADR-0024 §2) while fixed-mode pools still work.
+- `growth` scenario in `pool_vs_malloc_bench` (`--scenario growth|all`): a
+  dynamic pool that starts at 256 blocks and grows to `iterations` during a
+  bulk alloc, measuring amortized cost including growth (skipped under the
+  lock-free build). Committed numbers at
+  [`docs/bench/v0.5.0-windows-msvc-x64-growth.md`](docs/bench/v0.5.0-windows-msvc-x64-growth.md)
+  — a growing pool is **1.96 ×** faster than `malloc` (55 vs 108 ns/op),
+  versus ~11 × for a pre-sized fixed pool.
+- CI: the `bench-concurrent-smoke` job is broadened to `bench-policy-smoke`,
+  running `--scenario all` (incl. growth) under MUTEX + LOCKFREE.
+
 ### Added (M5.3)
 
 - [ADR-0024](docs/adr/0024-dynamic-growth-synchronization-and-creation-surface.md)
