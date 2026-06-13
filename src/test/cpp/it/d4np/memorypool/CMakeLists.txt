@@ -40,6 +40,26 @@ add_test(
 set_tests_properties(typed_pool PROPERTIES
     LABELS "smoke;milestone-3")
 
+# ROADMAP item 3.3 — PoolAllocator<T> STL adapter (ADR-0018). The adapter is
+# header-only, so this binary is also the compile-time proof that
+# pool_allocator.hpp instantiates cleanly (including through std::list and
+# std::vector) under the full warning set.
+add_executable(pool_allocator_test
+    pool_allocator_test.cpp)
+
+target_link_libraries(pool_allocator_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(pool_allocator_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    pool_allocator
+    COMMAND pool_allocator_test)
+
+set_tests_properties(pool_allocator PROPERTIES
+    LABELS "smoke;milestone-3")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

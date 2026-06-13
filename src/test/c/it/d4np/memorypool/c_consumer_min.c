@@ -22,6 +22,7 @@ int main(void) {
     memory_pool_t* pool;
     void* block;
     size_t metadata;
+    size_t block_size;
 
     pool = memory_pool_create(64, 16);
 
@@ -33,12 +34,17 @@ int main(void) {
      * accidental C99-or-later construct slipping into its declaration. */
     metadata = memory_pool_metadata_bytes(pool);
 
+    /* M3.3 / ADR-0018 — same C89/C99 compatibility guard for the
+     * block-size introspection accessor the allocator adapter relies on. */
+    block_size = memory_pool_block_size(pool);
+
     memory_pool_destroy(pool);
 
     /* The verification job's success criterion is "compiles cleanly under
      * -pedantic -Werror", not "runs to a specific value"; we never
-     * dereference block or assert anything about metadata's value. */
+     * dereference block or assert anything about the reported sizes. */
     (void)block;
     (void)metadata;
+    (void)block_size;
     return 0;
 }
