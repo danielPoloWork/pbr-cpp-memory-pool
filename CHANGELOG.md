@@ -18,6 +18,30 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M6.3)
+
+- Dedicated `zero_overhead` CTest binary
+  ([`zero_overhead_test.cpp`](src/test/cpp/it/d4np/memorypool/zero_overhead_test.cpp))
+  discharging the [ADR-0025](docs/adr/0025-decorator-for-instrumented-pool.md) §5
+  zero-overhead-when-disabled contract ("disabled" = **opt-in by type**: a program
+  using `Pool` directly pays nothing). Both §5 obligations are *structural*, so
+  they are verified by `static_assert` (config-independent — they hold in Release
+  exactly as in Debug) plus a runtime behavioural-equivalence check, **not** a
+  timing gate (shared CI runners are too noisy to gate on — [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md)
+  §8): **(1)** a `std::void_t` detection idiom proves the `stats()` / `add_observer()`
+  surface is absent from `Pool` and present on `InstrumentedPool`; **(2)**
+  `sizeof(Pool) == sizeof(memory_pool_t*)` and `Pool` stays standard-layout (no
+  member / vtable / padding added by the decorator); **(3)** the decorator is at
+  least `5 × sizeof(atomic<size_t>) + sizeof(size_t)` larger than `Pool` — the
+  counter cost is wholly inside it. The runtime case proves a bare `Pool` and an
+  `InstrumentedPool` over the same configuration are indistinguishable: identical
+  `metadata_bytes()` (the C `struct memory_pool` does not grow), identical
+  `block_size()`, identical capacity / exhaustion, and the identical LIFO
+  re-allocation signature. Four `TEST_CASE`s / 77 assertions; as an ordinary CTest
+  target it runs in every CI matrix cell including the Release cells — the "in
+  release builds" coverage the roadmap item asks for. No new ADR (methodology fixed
+  by ADR-0025 §5).
+
 ### Added (M6.2)
 
 - [ADR-0026](docs/adr/0026-observer-for-pool-lifecycle-events.md) — the GoF
