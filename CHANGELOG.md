@@ -18,6 +18,23 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [0.5.0] — 2026-06-13
+
+**Milestone 5 — Dynamic Growth Mode.** Optional, runtime, per-pool dynamic growth
+(spec §2.2): a pool created with `memory_pool_create_dynamic` (or `Pool::make_dynamic`
+/ `PoolBuilder::with_growth_factor`) acquires a new geometric contiguous chunk on
+exhaustion instead of failing, while the default stays fixed-size — the v0.4.0
+behaviour, bit-for-bit. The pool is now a **Composite**: an inline first chunk plus an
+append-only list of overflow chunks threaded by one shared implicit free list, so
+`alloc` and the `free` push stay O(1); only the `free` safety check and `destroy`
+become O(log N) in dynamic mode, and per-block overhead stays zero. Growth is
+geometric (chunk count O(log N)) and runs inside the allocation `pop_head` under the
+policy's own synchronization (NONE / MUTEX); **lock-free + dynamic is rejected at
+creation** (deferred — ADR-0024 §2). Three new ADRs (0022–0024) take the running total
+to 24; the patterns catalogue gains **Composite** as Implemented. The ADR-0015 per-pool
+metadata budget is renegotiated 128 → 192. Full release notes in
+[`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md).
+
 ### Added (M5.4)
 
 - `dynamic_growth` CTest binary
@@ -99,6 +116,16 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   stays zero (ADR-0015). Chunks are never moved (address stability). The
   Composite chunk-list representation is M5.2, the implementation M5.3. Decision
   only — no source changes.
+
+### Spec Coverage Map flips
+
+- **§2.2** (O(1) allocation; return `NULL` (C) / `std::bad_alloc` (C++); dynamic
+  growth optional): 🚧 → ✅ — both clauses are now satisfied (the C++ exception
+  half by ADR-0016 in v0.3.0, the dynamic-growth half by M5.1–M5.4 here).
+
+Coverage at the close of Milestone 5: eleven rows ✅. The remaining work is the
+Milestone 6 observability/instrumentation items (Decorator, Observer,
+double-free detection), which do not correspond to a distinct spec row.
 
 ## [0.4.0] — 2026-06-13
 
@@ -649,7 +676,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0
 [0.4.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0
 [0.3.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0
 [0.2.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.2.0

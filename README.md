@@ -4,7 +4,7 @@
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0.4.0 thread-safe variant](https://img.shields.io/badge/Status-v0.4.0%20thread--safe%20variant-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0)
+[![Status: v0.5.0 dynamic growth](https://img.shields.io/badge/Status-v0.5.0%20dynamic%20growth-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -77,7 +77,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
-`v0.4.0` — thread-safe variant. Opt-in, compile-time-configurable thread safety with the single-threaded fast path preserved at zero cost (spec §2.4). The allocation algorithm is a **Template Method** skeleton whose synchronization is a compile-time **Strategy** selected by `PBR_MEMORY_POOL_THREAD_SAFETY`: `NONE` (default — the v0.3.0 path verbatim), `MUTEX` (a `std::mutex`), or `LOCKFREE` (an ABA-tagged Treiber-stack CAS). The C ABI, C++ wrapper, and headers are unchanged — the mode is a library-build property. Concurrent stress tests + a ThreadSanitizer CI job validate the thread-safe path; a concurrent benchmark scenario measures the fast path vs the contended path. Two new ADRs (0020–0021) bring the total to 21; **Strategy** and **Template Method** flip to Implemented. Release notes for `v0.4.0` live in [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
+`v0.5.0` — dynamic growth mode. Optional, runtime, per-pool dynamic growth (spec §2.2): a pool created with `memory_pool_create_dynamic` / `Pool::make_dynamic` / `PoolBuilder::with_growth_factor` acquires a new geometric contiguous chunk on exhaustion instead of failing; the default stays fixed-size (v0.4.0 behaviour, bit-for-bit). The pool is now a **Composite** — an inline first chunk plus an append-only list of overflow chunks under one shared free list — so `alloc`/`free` stay O(1) (only the `free` safety check and `destroy` are O(log N) in dynamic mode) and per-block overhead stays zero. Growth runs under the policy's synchronization (NONE / MUTEX); lock-free + dynamic is rejected at creation (deferred). Three new ADRs (0022–0024) bring the total to 24; **Composite** flips to Implemented; the per-pool metadata budget is renegotiated 128 → 192. Release notes for `v0.5.0` live in [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
@@ -86,8 +86,8 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 2         | Core Memory Pool (single-threaded) | ✅ complete |
 | 3         | C++ Wrapper & Type Safety          | ✅ complete |
 | 4         | Thread-Safe Variant                | ✅ complete |
-| 5         | Dynamic Growth Mode                | ⏳ next     |
-| 6         | Observability & Decorators         | ⏳ planned  |
+| 5         | Dynamic Growth Mode                | ✅ complete |
+| 6         | Observability & Decorators         | ⏳ next     |
 | 7         | Release & Polish                   | ⏳ planned  |
 
 See [`ROADMAP.md`](ROADMAP.md) for the per-task breakdown and the Spec Coverage Map at the bottom (traceability from spec sections to roadmap items).
