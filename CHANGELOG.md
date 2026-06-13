@@ -40,6 +40,45 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   guarantee on throwing `T` constructors. Dedicated `typed_pool` CTest binary
   with eight `TEST_CASE`s.
 
+### Added (M3.3)
+
+- [ADR-0018](docs/adr/0018-stl-allocator-adapter.md) and
+  [`pool_allocator.hpp`](src/main/cpp/it/d4np/memorypool/pool_allocator.hpp) —
+  `it::d4np::memorypool::PoolAllocator<T>`, the header-only STL-compatible
+  allocator **Adapter**. It satisfies the *Cpp17Allocator* requirements and is a
+  non-owning back-reference to a `Pool` (single `Pool*` member,
+  `sizeof == sizeof(void*)`; the pool must out-live every container and adapter
+  copy). Single-block requests (`n == 1`, fitting, not over-aligned) route to the
+  pool in O(1) — `std::bad_alloc` on exhaustion per ADR-0016 §2 — while
+  everything else (`n > 1`, oversized / over-aligned `T`, rebound nodes larger
+  than the block) falls back to over-aligned `::operator new` / `::operator delete`.
+  The routing predicate is a pure function of `(n, sizeof(T), alignof(T),
+  block_size)`, so `deallocate` returns each pointer through the path that
+  allocated it with no per-pointer bookkeeping. `std::list` / `std::map` /
+  `std::set` run on the pool fast path; `std::vector` runs on the fallback.
+- Propagation traits specified per ADR-0018 §4:
+  `propagate_on_container_copy_assignment`,
+  `propagate_on_container_move_assignment`, and `propagate_on_container_swap`
+  are all `std::false_type`; `is_always_equal` is `std::false_type` (stateful);
+  `operator==` compares the underlying `Pool` identity.
+- Public C function
+  [`memory_pool_block_size(const memory_pool_t*)`](src/main/cpp/it/d4np/memorypool/memory_pool.h)
+  — reports the configured per-block size, O(1), `NULL`-tolerant (returns 0),
+  ANSI C C89-compatible; the introspection companion to
+  `memory_pool_metadata_bytes` that backs the adapter's size-fit decision
+  (ADR-0018 §3). C++ forwarder
+  `[[nodiscard]] std::size_t Pool::block_size() const noexcept` added in
+  lock-step; the accessor is exercised by `c_consumer_min.c` under the C89/C99
+  CI jobs.
+- Dedicated `pool_allocator` CTest binary
+  ([`pool_allocator_test.cpp`](src/test/cpp/it/d4np/memorypool/pool_allocator_test.cpp))
+  with seven `TEST_CASE`s: pool-fast-path exhaustion, multi-block + oversized-`T`
+  fallback leaving the pool untouched, equality / statefulness / rebinding, the
+  propagation-trait `static_assert`s, and end-to-end `std::list` (pool path) +
+  `std::vector` (fallback) round-trips.
+- **Adapter** added to [`docs/patterns/README.md`](docs/patterns/README.md)
+  *Adopted / Planned* table as row #5, status `Implemented`.
+
 ### Changed (M3.1)
 
 - **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on

@@ -148,6 +148,19 @@ public:
      */
     [[nodiscard]] std::size_t metadata_bytes() const noexcept;
 
+    /**
+     * Report the configured per-block size in bytes (ADR-0018 §3).
+     *
+     * Forwards to ::memory_pool_block_size. The value is fixed for the
+     * pool's lifetime and the call is O(1). The STL allocator adapter
+     * `PoolAllocator<T>` uses it to decide whether an object of a given
+     * size fits in a single block before routing a request to the pool.
+     *
+     * @return The pool's `block_size` in bytes, or 0 on a moved-from
+     *         wrapper whose handle is null.
+     */
+    [[nodiscard]] std::size_t block_size() const noexcept;
+
 private:
     /**
      * Adopt-handle ctor used by ::make so the non-throwing construction

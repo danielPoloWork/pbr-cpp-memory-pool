@@ -246,6 +246,18 @@ std::size_t memory_pool_metadata_bytes(const memory_pool_t* pool) {
     return sizeof(memory_pool);
 }
 
+std::size_t memory_pool_block_size(const memory_pool_t* pool) {
+    // ADR-0018 §3 — introspection companion to memory_pool_metadata_bytes.
+    // The configured block_size is fixed for the pool's lifetime; the
+    // STL allocator adapter reads it to decide whether an object fits a
+    // single block. NULL is a defined no-op returning 0, matching the
+    // rest of the API's NULL-tolerance posture.
+    if (pool == nullptr) {
+        return 0U;
+    }
+    return pool->block_size_;
+}
+
 void* memory_pool_alloc(memory_pool_t* pool) {
     // Pop the head of the implicit free list in O(1) (spec §2.2). NULL on
     // either a null pool or an exhausted pool — fixed-size mode per
@@ -346,6 +358,12 @@ std::size_t Pool::metadata_bytes() const noexcept {
     // already handles the null-handle case (returns 0) so the wrapper
     // adds no additional logic.
     return ::memory_pool_metadata_bytes(handle_);
+}
+
+std::size_t Pool::block_size() const noexcept {
+    // ADR-0018 §3 — thin forwarder to the C accessor. Returns 0 on a
+    // moved-from wrapper whose handle is null, like the C function.
+    return ::memory_pool_block_size(handle_);
 }
 
 std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) {

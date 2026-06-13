@@ -139,6 +139,21 @@ void memory_pool_destroy(memory_pool_t* pool);
  */
 size_t memory_pool_metadata_bytes(const memory_pool_t* pool);
 
+/**
+ * Report the configured per-block size of @p pool in bytes (ADR-0018 §3).
+ *
+ * Returns the `block_size` value @p pool was created with — the byte size
+ * of every block ::memory_pool_alloc vends. The value is fixed for the
+ * pool's lifetime and the call is `O(1)`. This is the introspection
+ * companion to ::memory_pool_metadata_bytes; the STL allocator adapter
+ * (ADR-0018) uses it to decide whether a given object size fits in a
+ * single block before routing a request to the pool.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return The pool's `block_size` in bytes, or 0 if @p pool is `NULL`.
+ */
+size_t memory_pool_block_size(const memory_pool_t* pool);
+
 #ifdef __cplusplus
 }
 #endif
