@@ -31,6 +31,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <new>
 #include <optional>
 #include <ostream>
@@ -54,7 +55,7 @@ struct PoolStats {
 };
 
 /** Pool lifecycle events delivered to observers (ADR-0026). */
-enum class PoolEvent {
+enum class PoolEvent : std::uint8_t {
     exhausted,  ///< an allocation found the pool exhausted (returned NULL / threw)
     grew,       ///< the (dynamic) pool acquired an overflow chunk
     destroyed   ///< the instrumented pool is being destroyed
