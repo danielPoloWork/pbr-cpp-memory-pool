@@ -541,3 +541,48 @@ jobs:
         env:
           TSAN_OPTIONS: halt_on_error=1
         run: ctest --test-dir build/tsan --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # bench-concurrent-smoke — build the M4.5 concurrent benchmark under each
+  # thread-safe policy and run it briefly (exit-code gate only; no numeric
+  # thresholds — shared GHA runners are too noisy, ADR-0014 §8). Proves the
+  # concurrent scenario compiles, links (incl. libatomic for LOCKFREE), and
+  # runs to completion under MUTEX and LOCKFREE. Committed numbers come from a
+  # controlled host (docs/bench/).
+  # ---------------------------------------------------------------------------
+  bench-concurrent-smoke:
+    name: bench / concurrent smoke / ${{ matrix.mode }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [MUTEX, LOCKFREE]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure (bench preset + thread-safety policy)
+        shell: bash
+        run: |
+          export CC=gcc CXX=g++
+          cmake --preset bench -B build/bench-${{ matrix.mode }} \
+            -DPBR_MEMORY_POOL_THREAD_SAFETY=${{ matrix.mode }}
+
+      - name: Build the bench binary
+        shell: bash
+        run: cmake --build build/bench-${{ matrix.mode }}
+
+      - name: Smoke-run the concurrent scenario
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/bench-${{ matrix.mode }}/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
+          if [[ ! -x "$bin" ]]; then
+            echo "FAIL: expected bench binary at $bin"
+            exit 1
+          fi
+          "$bin" --scenario concurrent --threads 4 --iterations 20000 --repeats 3
+          echo "OK — concurrent bench ran to completion under ${{ matrix.mode }}."
