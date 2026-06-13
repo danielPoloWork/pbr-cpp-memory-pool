@@ -36,15 +36,17 @@
  * unless explicitly enabled" (ROADMAP 3.4).
  */
 /* This is a preprocessor gate (it drives `#if` below and in the C++
- * iterator header), so it must be a macro, not a constexpr constant — the
- * cppcoreguidelines-macro-usage suppression below is deliberate. */
+ * iterator header), so it must be a macro, not a constexpr constant — hence
+ * the cppcoreguidelines-macro-usage suppression around the definitions. */
+/* NOLINTBEGIN(cppcoreguidelines-macro-usage) */
 #ifndef PBR_MEMORY_POOL_DIAGNOSTICS
 #ifdef NDEBUG
-#define PBR_MEMORY_POOL_DIAGNOSTICS 0  /* NOLINT(cppcoreguidelines-macro-usage) */
+#define PBR_MEMORY_POOL_DIAGNOSTICS 0
 #else
-#define PBR_MEMORY_POOL_DIAGNOSTICS 1  /* NOLINT(cppcoreguidelines-macro-usage) */
+#define PBR_MEMORY_POOL_DIAGNOSTICS 1
 #endif
 #endif
+/* NOLINTEND(cppcoreguidelines-macro-usage) */
 
 #ifdef __cplusplus
 extern "C" {
