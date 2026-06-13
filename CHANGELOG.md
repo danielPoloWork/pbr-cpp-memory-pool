@@ -18,6 +18,20 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M4.1)
+
+- [ADR-0020](docs/adr/0020-thread-safety-strategy-and-compile-time-knob.md) — the
+  thread-safety **Strategy** decision (spec §2.4). Thread safety is modelled as the
+  GoF Strategy pattern bound **at compile time** (policy-based, not runtime-virtual)
+  so the single-threaded build pays nothing. Three policies selected by a new
+  `PBR_MEMORY_POOL_THREAD_SAFETY` macro — `…_NONE` (default, the v0.3.0 fast path),
+  `…_MUTEX` (`std::mutex`), `…_LOCKFREE` (ABA-tagged Treiber-stack CAS) — fixed for
+  the whole library at build time. Per-thread caches are deferred; the Strategy seam
+  keeps them a non-breaking future addition. Decision only — the policy classes, the
+  macro, and the CMake option are implemented in M4.2 (Template Method skeleton) /
+  M4.3. **Strategy** moves to `Planned` in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ## [0.3.0] — 2026-06-13
 
 **Milestone 3 — C++ Wrapper & Type Safety.** A C++-ergonomics milestone layered on
