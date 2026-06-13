@@ -20,11 +20,18 @@
 
 int main(void) {
     memory_pool_t* pool;
+    memory_pool_t* dynamic_pool;
     void* block;
     size_t metadata;
     size_t block_size;
 
     pool = memory_pool_create(64, 16);
+
+    /* M5.3 / ADR-0024 — exercise the dynamic-mode creation function under
+     * -std=c89 -pedantic -Werror so its declaration stays C-compatible.
+     * (Returns NULL under a lock-free build; destroy(NULL) is a no-op.) */
+    dynamic_pool = memory_pool_create_dynamic(64, 16, 2);
+    memory_pool_destroy(dynamic_pool);
 
     block = memory_pool_alloc(pool);
     memory_pool_free(pool, block);

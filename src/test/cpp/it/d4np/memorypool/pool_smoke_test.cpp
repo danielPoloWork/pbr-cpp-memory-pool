@@ -601,12 +601,13 @@ TEST_CASE("memory_pool_metadata_bytes returns a positive value on a live pool") 
 }
 
 TEST_CASE("memory_pool_metadata_bytes stays within the ADR-0015 budget") {
-    // ADR-0015 §3 — the per-pool metadata is capped at 128 bytes. The
-    // same constant gates `sizeof(memory_pool)` at compile time in
-    // memory_pool.cpp; this CHECK gates the runtime-reported value
-    // against the same number so a buggy future implementation that
-    // hard-coded a wrong constant would still trip the gate.
-    constexpr std::size_t ADR_0015_BUDGET_BYTES = 128U;
+    // ADR-0015 §3 — the per-pool fixed-struct metadata budget, renegotiated
+    // per ADR-0015 §4 from 128 to 192 in M5.3 (the dynamic-growth grow_factor_
+    // took the MUTEX struct to 136). The same constant gates
+    // `sizeof(memory_pool)` at compile time in memory_pool.cpp; this CHECK
+    // gates the runtime-reported value (a fixed pool has no overflow chunks,
+    // so it equals the struct footprint) against the same number.
+    constexpr std::size_t ADR_0015_BUDGET_BYTES = 192U;
     memory_pool_t* pool = memory_pool_create(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT);
     REQUIRE(pool != nullptr);
     CHECK(memory_pool_metadata_bytes(pool) <= ADR_0015_BUDGET_BYTES);
@@ -642,4 +643,41 @@ TEST_CASE("Pool::metadata_bytes() forwards to the C accessor") {
     REQUIRE(pool.native_handle() != nullptr);
     CHECK(pool.metadata_bytes() == memory_pool_metadata_bytes(pool.native_handle()));
     CHECK(pool.metadata_bytes() > 0U);
+}
+
+TEST_CASE("memory_pool_create_dynamic rejects a growth factor below 2") {
+    // ADR-0024 §3 — a factor must actually grow. This holds under every
+    // build: NONE/MUTEX reject the degenerate factor, LOCKFREE rejects
+    // dynamic mode outright (ADR-0024 §2). Either way → NULL.
+    CHECK(memory_pool_create_dynamic(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT, 1U) == nullptr);
+    CHECK(memory_pool_create_dynamic(SAFE_BLOCK_SIZE, SAFE_BLOCK_COUNT, 0U) == nullptr);
+}
+
+TEST_CASE("a dynamic pool grows past its initial capacity") {
+    // ADR-0022 / ADR-0024 — a dynamic pool acquires overflow chunks on
+    // exhaustion, so it vends far more than its initial block_count. Under a
+    // lock-free build dynamic mode is unsupported and creation returns NULL
+    // (the documented contract — ADR-0024 §2); the comprehensive per-policy
+    // matrix is M5.4, so here we simply skip that case.
+    constexpr std::size_t INITIAL_BLOCKS = 4U;
+    constexpr std::size_t GROW_ALLOCS = 100U;  // 25x the initial capacity
+    memory_pool_t* const pool = memory_pool_create_dynamic(SAFE_BLOCK_SIZE, INITIAL_BLOCKS, 2U);
+    if (pool == nullptr) {
+        return;  // lock-free build: dynamic mode rejected by design
+    }
+
+    std::array<void*, GROW_ALLOCS> blocks{};
+    for (std::size_t i = 0; i < GROW_ALLOCS; ++i) {
+        void* const block = memory_pool_alloc(pool);
+        REQUIRE(block != nullptr);  // never exhausts — it grows
+        blocks.at(i) = block;
+    }
+    // The pool grew, so its metadata now includes overflow-chunk descriptors:
+    // strictly more than the fixed-struct footprint.
+    CHECK(memory_pool_metadata_bytes(pool) > sizeof(void*));
+
+    for (std::size_t i = 0; i < GROW_ALLOCS; ++i) {
+        memory_pool_free(pool, blocks.at(i));
+    }
+    memory_pool_destroy(pool);
 }

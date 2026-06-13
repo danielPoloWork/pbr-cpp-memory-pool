@@ -110,6 +110,30 @@ typedef struct memory_pool memory_pool_t;
 memory_pool_t* memory_pool_create(size_t block_size, size_t block_count);
 
 /**
+ * Create a memory pool in **dynamic-growth mode** (spec section 2.2): when
+ * exhausted it acquires a new contiguous chunk so capacity grows
+ * geometrically, instead of failing. The full policy is recorded in ADR-0022
+ * / ADR-0024; the summary below is binding.
+ *
+ * @param block_size    Same contract as ::memory_pool_create (ADR-0009 section 2).
+ * @param block_count   Initial block count; same contract (ADR-0009 section 3).
+ * @param growth_factor Geometric factor: on exhaustion the total capacity is
+ *                      multiplied by this factor (the new chunk supplies
+ *                      `current_total * (growth_factor - 1)` blocks). Must be
+ *                      at least 2; a smaller value is an argument-validation
+ *                      failure and returns `NULL`.
+ *
+ * @return Pointer to the new dynamic pool, or `NULL` on any precondition
+ *         violation, on backing-storage allocation failure, or — in a
+ *         library built with the lock-free thread-safety policy — always,
+ *         because dynamic growth is not supported there (ADR-0024 section 2);
+ *         a lock-free build supports only fixed pools via
+ *         ::memory_pool_create. Allocation failure never propagates as a C++
+ *         exception across this C ABI boundary.
+ */
+memory_pool_t* memory_pool_create_dynamic(size_t block_size, size_t block_count, size_t growth_factor);
+
+/**
  * Allocate one block from @p pool in O(1).
  *
  * @param pool Pool returned by ::memory_pool_create. Passing `NULL` is

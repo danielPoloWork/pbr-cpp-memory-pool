@@ -84,6 +84,22 @@ public:
      */
     [[nodiscard]] static std::optional<Pool> make(std::size_t block_size, std::size_t block_count);
 
+    /**
+     * Factory function for a **dynamic-growth** pool (spec §2.2, ADR-0022 /
+     * ADR-0024): on exhaustion it acquires a new contiguous chunk so capacity
+     * grows geometrically by @p growth_factor, rather than failing.
+     *
+     * @param block_size    Same contract as ::make — ADR-0009 §2.
+     * @param block_count   Initial block count — ADR-0009 §3.
+     * @param growth_factor Geometric factor; must be at least 2.
+     * @return Engaged optional on success, or `std::nullopt` on any
+     *         precondition violation, OOM, a `growth_factor < 2`, or — in a
+     *         library built with the lock-free policy — always, because
+     *         dynamic growth is unsupported there (ADR-0024 §2).
+     */
+    [[nodiscard]] static std::optional<Pool> make_dynamic(std::size_t block_size, std::size_t block_count,
+                                                          std::size_t growth_factor);
+
     /** Destroy the pool, releasing all backing storage to the OS. */
     ~Pool() noexcept;
 
@@ -208,12 +224,21 @@ public:
     /** Set the block count; must satisfy ADR-0009 §3 at build time. */
     PoolBuilder& with_block_count(std::size_t block_count) noexcept;
 
+    /**
+     * Opt into dynamic growth with the given geometric factor (ADR-0024 §3).
+     * A factor `>= 2` makes `build()` produce a dynamic pool via
+     * `Pool::make_dynamic`; the default (0) leaves the pool fixed-size. Under
+     * a lock-free build, a dynamic build returns `std::nullopt` (ADR-0024 §2).
+     */
+    PoolBuilder& with_growth_factor(std::size_t growth_factor) noexcept;
+
     /** Produce a `std::optional<Pool>` from the accumulated configuration. */
     [[nodiscard]] std::optional<Pool> build() const;
 
 private:
     std::size_t block_size_ = 0;
     std::size_t block_count_ = 0;
+    std::size_t growth_factor_ = 0;
 };
 
 }  // namespace it::d4np::memorypool
