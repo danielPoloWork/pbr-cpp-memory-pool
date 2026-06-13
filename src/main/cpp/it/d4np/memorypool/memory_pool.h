@@ -222,6 +222,21 @@ size_t memory_pool_metadata_bytes(const memory_pool_t* pool);
  */
 size_t memory_pool_block_size(const memory_pool_t* pool);
 
+/**
+ * Report how many times @p pool has grown — i.e. acquired an overflow chunk
+ * in dynamic mode (spec section 2.2 / ADR-0024) — in O(1) (ADR-0026).
+ *
+ * Always 0 for a fixed-mode pool and for a library built with the lock-free
+ * thread-safety policy (which does not support dynamic growth). The count is
+ * written only on the rare growth slow path, so reading it never touches the
+ * allocation hot path; the Observer (`InstrumentedPool`) uses it to detect a
+ * growth event after an allocation.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return The number of growths, or 0 if @p pool is `NULL`.
+ */
+size_t memory_pool_growths(const memory_pool_t* pool);
+
 #if PBR_MEMORY_POOL_DIAGNOSTICS
 
 /**

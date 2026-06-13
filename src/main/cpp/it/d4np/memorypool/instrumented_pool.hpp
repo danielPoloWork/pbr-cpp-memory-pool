@@ -31,10 +31,12 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <new>
 #include <optional>
 #include <ostream>
 #include <utility>
+#include <vector>
 
 namespace it::d4np::memorypool {
 
@@ -50,6 +52,40 @@ struct PoolStats {
     std::size_t allocation_failures_;  ///< allocate/try_allocate that found the pool exhausted
     std::size_t live_;                 ///< currently outstanding blocks
     std::size_t peak_live_;            ///< high-water mark of `live_`
+};
+
+/** Pool lifecycle events delivered to observers (ADR-0026). */
+enum class PoolEvent : std::uint8_t {
+    exhausted,  ///< an allocation found the pool exhausted (returned NULL / threw)
+    grew,       ///< the (dynamic) pool acquired an overflow chunk
+    destroyed   ///< the instrumented pool is being destroyed
+};
+
+/**
+ * @brief Observer of pool-lifecycle events (the GoF Observer — ADR-0026).
+ *
+ * Register a concrete observer with `InstrumentedPool::add_observer`; it is
+ * notified on the calling thread. Notification is not internally synchronized
+ * (ADR-0026 §4) — register before concurrent use and make observers
+ * thread-safe, or observe single-threaded. The observer must out-live the
+ * `InstrumentedPool` it is attached to (the subject stores a non-owning
+ * pointer).
+ */
+struct PoolObserver {
+    PoolObserver() = default;
+    PoolObserver(const PoolObserver&) = default;
+    PoolObserver(PoolObserver&&) = default;
+    PoolObserver& operator=(const PoolObserver&) = default;
+    PoolObserver& operator=(PoolObserver&&) = default;
+    virtual ~PoolObserver() = default;
+
+    /**
+     * Called once per event, with a snapshot of the pool's counters. `noexcept`
+     * by contract — an event handler must not throw (it may be invoked from the
+     * `noexcept` `try_allocate` and from the destructor); a throwing handler
+     * terminates, like a throwing destructor.
+     */
+    virtual void on_pool_event(PoolEvent event, const PoolStats& stats) noexcept = 0;
 };
 
 /**
@@ -87,15 +123,17 @@ public:
     InstrumentedPool(const InstrumentedPool&) = delete;
     InstrumentedPool& operator=(const InstrumentedPool&) = delete;
 
-    /** Move-construct; the atomic counters are loaded and re-seeded (ADR-0025 §2). */
+    /** Move-construct; the atomic counters are loaded and re-seeded (ADR-0025 §2). The
+     *  observer list is moved (leaving @p other empty, so its destructor notifies nobody). */
     InstrumentedPool(InstrumentedPool&& other) noexcept
         : pool_(std::move(other.pool_)), allocations_(other.allocations_.load(std::memory_order_relaxed)),
           deallocations_(other.deallocations_.load(std::memory_order_relaxed)),
           allocation_failures_(other.allocation_failures_.load(std::memory_order_relaxed)),
           live_(other.live_.load(std::memory_order_relaxed)),
-          peak_live_(other.peak_live_.load(std::memory_order_relaxed)) {}
+          peak_live_(other.peak_live_.load(std::memory_order_relaxed)), observers_(std::move(other.observers_)),
+          last_growths_(other.last_growths_) {}
 
-    /** Move-assign; releases the current pool and re-seeds the counters. */
+    /** Move-assign; releases the current pool and re-seeds the counters + observers. */
     InstrumentedPool& operator=(InstrumentedPool&& other) noexcept {
         if (this != &other) {
             pool_ = std::move(other.pool_);
@@ -105,11 +143,21 @@ public:
                                        std::memory_order_relaxed);
             live_.store(other.live_.load(std::memory_order_relaxed), std::memory_order_relaxed);
             peak_live_.store(other.peak_live_.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            observers_ = std::move(other.observers_);
+            last_growths_ = other.last_growths_;
         }
         return *this;
     }
 
-    ~InstrumentedPool() = default;
+    /** Notify observers of destruction (ADR-0026); a moved-from instance has no observers. */
+    ~InstrumentedPool() {
+        notify(PoolEvent::destroyed);
+    }
+
+    /** Register an observer of lifecycle events (ADR-0026). Must out-live this pool. */
+    void add_observer(PoolObserver& observer) {
+        observers_.push_back(&observer);
+    }
 
     /** Throwing allocation verb (ADR-0016 §2). Counts the success, or the failure on `std::bad_alloc`. */
     [[nodiscard]] void* allocate() {
@@ -118,9 +166,11 @@ public:
             block = pool_.allocate();
         } catch (const std::bad_alloc&) {
             allocation_failures_.fetch_add(1U, std::memory_order_relaxed);
+            notify(PoolEvent::exhausted);
             throw;
         }
         record_allocation();
+        notify_if_grew();
         return block;
     }
 
@@ -129,9 +179,11 @@ public:
         void* const block = pool_.try_allocate();
         if (block == nullptr) {
             allocation_failures_.fetch_add(1U, std::memory_order_relaxed);
+            notify(PoolEvent::exhausted);
             return nullptr;
         }
         record_allocation();
+        notify_if_grew();
         return block;
     }
 
@@ -186,12 +238,32 @@ private:
         }
     }
 
+    /** Notify every observer of @p event (ADR-0026). noexcept — observers are too. */
+    void notify(PoolEvent event) noexcept {
+        const PoolStats snapshot = stats();
+        for (PoolObserver* const observer : observers_) {
+            observer->on_pool_event(event, snapshot);
+        }
+    }
+
+    /** O(1) growth check (ADR-0026 §3): a rise in the core growth counter means
+     *  the dynamic pool grew, so notify `grew`. */
+    void notify_if_grew() noexcept {
+        const std::size_t growths = ::memory_pool_growths(pool_.native_handle());
+        if (growths > last_growths_) {
+            last_growths_ = growths;
+            notify(PoolEvent::grew);
+        }
+    }
+
     Pool pool_;
     std::atomic<std::size_t> allocations_{0U};
     std::atomic<std::size_t> deallocations_{0U};
     std::atomic<std::size_t> allocation_failures_{0U};
     std::atomic<std::size_t> live_{0U};
     std::atomic<std::size_t> peak_live_{0U};
+    std::vector<PoolObserver*> observers_;
+    std::size_t last_growths_{0U};
 };
 
 }  // namespace it::d4np::memorypool

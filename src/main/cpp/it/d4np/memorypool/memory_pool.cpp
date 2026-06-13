@@ -156,6 +156,12 @@ struct memory_pool {
     // >= 2 means grow geometrically by this factor on exhaustion. A
     // runtime, per-pool value (ADR-0022 §1).
     std::size_t grow_factor_;
+    // ADR-0026 — number of times this pool has grown (acquired an overflow
+    // chunk). Written only on the rare growth slow path (grow_pool); read in
+    // O(1) by memory_pool_growths so the Observer can detect growth without
+    // touching the hot path. Atomic so observing a thread-safe pool is
+    // data-race-free.
+    std::atomic<std::size_t> grow_count_;
 #if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
     // ADR-0020 §2 — the lock guarding the head pop/push in MutexPolicy.
     std::mutex mutex_;
@@ -163,14 +169,13 @@ struct memory_pool {
 };
 
 // ADR-0015 §3 — per-pool metadata budget for the FIXED struct (the inline
-// first chunk + bookkeeping). M5.3 added the dynamic-growth `grow_factor_`,
-// taking the MUTEX struct from 128 to 136 bytes, so the budget is
-// renegotiated per ADR-0015 §4 (and as ADR-0022/ADR-0023 anticipated) from
-// 128 to 192: the struct is 56 bytes under NONE, 72 under LOCKFREE, 136 under
-// MUTEX — all comfortably under, with headroom for future per-pool fields.
-// Overflow Chunk descriptors are per-chunk metadata (O(chunks)) counted by
-// memory_pool_metadata_bytes at run time, not in this compile-time gate;
-// per-block overhead stays zero (ADR-0022 §3 / ADR-0024 §4).
+// first chunk + bookkeeping). M5.3 added the dynamic-growth `grow_factor_` and
+// M6.2 the Observer `grow_count_`, so the budget was renegotiated per
+// ADR-0015 §4 (as ADR-0022/ADR-0023 anticipated) from 128 to 192: the struct
+// is now 64 bytes under NONE, 80 under LOCKFREE, 144 under MUTEX — all
+// comfortably under. Overflow Chunk descriptors are per-chunk metadata
+// (O(chunks)) counted by memory_pool_metadata_bytes at run time, not in this
+// compile-time gate; per-block overhead stays zero (ADR-0022 §3 / ADR-0024 §4).
 constexpr std::size_t METADATA_BUDGET_BYTES = 192U;
 static_assert(sizeof(memory_pool) <= METADATA_BUDGET_BYTES,
               "ADR-0015 §3: per-pool metadata budget exceeded — update the ADR before raising");
@@ -268,6 +273,8 @@ bool grow_pool(memory_pool* pool) noexcept {
     initialize_free_list(backing, pool->block_size_, add);
     pool->overflow_ = chunk;
     pool->head_ = backing;  // pool was empty; the new chunk is now the free list
+    // ADR-0026 — record the growth so the Observer can detect it in O(1).
+    pool->grow_count_.fetch_add(1U, std::memory_order_relaxed);
     return true;
 }
 #endif
@@ -475,6 +482,7 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     // (memory_pool_create_dynamic overrides it — ADR-0024 §3).
     pool->overflow_ = nullptr;
     pool->grow_factor_ = 0U;
+    pool->grow_count_.store(0U, std::memory_order_relaxed);  // ADR-0026
 
     // Step 3 — initialise the implicit free list per ADR-0009 §1. The
     // in-slot next-links are plain pointers in every thread-safety mode
@@ -571,6 +579,18 @@ std::size_t memory_pool_block_size(const memory_pool_t* pool) {
         return 0U;
     }
     return pool->block_size_;
+}
+
+std::size_t memory_pool_growths(const memory_pool_t* pool) {
+    // ADR-0026 — number of times the pool has grown (acquired an overflow
+    // chunk). O(1), NULL-tolerant, always present. The Observer reads this
+    // after each allocation to detect growth without touching the hot path.
+    // Always 0 for a fixed pool and for the lock-free policy (which never
+    // grows — ADR-0024 §2).
+    if (pool == nullptr) {
+        return 0U;
+    }
+    return pool->grow_count_.load(std::memory_order_relaxed);
 }
 
 void* memory_pool_alloc(memory_pool_t* pool) {
