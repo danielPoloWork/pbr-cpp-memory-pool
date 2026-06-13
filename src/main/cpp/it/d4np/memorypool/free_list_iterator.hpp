@@ -58,8 +58,7 @@ public:
     FreeListIterator() noexcept = default;
 
     /** Construct an iterator positioned at @p current within @p pool's list. */
-    FreeListIterator(const memory_pool_t* pool, const void* current) noexcept
-        : pool_(pool), current_(current) {}
+    FreeListIterator(const memory_pool_t* pool, const void* current) noexcept : pool_(pool), current_(current) {}
 
     /** @return The current free-slot address (by reference to iterator state). */
     [[nodiscard]] reference operator*() const noexcept {
@@ -77,8 +76,13 @@ public:
         return *this;
     }
 
-    /** Post-increment; returns the pre-advance value. */
-    FreeListIterator operator++(int) noexcept {
+    /**
+     * Post-increment; returns the pre-advance value. The `const` return is
+     * the cert-dcl21-cpp convention (prevents `(it++)++` misuse); the
+     * readability-const-return-type check disagrees, so it is suppressed.
+     */
+    // NOLINTNEXTLINE(readability-const-return-type)
+    const FreeListIterator operator++(int) noexcept {
         const FreeListIterator previous = *this;
         ++(*this);
         return previous;

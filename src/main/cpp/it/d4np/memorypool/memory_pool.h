@@ -35,12 +35,15 @@
  * and has no place on the allocation hot path — hence "disabled in release
  * unless explicitly enabled" (ROADMAP 3.4).
  */
+/* This is a preprocessor gate (it drives `#if` below and in the C++
+ * iterator header), so it must be a macro, not a constexpr constant — the
+ * cppcoreguidelines-macro-usage suppression below is deliberate. */
 #ifndef PBR_MEMORY_POOL_DIAGNOSTICS
-#  ifdef NDEBUG
-#    define PBR_MEMORY_POOL_DIAGNOSTICS 0
-#  else
-#    define PBR_MEMORY_POOL_DIAGNOSTICS 1
-#  endif
+#ifdef NDEBUG
+#define PBR_MEMORY_POOL_DIAGNOSTICS 0  /* NOLINT(cppcoreguidelines-macro-usage) */
+#else
+#define PBR_MEMORY_POOL_DIAGNOSTICS 1  /* NOLINT(cppcoreguidelines-macro-usage) */
+#endif
 #endif
 
 #ifdef __cplusplus
