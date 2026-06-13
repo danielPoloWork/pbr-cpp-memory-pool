@@ -89,8 +89,7 @@ public:
 
     /** Move-construct; the atomic counters are loaded and re-seeded (ADR-0025 §2). */
     InstrumentedPool(InstrumentedPool&& other) noexcept
-        : pool_(std::move(other.pool_)),
-          allocations_(other.allocations_.load(std::memory_order_relaxed)),
+        : pool_(std::move(other.pool_)), allocations_(other.allocations_.load(std::memory_order_relaxed)),
           deallocations_(other.deallocations_.load(std::memory_order_relaxed)),
           allocation_failures_(other.allocation_failures_.load(std::memory_order_relaxed)),
           live_(other.live_.load(std::memory_order_relaxed)),
@@ -147,10 +146,8 @@ public:
 
     /** @return A snapshot of the current counters (ADR-0025 §2). */
     [[nodiscard]] PoolStats stats() const noexcept {
-        return PoolStats{allocations_.load(std::memory_order_relaxed),
-                         deallocations_.load(std::memory_order_relaxed),
-                         allocation_failures_.load(std::memory_order_relaxed),
-                         live_.load(std::memory_order_relaxed),
+        return PoolStats{allocations_.load(std::memory_order_relaxed), deallocations_.load(std::memory_order_relaxed),
+                         allocation_failures_.load(std::memory_order_relaxed), live_.load(std::memory_order_relaxed),
                          peak_live_.load(std::memory_order_relaxed)};
     }
 
