@@ -79,6 +79,40 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 - **Adapter** added to [`docs/patterns/README.md`](docs/patterns/README.md)
   *Adopted / Planned* table as row #5, status `Implemented`.
 
+### Added (M3.4)
+
+- [ADR-0019](docs/adr/0019-free-list-diagnostic-iterator.md) and
+  [`free_list_iterator.hpp`](src/main/cpp/it/d4np/memorypool/free_list_iterator.hpp) —
+  `it::d4np::memorypool::FreeListIterator` / `FreeListView`, a read-only
+  **Iterator** (LegacyForwardIterator) over the implicit free list for
+  diagnostics. `value_type` is `const void*` (a free-slot address);
+  `FreeListView` is the range adaptor (`begin()` / `end()`, constructible from a
+  `const memory_pool_t*` or a `Pool&`) so the walk composes with range-`for`,
+  `std::distance`, `std::find`, and the rest of `<algorithm>`. Diagnostics-only:
+  the walk is O(free_count) and must never touch the allocation hot path.
+- The entire diagnostic surface is gated behind the `PBR_MEMORY_POOL_DIAGNOSTICS`
+  macro (ADR-0019 §1), defaulting to `1` in debug builds (`!NDEBUG`) and `0` in
+  release builds (`NDEBUG`); an explicit definition wins. The new CMake option
+  `PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS` (default `OFF`) is the documented opt-in —
+  when `ON` it forces the macro to `1` as a PUBLIC compile definition on
+  `pbr_memory_pool` so the library and every linking consumer agree.
+- Three gated public C accessors backing the traversal:
+  `memory_pool_debug_free_list_head`, `memory_pool_debug_free_list_next`, and
+  `memory_pool_debug_free_count` — NULL-tolerant, `const`-correct, ANSI C
+  C89-compatible. They keep the ADR-0009 §1 next-link layout encapsulated inside
+  [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp) (Pimpl
+  boundary intact), and are exercised by `c_consumer_min.c` under the C89/C99 CI
+  jobs (under the same macro guard).
+- Dedicated `free_list_iterator` CTest binary
+  ([`free_list_iterator_test.cpp`](src/test/cpp/it/d4np/memorypool/free_list_iterator_test.cpp))
+  with five cases when diagnostics are enabled (ascending strided walk of a fresh
+  pool with `free_count` vs `std::distance` cross-check, allocation shrinks the
+  list, a freed block returns to the head and is walked first, exhausted-pool
+  empty range, LegacyForwardIterator behaviours) plus a placeholder case when the
+  surface is gated out, so the binary builds in every configuration.
+- **Iterator** added to [`docs/patterns/README.md`](docs/patterns/README.md)
+  *Adopted / Planned* table as row #6, status `Implemented`.
+
 ### Changed (M3.1)
 
 - **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on

@@ -24,6 +24,25 @@
 
 #include <stddef.h>
 
+/*
+ * Diagnostics gate (ADR-0019 §1). A single macro controls the entire
+ * free-list diagnostic surface: the C accessors below and the C++
+ * `free_list_iterator.hpp` iterator. The default is build-type driven so
+ * the surface is available in debug builds and compiled out of release
+ * builds; an explicit definition (e.g. the CMake option
+ * PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS, which defines it to 1 PUBLIC-ly on
+ * the library target) always wins. Walking the free list is O(free_count)
+ * and has no place on the allocation hot path — hence "disabled in release
+ * unless explicitly enabled" (ROADMAP 3.4).
+ */
+#ifndef PBR_MEMORY_POOL_DIAGNOSTICS
+#  ifdef NDEBUG
+#    define PBR_MEMORY_POOL_DIAGNOSTICS 0
+#  else
+#    define PBR_MEMORY_POOL_DIAGNOSTICS 1
+#  endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -153,6 +172,51 @@ size_t memory_pool_metadata_bytes(const memory_pool_t* pool);
  * @return The pool's `block_size` in bytes, or 0 if @p pool is `NULL`.
  */
 size_t memory_pool_block_size(const memory_pool_t* pool);
+
+#if PBR_MEMORY_POOL_DIAGNOSTICS
+
+/**
+ * Diagnostics — return the head of @p pool's implicit free list (ADR-0019
+ * §2). This is the address of the first free slot, or `NULL` when the pool
+ * is exhausted or @p pool is `NULL`. Read-only; never mutate the storage
+ * the returned pointer addresses.
+ *
+ * Available only when `PBR_MEMORY_POOL_DIAGNOSTICS` is non-zero (the
+ * default in debug builds; opt-in in release builds). Intended for tests
+ * and diagnostics — the walk it begins is `O(free_count)`.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return Address of the first free slot, or `NULL`.
+ */
+const void* memory_pool_debug_free_list_head(const memory_pool_t* pool);
+
+/**
+ * Diagnostics — given a free slot @p current obtained from
+ * ::memory_pool_debug_free_list_head or a previous call to this function,
+ * return the next free slot in the implicit free list, or `NULL` at the
+ * end of the list (ADR-0019 §2). The next-free link is read from inside
+ * @p current per the ADR-0009 §1 layout, which stays encapsulated in the
+ * implementation.
+ *
+ * @param pool    Pool the slot belongs to, or `NULL` (returns `NULL`).
+ * @param current A free slot from this pool's list, or `NULL` (returns
+ *                `NULL`).
+ * @return Address of the next free slot, or `NULL` at end of list.
+ */
+const void* memory_pool_debug_free_list_next(const memory_pool_t* pool, const void* current);
+
+/**
+ * Diagnostics — count the free slots currently in @p pool's free list by
+ * walking it in `O(free_count)` (ADR-0019 §2). Equivalent to
+ * `std::distance(begin, end)` over the C++ `FreeListView`; the test suite
+ * cross-checks the two.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return Number of free slots, or 0 when @p pool is `NULL`.
+ */
+size_t memory_pool_debug_free_count(const memory_pool_t* pool);
+
+#endif /* PBR_MEMORY_POOL_DIAGNOSTICS */
 
 #ifdef __cplusplus
 }
