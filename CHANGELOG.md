@@ -18,6 +18,21 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M5.1)
+
+- [ADR-0022](docs/adr/0022-dynamic-growth-policy-and-chunk-linking.md) — the
+  dynamic-growth policy decision (spec §2.2). Growth is opt-in, **runtime**,
+  per-pool (default fixed — v0.4.0 behaviour unchanged), because its decision
+  point is the exhaustion slow path, not the hot path. Growth is **geometric**
+  (default ×2); **linear is rejected** because geometric keeps the chunk count
+  at O(log N) — linear makes it O(N) and degrades `free`'s ADR-0012 safety check
+  and `destroy`. Chunks are an append-only singly-linked list threaded by one
+  shared implicit free list, so `alloc`/`free`-push stay O(1) (only the `free`
+  validation and `destroy` become O(log N) in dynamic mode); per-block overhead
+  stays zero (ADR-0015). Chunks are never moved (address stability). The
+  Composite chunk-list representation is M5.2, the implementation M5.3. Decision
+  only — no source changes.
+
 ## [0.4.0] — 2026-06-13
 
 **Milestone 4 — Thread-Safe Variant.** Opt-in, compile-time-configurable thread
