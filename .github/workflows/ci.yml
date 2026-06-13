@@ -496,6 +496,48 @@ jobs:
         shell: bash
         run: cmake --build build/ts
 
-      - name: Test (single-threaded suite under the selected policy)
+      - name: Test (full suite, incl. concurrent stress, under the selected policy)
         shell: bash
         run: ctest --test-dir build/ts --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # tsan — ThreadSanitizer over the concurrent stress suite under the MUTEX
+  # policy (M4.4). MutexPolicy is fully TSan-analyzable, so this verifies the
+  # thread-safe path is data-race free. LOCKFREE is deliberately NOT run under
+  # TSan: a Treiber-stack pop reads a node's next-link that another thread may
+  # have recycled — a benign race (the value is discarded when the tagged CAS
+  # fails, and the pool backing is never unmapped) that cannot be expressed as
+  # a well-defined atomic without C++20 atomic_ref / hazard pointers. LOCKFREE
+  # concurrent correctness is covered by the logical invariants in the
+  # thread-safety job above + ADR-0020 §3. See concurrency_stress_test.cpp.
+  # ---------------------------------------------------------------------------
+  tsan:
+    name: tsan / clang / MUTEX
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure (Clang + ThreadSanitizer + MutexPolicy)
+        shell: bash
+        run: |
+          export CC=clang CXX=clang++
+          cmake -S . -B build/tsan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPBR_MEMORY_POOL_BUILD_TESTS=ON \
+            -DPBR_MEMORY_POOL_THREAD_SAFETY=MUTEX \
+            -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
+
+      - name: Build
+        shell: bash
+        run: cmake --build build/tsan
+
+      - name: Test under ThreadSanitizer
+        shell: bash
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: ctest --test-dir build/tsan --output-on-failure

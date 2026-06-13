@@ -98,6 +98,38 @@ add_test(
 set_tests_properties(container_integration PROPERTIES
     LABELS "integration;milestone-3")
 
+# ROADMAP item 4.4 — concurrent stress tests for the thread-safe policies
+# (ADR-0020). The cases are gated behind PBR_MEMORY_POOL_THREAD_SAFETY != NONE
+# (a placeholder runs under the default single-threaded build). The library's
+# thread-safety macro is PRIVATE (ADR-0020), so mirror the top-level cache
+# variable onto this target so the gate sees the mode the library was built
+# with. Links Threads for std::thread.
+find_package(Threads REQUIRED)
+add_executable(concurrency_stress_test
+    concurrency_stress_test.cpp)
+
+target_link_libraries(concurrency_stress_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest
+    Threads::Threads)
+
+target_compile_features(concurrency_stress_test PRIVATE cxx_std_17)
+
+if(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "MUTEX")
+    target_compile_definitions(concurrency_stress_test PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX)
+elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
+    target_compile_definitions(concurrency_stress_test PRIVATE
+        PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
+endif()
+
+add_test(
+    NAME    concurrency_stress
+    COMMAND concurrency_stress_test)
+
+set_tests_properties(concurrency_stress PROPERTIES
+    LABELS "stress;milestone-4")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

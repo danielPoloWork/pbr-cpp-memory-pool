@@ -18,6 +18,26 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M4.4)
+
+- `concurrency_stress` CTest binary
+  ([`concurrency_stress_test.cpp`](src/test/cpp/it/d4np/memorypool/concurrency_stress_test.cpp))
+  — drives `Pool` from 8 threads to validate the MUTEX / LOCKFREE policies on
+  three invariants: no over-vend / distinctness (concurrent drain hands out
+  exactly `block_count` distinct blocks), full recovery / no leak (exact
+  `block_count` recovered after heavy churn), and exclusive ownership (a
+  per-thread byte marker proves no double-vend). Gated behind
+  `PBR_MEMORY_POOL_THREAD_SAFETY != NONE` (a placeholder runs under the default
+  single-threaded build); the test target mirrors the library's thread-safety
+  mode and links `Threads::Threads`. Runs under the existing `thread-safety` CI
+  job (MUTEX + LOCKFREE × GCC + Clang).
+- `tsan` CI job (Clang + ThreadSanitizer) running the suite under MUTEX —
+  verifies the mutex-guarded path is data-race free. LOCKFREE is intentionally
+  excluded from TSan (its Treiber-stack next-link reads are a benign,
+  not-cleanly-expressible-in-C++17 race; correctness is covered by the logical
+  stress invariants + ADR-0020 §3). Documented in the test header and CI-job
+  comment.
+
 ### Added (M4.3)
 
 - Thread-safety policies behind the compile-time `PBR_MEMORY_POOL_THREAD_SAFETY`
