@@ -18,6 +18,21 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [0.4.0] — 2026-06-13
+
+**Milestone 4 — Thread-Safe Variant.** Opt-in, compile-time-configurable thread
+safety, with the single-threaded fast path preserved at zero cost (spec §2.4). The
+allocation algorithm is refactored into a **Template Method** skeleton (ADR-0021)
+whose synchronization is a compile-time **Strategy** (ADR-0020) selected by the new
+`PBR_MEMORY_POOL_THREAD_SAFETY` macro: `NONE` (default — the v0.3.0 path verbatim),
+`MUTEX` (a `std::mutex`), or `LOCKFREE` (an ABA-tagged Treiber-stack CAS). The C ABI,
+the C++ wrapper, and the public headers are unchanged — the mode is a library-build
+property. Concurrent stress tests + a ThreadSanitizer CI job validate the thread-safe
+path, and a concurrent benchmark scenario measures the fast path vs the contended
+path across policies. Two new ADRs (0020–0021) take the running total to 21; the
+patterns catalogue gains **Strategy** and **Template Method** as Implemented. Full
+release notes in [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
+
 ### Added (M4.5)
 
 - Concurrent scenario in `pool_vs_malloc_bench` (ADR-0014): `T` threads run the
@@ -115,6 +130,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   macro, and the CMake option are implemented in M4.2 (Template Method skeleton) /
   M4.3. **Strategy** moves to `Planned` in
   [`docs/patterns/README.md`](docs/patterns/README.md).
+
+### Spec Coverage Map flips
+
+- **§6.3** (Benchmark `pool_alloc/free` vs `malloc/free` over 1,000,000 iterations):
+  🚧 → ✅ — M4.5's concurrent comparative re-run completes the benchmark contract
+  (single-thread fast path + concurrent path across all three policies).
+- **§2.4** (Optional, configurable thread safety; single-thread fast path preserved):
+  ⏳ → ✅ — delivered by the M4.1–M4.5 compile-time Strategy + Template Method, with
+  the fast path measured unchanged.
+
+Coverage at the close of Milestone 4: ten rows ✅; the remaining ⏳ rows are §2.2's
+dynamic-growth half (Milestone 5) and the per-block-overhead / instrumentation items
+that land in Milestones 5–6.
 
 ## [0.3.0] — 2026-06-13
 
@@ -539,7 +567,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0
 [0.3.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0
 [0.2.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.2.0
 [0.1.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.1.0

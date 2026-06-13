@@ -4,7 +4,7 @@
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0.3.0 C++ wrapper & type safety](https://img.shields.io/badge/Status-v0.3.0%20C%2B%2B%20wrapper%20%26%20type%20safety-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0)
+[![Status: v0.4.0 thread-safe variant](https://img.shields.io/badge/Status-v0.4.0%20thread--safe%20variant-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -77,7 +77,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
-`v0.3.0` — C++ wrapper & type safety. A C++-ergonomics layer over the v0.2.0 single-threaded core (the C ABI and its O(1) algorithm are unchanged): a resolved exception policy at the C/C++ boundary (dual-verb `allocate` / `try_allocate`, throwing `Pool` constructor), the type-safe `TypedPool<T>`, an STL-compatible `PoolAllocator<T>` **Adapter** that lets `std::list` / `std::vector` / custom containers draw storage from a pool, and a read-only free-list diagnostic **Iterator** gated out of release builds. Four new ADRs (0016–0019) bring the total to 19; **Adapter** and **Iterator** flip to Implemented in the patterns catalogue. Release notes for `v0.3.0` live in [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
+`v0.4.0` — thread-safe variant. Opt-in, compile-time-configurable thread safety with the single-threaded fast path preserved at zero cost (spec §2.4). The allocation algorithm is a **Template Method** skeleton whose synchronization is a compile-time **Strategy** selected by `PBR_MEMORY_POOL_THREAD_SAFETY`: `NONE` (default — the v0.3.0 path verbatim), `MUTEX` (a `std::mutex`), or `LOCKFREE` (an ABA-tagged Treiber-stack CAS). The C ABI, C++ wrapper, and headers are unchanged — the mode is a library-build property. Concurrent stress tests + a ThreadSanitizer CI job validate the thread-safe path; a concurrent benchmark scenario measures the fast path vs the contended path. Two new ADRs (0020–0021) bring the total to 21; **Strategy** and **Template Method** flip to Implemented. Release notes for `v0.4.0` live in [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
@@ -85,8 +85,8 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 1         | Build System & Project Skeleton    | ✅ complete |
 | 2         | Core Memory Pool (single-threaded) | ✅ complete |
 | 3         | C++ Wrapper & Type Safety          | ✅ complete |
-| 4         | Thread-Safe Variant                | ⏳ next     |
-| 5         | Dynamic Growth Mode                | ⏳ planned  |
+| 4         | Thread-Safe Variant                | ✅ complete |
+| 5         | Dynamic Growth Mode                | ⏳ next     |
 | 6         | Observability & Decorators         | ⏳ planned  |
 | 7         | Release & Polish                   | ⏳ planned  |
 
