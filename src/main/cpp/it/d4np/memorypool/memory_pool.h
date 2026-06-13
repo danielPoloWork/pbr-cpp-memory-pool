@@ -48,6 +48,26 @@
 #endif
 /* NOLINTEND(cppcoreguidelines-macro-usage) */
 
+/*
+ * Thread-safety mode (ADR-0020 §2). Selects how the implementation
+ * synchronizes the free-list head: NONE (no synchronization — the
+ * single-thread fast path, spec §2.4), MUTEX (a std::mutex), or LOCKFREE
+ * (an ABA-tagged Treiber-stack CAS). Bound at COMPILE TIME (a policy
+ * selected once, not a per-call branch) so the single-thread build pays
+ * nothing. Selected library-wide at build time via the
+ * PBR_MEMORY_POOL_THREAD_SAFETY macro (CMake option); the default is NONE.
+ * These are preprocessor constants (they drive `#if` selection in
+ * memory_pool.cpp), hence the cppcoreguidelines-macro-usage suppression.
+ */
+/* NOLINTBEGIN(cppcoreguidelines-macro-usage) */
+#define PBR_MEMORY_POOL_THREAD_SAFETY_NONE 0
+#define PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX 1
+#define PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE 2
+#ifndef PBR_MEMORY_POOL_THREAD_SAFETY
+#define PBR_MEMORY_POOL_THREAD_SAFETY PBR_MEMORY_POOL_THREAD_SAFETY_NONE
+#endif
+/* NOLINTEND(cppcoreguidelines-macro-usage) */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

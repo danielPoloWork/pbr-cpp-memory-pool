@@ -18,6 +18,30 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M4.3)
+
+- Thread-safety policies behind the compile-time `PBR_MEMORY_POOL_THREAD_SAFETY`
+  switch (ADR-0020, on the M4.2 ADR-0021 skeleton):
+  [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp) compiles
+  exactly one of `SingleThreadedPolicy` (`NONE`, default — the v0.3.0 path
+  verbatim), `MutexPolicy` (`MUTEX` — a `std::mutex` across the O(1) head
+  pop/push), or `LockFreePolicy` (`LOCKFREE` — a Treiber-stack
+  `compare_exchange_weak` loop on an ABA-tagged `std::atomic<TaggedHead>` head;
+  in-slot links stay plain, the tag defeats ABA). The skeleton is unchanged.
+- `struct memory_pool` gains policy state conditionally (a 16-byte atomic tagged
+  head under LOCKFREE, a `std::mutex` under MUTEX); the ADR-0015
+  `static_assert(sizeof(memory_pool) <= 128)` stays green in all three modes.
+- Macro constants `PBR_MEMORY_POOL_THREAD_SAFETY_{NONE,MUTEX,LOCKFREE}` + the
+  NONE default in [`memory_pool.h`](src/main/cpp/it/d4np/memorypool/memory_pool.h)
+  (C89-clean), and the `PBR_MEMORY_POOL_THREAD_SAFETY` CMake option
+  (`NONE`|`MUTEX`|`LOCKFREE`) mapping to a PRIVATE compile definition — the mode
+  is a library-internal property, the public ABI is unchanged.
+- `thread-safety` CI job: builds + runs the full single-threaded CTest suite
+  under MUTEX and LOCKFREE on Linux GCC + Clang (the build-correctness gate for
+  the switch; concurrent stress + TSan land in M4.4).
+- **Strategy** moves to `Implemented` (row #7) in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ### Added (M4.2)
 
 - [ADR-0021](docs/adr/0021-template-method-allocation-skeleton.md) — the

@@ -27,9 +27,11 @@
 #include <it/d4np/memorypool/memory_pool.h>
 #include <it/d4np/memorypool/memory_pool.hpp>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <new>
 
 namespace {
@@ -109,13 +111,34 @@ void initialize_free_list(void* backing, std::size_t block_size, std::size_t blo
 // C++ types; this is an explicit exception for the C-interop boundary,
 // not a baseline deviation. The fields carry the project's trailing-
 // underscore MemberSuffix convention — they are private to this TU.
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+// ADR-0020 §3 — the ABA-tagged free-list head for the lock-free Treiber
+// stack. The tag is bumped on every successful CAS so a recycled head
+// pointer never compares equal to a stale snapshot. Two scalar members,
+// no padding on Tier-1 64-bit (8 + 8) or 32-bit (4 + 4) hosts, so the
+// std::atomic<TaggedHead> compare_exchange (a bitwise compare) has no
+// padding-bit hazard.
+struct TaggedHead {
+    void* ptr_;
+    std::uintptr_t tag_;
+};
+#endif
+
 // NOLINTNEXTLINE(readability-identifier-naming)
 struct memory_pool {
     void* backing_;
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    std::atomic<TaggedHead> head_;
+#else
     void* head_;
+#endif
     std::size_t block_size_;
     std::size_t block_count_;
     std::size_t alignment_;
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
+    // ADR-0020 §2 — the lock guarding the head pop/push in MutexPolicy.
+    std::mutex mutex_;
+#endif
 };
 
 // ADR-0015 §3 — per-pool metadata budget. The current struct is 40 bytes
@@ -160,19 +183,21 @@ bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
 
 // ADR-0021 — the thread-safety Strategy (ADR-0020) plugs into the
 // allocation / deallocation Template Method here. A policy is a struct of
-// two static hooks owning the only place head_ is read-modify-written:
+// two static hooks owning the only place the head is read-modify-written:
 //
 //   void* Policy::pop_head(memory_pool*)              synchronized pop (nullptr if empty)
 //   void  Policy::push_head(memory_pool*, void* blk)  synchronized push
 //
-// The exhaustion test lives inside pop_head (not the skeleton) so a future
-// lock-free policy can re-test head_ inside its CAS retry loop (ADR-0021 §2).
-//
-// Milestone 4.2 ships only SingleThreadedPolicy — the v0.3.0 fast path with
-// no synchronization — and hard-wires it through ActivePolicy below. The
-// MutexPolicy / LockFreePolicy classes and the PBR_MEMORY_POOL_THREAD_SAFETY
-// selector arrive in Milestone 4.3 beside this one; the skeleton does not
-// change.
+// The exhaustion test lives inside pop_head (not the skeleton) so the
+// lock-free policy can re-test the head inside its CAS retry loop
+// (ADR-0021 §2). Exactly one policy is compiled — the one selected by
+// PBR_MEMORY_POOL_THREAD_SAFETY (ADR-0020 §2) — and aliased to ActivePolicy,
+// which the skeletons below are instantiated with from the C entry points.
+
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_NONE
+
+// No synchronization — the v0.3.0 fast path verbatim. Inlines to the exact
+// previous instruction sequence; the single-thread build pays nothing.
 struct SingleThreadedPolicy {
     static void* pop_head(memory_pool* pool) noexcept {
         if (pool->head_ == nullptr) {
@@ -194,6 +219,74 @@ struct SingleThreadedPolicy {
         pool->head_ = block;
     }
 };
+using ActivePolicy = SingleThreadedPolicy;
+
+#elif PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
+
+// Always-correct, always-portable: a std::mutex held across the O(1) head
+// pop/push (ADR-0020 §2). The foreign-pointer guard runs in the skeleton,
+// outside this lock (ADR-0021 §1).
+struct MutexPolicy {
+    static void* pop_head(memory_pool* pool) noexcept {
+        const std::lock_guard<std::mutex> guard{pool->mutex_};
+        if (pool->head_ == nullptr) {
+            return nullptr;
+        }
+        void* const block = pool->head_;
+        pool->head_ = *static_cast<void**>(block);
+        return block;
+    }
+
+    static void push_head(memory_pool* pool, void* block) noexcept {
+        const std::lock_guard<std::mutex> guard{pool->mutex_};
+        *static_cast<void**>(block) = pool->head_;
+        pool->head_ = block;
+    }
+};
+using ActivePolicy = MutexPolicy;
+
+#elif PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+
+// Lock-free Treiber stack with an ABA-tagged head (ADR-0020 §3). The
+// in-slot next-links stay plain pointers — only the head is atomic; a
+// pushing thread writes block->next before the publishing CAS, and a
+// popping thread's stale next read is discarded when its CAS fails (the
+// backing is never returned to the OS during the pool's life, so the read
+// is always of valid memory). The tag defeats ABA. compare_exchange_weak
+// reloads `expected` on failure, which the loops rely on.
+struct LockFreePolicy {
+    // The 3-argument compare_exchange_weak uses acq_rel on success and the
+    // derived acquire on failure (which re-reads `expected` for the retry) —
+    // exactly the ordering the loops need, and short enough to stay on one
+    // line.
+    static void* pop_head(memory_pool* pool) noexcept {
+        TaggedHead expected = pool->head_.load(std::memory_order_acquire);
+        for (;;) {
+            if (expected.ptr_ == nullptr) {
+                return nullptr;
+            }
+            void* const next = *static_cast<void* const*>(expected.ptr_);
+            const TaggedHead desired{next, expected.tag_ + 1U};
+            if (pool->head_.compare_exchange_weak(expected, desired, std::memory_order_acq_rel)) {
+                return expected.ptr_;
+            }
+        }
+    }
+
+    static void push_head(memory_pool* pool, void* block) noexcept {
+        TaggedHead expected = pool->head_.load(std::memory_order_relaxed);
+        TaggedHead desired{};
+        do {
+            *static_cast<void**>(block) = expected.ptr_;
+            desired = TaggedHead{block, expected.tag_ + 1U};
+        } while (!pool->head_.compare_exchange_weak(expected, desired, std::memory_order_acq_rel));
+    }
+};
+using ActivePolicy = LockFreePolicy;
+
+#else
+#error "PBR_MEMORY_POOL_THREAD_SAFETY has an unrecognised value (expected NONE / MUTEX / LOCKFREE)"
+#endif
 
 // Template Method skeleton for allocation (ADR-0021 §1). Invariant frame:
 // validate the pool handle (a race-free read of an immutable field), then
@@ -225,11 +318,6 @@ void free_skeleton(memory_pool* pool, void* block) noexcept {
     }
     SyncPolicy::push_head(pool, block);
 }
-
-// Milestone 4.2 hard-wires the single-threaded policy; Milestone 4.3 turns
-// this into a PBR_MEMORY_POOL_THREAD_SAFETY-selected alias (ADR-0020 §2)
-// without touching the skeleton above.
-using ActivePolicy = SingleThreadedPolicy;
 
 }  // namespace
 
@@ -284,9 +372,16 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     pool->block_count_ = block_count;
     pool->alignment_ = POOL_ALIGNMENT;
 
-    // Step 3 — initialise the implicit free list per ADR-0009 §1.
+    // Step 3 — initialise the implicit free list per ADR-0009 §1. The
+    // in-slot next-links are plain pointers in every thread-safety mode
+    // (only the head is synchronized — ADR-0021 §1); the head is seeded
+    // here per the active policy's representation.
     initialize_free_list(backing, block_size, block_count);
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    pool->head_.store(TaggedHead{backing, 0U}, std::memory_order_relaxed);
+#else
     pool->head_ = backing;
+#endif
 
     return pool;
 }
@@ -351,10 +446,16 @@ void memory_pool_free(memory_pool_t* pool, void* block) {
 const void* memory_pool_debug_free_list_head(const memory_pool_t* pool) {
     // ADR-0019 §2 — the free-list head. NULL pool or exhausted pool both
     // yield NULL. Read-only diagnostic surface, gated out of release builds.
+    // Under the lock-free policy the head is an atomic tagged pointer; the
+    // diagnostic walk reads a (best-effort, racy-under-contention) snapshot.
     if (pool == nullptr) {
         return nullptr;
     }
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    return pool->head_.load(std::memory_order_acquire).ptr_;
+#else
     return pool->head_;
+#endif
 }
 
 const void* memory_pool_debug_free_list_next(const memory_pool_t* pool, const void* current) {
@@ -377,7 +478,11 @@ std::size_t memory_pool_debug_free_count(const memory_pool_t* pool) {
         return 0U;
     }
     std::size_t count = 0U;
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    const void* slot = pool->head_.load(std::memory_order_acquire).ptr_;
+#else
     const void* slot = pool->head_;
+#endif
     while (slot != nullptr) {
         ++count;
         slot = *static_cast<void* const*>(slot);
