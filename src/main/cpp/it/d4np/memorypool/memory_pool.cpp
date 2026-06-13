@@ -124,6 +124,19 @@ struct TaggedHead {
 };
 #endif
 
+// ADR-0022 / ADR-0023 — the Composite chunk-list node for dynamic growth.
+// Each overflow chunk is one contiguous backing of `block_count_` slots,
+// forward-linked through `next_`. The pool's first chunk is the inline
+// `backing_` / `block_count_` of `struct memory_pool` below; overflow
+// chunks (acquired on exhaustion in dynamic mode — M5.3) are these nodes.
+// The implicit free list is shared across all chunks, so only the
+// foreign-pointer check and destroy walk the list (ADR-0022 §3).
+struct Chunk {
+    void* backing_;
+    std::size_t block_count_;
+    Chunk* next_;
+};
+
 // NOLINTNEXTLINE(readability-identifier-naming)
 struct memory_pool {
     void* backing_;
@@ -135,17 +148,24 @@ struct memory_pool {
     std::size_t block_size_;
     std::size_t block_count_;
     std::size_t alignment_;
+    // ADR-0023 — head of the Composite list of overflow chunks. nullptr in
+    // fixed mode (the only mode until M5.3) — the inline backing_ above is
+    // then the pool's one and only chunk.
+    Chunk* overflow_;
 #if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
     // ADR-0020 §2 — the lock guarding the head pop/push in MutexPolicy.
     std::mutex mutex_;
 #endif
 };
 
-// ADR-0015 §3 — per-pool metadata budget. The current struct is 40 bytes
-// on every Tier-1 64-bit host; the 128-byte ceiling gives 88 bytes of
-// headroom (room for ~11 additional 8-byte fields) before a future
-// milestone has to renegotiate. Compile-time gate so every cell of the
-// 14-cell build matrix asserts the budget on every PR.
+// ADR-0015 §3 — per-pool metadata budget for the FIXED struct (the inline
+// first chunk + bookkeeping). After M5.2 added the Composite `overflow_`
+// head, the struct is 48 bytes under NONE, 64 under LOCKFREE, and exactly
+// 128 under MUTEX (an 80-byte std::mutex) — at the ceiling, no headroom for
+// MUTEX. M5.3's growth-config fields will therefore have to renegotiate the
+// budget per ADR-0015 §4. Overflow Chunk descriptors are per-chunk metadata
+// (O(chunks)) counted by memory_pool_metadata_bytes at run time, not in this
+// compile-time gate; per-block overhead stays zero (ADR-0022 §3).
 constexpr std::size_t METADATA_BUDGET_BYTES = 128U;
 static_assert(sizeof(memory_pool) <= METADATA_BUDGET_BYTES,
               "ADR-0015 §3: per-pool metadata budget exceeded — update the ADR before raising");
@@ -154,7 +174,7 @@ namespace {
 
 // ADR-0012 — the foreign-pointer / out-of-range pointer detection that
 // gates memory_pool_free. The struct memory_pool is in scope here (the
-// definition above precedes this namespace), so the helper can read
+// definition above precedes this namespace), so the helpers can read
 // the backing pointer, slot size, and slot count directly.
 //
 // Comparing `block_addr < base_addr` and `block_addr >= end_addr` via
@@ -163,12 +183,15 @@ namespace {
 // foreign, the direct pointer-comparison form is UB, the uintptr_t
 // form is portable. The two NOLINT annotations are narrow and pointed
 // at exactly the use case the standard documents as the workaround.
-bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
+//
+// block_size comes from `pool` (not a parameter) so the four args carry no
+// two adjacent same-typed parameters (bugprone-easily-swappable).
+bool block_in_chunk(const memory_pool* pool, const void* backing, std::size_t count, const void* block) noexcept {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    const auto base_addr = reinterpret_cast<std::uintptr_t>(pool->backing_);
+    const auto base_addr = reinterpret_cast<std::uintptr_t>(backing);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const auto block_addr = reinterpret_cast<std::uintptr_t>(block);
-    const std::uintptr_t end_addr = base_addr + (pool->block_size_ * pool->block_count_);
+    const std::uintptr_t end_addr = base_addr + (pool->block_size_ * count);
     if (block_addr < base_addr) {
         return false;
     }
@@ -179,6 +202,22 @@ bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
         return false;
     }
     return true;
+}
+
+// ADR-0022 / ADR-0023 — the block is valid if it falls inside any chunk:
+// the inline first chunk, then each overflow chunk in the Composite list.
+// O(chunks) = O(log N) in dynamic mode; O(1) in fixed mode (overflow_ is
+// null, so only the first chunk is probed).
+bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
+    if (block_in_chunk(pool, pool->backing_, pool->block_count_, block)) {
+        return true;
+    }
+    for (const Chunk* chunk = pool->overflow_; chunk != nullptr; chunk = chunk->next_) {
+        if (block_in_chunk(pool, chunk->backing_, chunk->block_count_, block)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ADR-0021 — the thread-safety Strategy (ADR-0020) plugs into the
@@ -371,6 +410,9 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     pool->block_size_ = block_size;
     pool->block_count_ = block_count;
     pool->alignment_ = POOL_ALIGNMENT;
+    // The pool starts as a single chunk (the inline backing_ above); the
+    // Composite overflow list is empty until dynamic growth (M5.3).
+    pool->overflow_ = nullptr;
 
     // Step 3 — initialise the implicit free list per ADR-0009 §1. The
     // in-slot next-links are plain pointers in every thread-safety mode
@@ -391,6 +433,18 @@ void memory_pool_destroy(memory_pool_t* pool) {
     if (pool == nullptr) {
         return;
     }
+    // ADR-0022 / ADR-0023 — release the Composite overflow chunks first:
+    // walk the list, freeing each chunk's backing and its descriptor. The
+    // list is empty in fixed mode (the only mode until M5.3), so this loop
+    // does nothing then and destroy stays the v0.4.0 single-backing path.
+    Chunk* chunk = pool->overflow_;
+    while (chunk != nullptr) {
+        Chunk* const next = chunk->next_;
+        release_backing(chunk->backing_);
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        delete chunk;
+        chunk = next;
+    }
     release_backing(pool->backing_);
     // Matches the `new memory_pool{}` in `memory_pool_create`. Same
     // C-ABI ownership boundary; `gsl::owner<>` cannot be applied to
@@ -401,17 +455,21 @@ void memory_pool_destroy(memory_pool_t* pool) {
 }
 
 std::size_t memory_pool_metadata_bytes(const memory_pool_t* pool) {
-    // ADR-0015 §1 — per-pool metadata is exactly the struct's footprint;
-    // per-block metadata is 0 by construction (implicit free list,
-    // ADR-0009 §1). The static_assert above gates `sizeof(memory_pool)`
-    // against METADATA_BUDGET_BYTES at compile time so the value
-    // returned here is always under budget. NULL is a defined no-op
-    // returning 0 (no metadata), matching the rest of the API's
-    // NULL-tolerance posture.
+    // ADR-0015 §1 — per-pool metadata is the fixed struct footprint plus the
+    // per-chunk Composite descriptors (ADR-0022 §3). The static_assert above
+    // gates `sizeof(memory_pool)` (the fixed part) against
+    // METADATA_BUDGET_BYTES at compile time. The overflow descriptors are
+    // O(chunks) = O(log N) and zero in fixed mode (the only mode until M5.3),
+    // so this returns exactly `sizeof(memory_pool)` then — unchanged from
+    // v0.4.0. Per-block metadata stays 0. NULL is a defined no-op returning 0.
     if (pool == nullptr) {
         return 0U;
     }
-    return sizeof(memory_pool);
+    std::size_t total = sizeof(memory_pool);
+    for (const Chunk* chunk = pool->overflow_; chunk != nullptr; chunk = chunk->next_) {
+        total += sizeof(Chunk);
+    }
+    return total;
 }
 
 std::size_t memory_pool_block_size(const memory_pool_t* pool) {

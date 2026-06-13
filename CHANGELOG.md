@@ -18,6 +18,27 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M5.2)
+
+- [ADR-0023](docs/adr/0023-composite-chunk-list-representation.md) and the
+  **Composite** chunk-list representation in
+  [`memory_pool.cpp`](src/main/cpp/it/d4np/memorypool/memory_pool.cpp): a new
+  `struct Chunk { backing_, block_count_, next_ }` and a `Chunk* overflow_`
+  head on `struct memory_pool`. The pool composes its inline first chunk
+  (the existing `backing_`/`block_count_`, ADR-0009 §6 preserved) with a
+  forward-linked list of overflow `Chunk` leaves, under one shared implicit
+  free list — so `alloc`/`free`-push stay O(1) across any chunk count; only
+  `is_block_in_range` and `destroy` walk the list (O(log N) in dynamic mode,
+  O(1) in fixed mode). `memory_pool_metadata_bytes` now sums the per-chunk
+  descriptors (honest, O(chunks)); per-block overhead stays zero.
+- The inline-first-chunk layout keeps the MUTEX `struct memory_pool` at exactly
+  the 128-byte ADR-0015 budget (no renegotiation needed this milestone) and
+  `metadata_bytes` honest. The representation is dormant (`overflow_` null)
+  until dynamic growth populates it in M5.3 — behavior is byte-identical to
+  v0.4.0, verified by the full CTest suite passing in NONE / MUTEX / LOCKFREE.
+- **Composite** moves to `Implemented` (row #9) in
+  [`docs/patterns/README.md`](docs/patterns/README.md).
+
 ### Added (M5.1)
 
 - [ADR-0022](docs/adr/0022-dynamic-growth-policy-and-chunk-linking.md) — the
