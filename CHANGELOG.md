@@ -18,6 +18,22 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [0.3.0] — 2026-06-13
+
+**Milestone 3 — C++ Wrapper & Type Safety.** A C++-ergonomics milestone layered on
+the v0.2.0 single-threaded core: the C ABI and its O(1) algorithm are unchanged. The
+C++ surface gains a resolved exception policy at the C/C++ boundary (the dual-verb
+`allocate` / `try_allocate` convention, with the `Pool` constructor now throwing
+`std::bad_alloc` on failure), the type-safe `TypedPool<T>`, an STL-compatible
+`PoolAllocator<T>` **Adapter** that lets standard and custom containers draw storage
+from a pool, and a read-only free-list diagnostic **Iterator** gated out of release
+builds. Four new Architecture Decision Records (0016–0019) take the running total to
+19, and the patterns catalogue gains **Adapter** and **Iterator** as Implemented. No
+Spec Coverage Map row flips: Milestone 3 is C++-side ergonomics over an already-✅
+core — §2.2's "`std::bad_alloc` (C++)" half is now satisfied by ADR-0016, but the row
+stays 🚧 pending the dynamic-growth half (Milestone 5). Full release notes in
+[`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
+
 ### Added (M3.1)
 
 - [ADR-0016](docs/adr/0016-exception-policy-at-the-c-cpp-boundary.md) — exception
@@ -142,6 +158,14 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 - The microbenchmark's timed loops call `try_allocate()` instead of `allocate()` —
   the apples-to-apples comparison against `malloc`'s in-band `NULL`, byte-identical
   to the code path that produced the committed v0.2.0 numbers (ADR-0016 §4).
+
+### Spec Coverage Map flips
+
+None. Milestone 3 adds C++-side ergonomics over the already-✅ single-threaded core,
+so no traceability row changes state. ADR-0016 satisfies the "`std::bad_alloc` (C++)"
+clause of **§2.2**, but that row stays 🚧 because its dynamic-growth clause lands in
+Milestone 5. Coverage at the close of Milestone 3 is unchanged from v0.2.0: eight ✅,
+one 🚧 (§6.3), and §2.2 / §2.4 / §6.3-concurrent in flight for Milestones 4–5.
 
 ## [0.2.0] — 2026-06-11
 
@@ -417,6 +441,7 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0
 [0.2.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.2.0
 [0.1.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.1.0

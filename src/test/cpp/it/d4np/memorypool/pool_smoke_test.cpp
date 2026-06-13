@@ -56,11 +56,11 @@ TEST_CASE("version constants are consistent with the project version") {
     const std::string_view ver{mem::PBR_MEMORY_POOL_VERSION_STRING};
     CHECK(ver.find('.') != std::string_view::npos);
 
-    // Milestone 2 closes at v0.2.0; these constants are bumped from this
-    // release PR (M2.11) in lockstep with version.hpp. Milestone 3 will
-    // bump them again to 0.3.0 when M3.6 lands.
+    // Milestone 3 closes at v0.3.0; these constants are bumped from this
+    // release PR (M3.6) in lockstep with version.hpp. Milestone 4 will
+    // bump them again to 0.4.0 when M4.6 lands.
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MAJOR == 0U);
-    CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 2U);
+    CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 3U);
     CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 0U);
 }
 
