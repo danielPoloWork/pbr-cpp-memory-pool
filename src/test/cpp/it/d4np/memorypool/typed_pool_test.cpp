@@ -69,23 +69,24 @@ struct BoomOnConstruct {
 
 TEST_CASE("TypedPool<T>::block_size satisfies the ADR-0009 §2 preconditions by construction") {
     // Tiny T: the sizeof(void*) floor dominates, then rounds up to the
-    // alignof(std::max_align_t) multiple (ADR-0017 §2).
-    constexpr std::size_t char_slot = TypedPool<char>::block_size();
-    static_assert(char_slot >= sizeof(void*), "free-list link must fit (ADR-0009 §2)");
-    static_assert(char_slot % alignof(std::max_align_t) == 0U, "slot must be alignment-multiple (ADR-0009 §2)");
+    // alignof(std::max_align_t) multiple (ADR-0017 §2). The UPPER_CASE
+    // spelling satisfies readability-identifier-naming.ConstexprVariableCase.
+    constexpr std::size_t CHAR_SLOT = TypedPool<char>::block_size();
+    static_assert(CHAR_SLOT >= sizeof(void*), "free-list link must fit (ADR-0009 §2)");
+    static_assert(CHAR_SLOT % alignof(std::max_align_t) == 0U, "slot must be alignment-multiple (ADR-0009 §2)");
 
     // Large T: sizeof(T) dominates and still rounds up cleanly.
     struct Big {
         std::array<unsigned char, 100> bytes_;
     };
-    constexpr std::size_t big_slot = TypedPool<Big>::block_size();
-    static_assert(big_slot >= sizeof(Big), "slot must hold one T");
-    static_assert(big_slot % alignof(std::max_align_t) == 0U, "slot must be alignment-multiple (ADR-0009 §2)");
+    constexpr std::size_t BIG_SLOT = TypedPool<Big>::block_size();
+    static_assert(BIG_SLOT >= sizeof(Big), "slot must hold one T");
+    static_assert(BIG_SLOT % alignof(std::max_align_t) == 0U, "slot must be alignment-multiple (ADR-0009 §2)");
 
     // Runtime mirror of the compile-time facts so the TEST_CASE reports
     // assertions under doctest as well.
-    CHECK(char_slot >= sizeof(void*));
-    CHECK(big_slot >= sizeof(Big));
+    CHECK(CHAR_SLOT >= sizeof(void*));
+    CHECK(BIG_SLOT >= sizeof(Big));
 }
 
 TEST_CASE("TypedPool storage verbs follow the ADR-0016 dual-verb policy") {
