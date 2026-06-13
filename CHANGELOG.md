@@ -18,6 +18,32 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M5.3)
+
+- [ADR-0024](docs/adr/0024-dynamic-growth-synchronization-and-creation-surface.md)
+  and the dynamic-growth implementation: pools created with
+  `memory_pool_create_dynamic(block_size, block_count, growth_factor)` acquire a
+  geometric overflow chunk on exhaustion instead of failing (spec §2.2). Growth
+  runs inside `pop_head` under the policy's synchronization (plain for NONE,
+  under the held mutex for MUTEX); `grow_pool` is `noexcept` and falls back to
+  fixed-mode exhaustion on OOM. The frozen `memory_pool_create` stays fixed-mode.
+- C++ surface: `Pool::make_dynamic(block_size, block_count, growth_factor)` and
+  `PoolBuilder::with_growth_factor(...)` (routing `build()` to the dynamic
+  factory when the factor is ≥ 2). Dynamic mode is a runtime, per-pool flag —
+  `struct memory_pool` carries a `grow_factor_` (0 = fixed).
+- **Lock-free + dynamic is rejected at creation** (`memory_pool_create_dynamic`
+  → `NULL`, `make_dynamic` → `std::nullopt`): safe concurrent chunk-list growth
+  needs atomic chunk links + a grow-lock and is not TSan-verifiable, so it is
+  deferred (ADR-0024 §2). Fixed-mode lock-free pools are fully supported.
+- **Breaking (internal only):** the ADR-0015 per-pool metadata budget is
+  renegotiated 128 → 192 (per ADR-0015 §4) — `grow_factor_` took the MUTEX
+  `struct memory_pool` to 136 bytes. The compile-time `static_assert` and the
+  `pool_smoke` runtime budget check move in lockstep; per-block overhead stays
+  zero, and `metadata_bytes` now sums the per-chunk overflow descriptors.
+- `c_consumer_min.c` exercises `memory_pool_create_dynamic` under the C89/C99
+  jobs; two smoke `TEST_CASE`s cover growth past the initial capacity (ASan-leak-
+  checked) and the `growth_factor < 2` rejection.
+
 ### Added (M5.2)
 
 - [ADR-0023](docs/adr/0023-composite-chunk-list-representation.md) and the

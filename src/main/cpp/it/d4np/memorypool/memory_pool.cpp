@@ -148,10 +148,14 @@ struct memory_pool {
     std::size_t block_size_;
     std::size_t block_count_;
     std::size_t alignment_;
-    // ADR-0023 — head of the Composite list of overflow chunks. nullptr in
-    // fixed mode (the only mode until M5.3) — the inline backing_ above is
-    // then the pool's one and only chunk.
+    // ADR-0023 — head of the Composite list of overflow chunks. nullptr
+    // until dynamic growth links the first one (ADR-0024); the inline
+    // backing_ above is then the pool's one and only chunk.
     Chunk* overflow_;
+    // ADR-0024 — dynamic-growth factor: 0 means fixed mode (the default);
+    // >= 2 means grow geometrically by this factor on exhaustion. A
+    // runtime, per-pool value (ADR-0022 §1).
+    std::size_t grow_factor_;
 #if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_MUTEX
     // ADR-0020 §2 — the lock guarding the head pop/push in MutexPolicy.
     std::mutex mutex_;
@@ -159,14 +163,15 @@ struct memory_pool {
 };
 
 // ADR-0015 §3 — per-pool metadata budget for the FIXED struct (the inline
-// first chunk + bookkeeping). After M5.2 added the Composite `overflow_`
-// head, the struct is 48 bytes under NONE, 64 under LOCKFREE, and exactly
-// 128 under MUTEX (an 80-byte std::mutex) — at the ceiling, no headroom for
-// MUTEX. M5.3's growth-config fields will therefore have to renegotiate the
-// budget per ADR-0015 §4. Overflow Chunk descriptors are per-chunk metadata
-// (O(chunks)) counted by memory_pool_metadata_bytes at run time, not in this
-// compile-time gate; per-block overhead stays zero (ADR-0022 §3).
-constexpr std::size_t METADATA_BUDGET_BYTES = 128U;
+// first chunk + bookkeeping). M5.3 added the dynamic-growth `grow_factor_`,
+// taking the MUTEX struct from 128 to 136 bytes, so the budget is
+// renegotiated per ADR-0015 §4 (and as ADR-0022/ADR-0023 anticipated) from
+// 128 to 192: the struct is 56 bytes under NONE, 72 under LOCKFREE, 136 under
+// MUTEX — all comfortably under, with headroom for future per-pool fields.
+// Overflow Chunk descriptors are per-chunk metadata (O(chunks)) counted by
+// memory_pool_metadata_bytes at run time, not in this compile-time gate;
+// per-block overhead stays zero (ADR-0022 §3 / ADR-0024 §4).
+constexpr std::size_t METADATA_BUDGET_BYTES = 192U;
 static_assert(sizeof(memory_pool) <= METADATA_BUDGET_BYTES,
               "ADR-0015 §3: per-pool metadata budget exceeded — update the ADR before raising");
 
@@ -220,6 +225,53 @@ bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
     return false;
 }
 
+#if PBR_MEMORY_POOL_THREAD_SAFETY != PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+// ADR-0024 §1 — the dynamic-growth slow path. Called from pop_head when the
+// pool is exhausted AND dynamic (grow_factor_ >= 2), under whatever
+// synchronization the policy already holds (none for NONE, the held mutex
+// for MUTEX). Acquires a geometric overflow chunk (new total = current
+// total × grow_factor_), initialises its slots into the now-empty shared
+// free list, links it at the head of overflow_, and points head_ at it.
+// noexcept: on any allocation failure it releases what it got and returns
+// false, so the caller falls back to fixed-mode exhaustion (ADR-0024 §1).
+// Not compiled under LOCKFREE — that policy never grows (ADR-0024 §2).
+bool grow_pool(memory_pool* pool) noexcept {
+    std::size_t total = pool->block_count_;
+    for (const Chunk* chunk = pool->overflow_; chunk != nullptr; chunk = chunk->next_) {
+        total += chunk->block_count_;
+    }
+    const std::size_t add = total * (pool->grow_factor_ - 1U);
+    if (add == 0U) {
+        return false;
+    }
+    if (would_overflow_product(add, pool->block_size_)) {
+        return false;
+    }
+    const std::size_t bytes = add * pool->block_size_;
+
+    void* backing = nullptr;
+    try {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        backing = ::operator new(bytes, std::align_val_t{POOL_ALIGNMENT});
+    } catch (const std::bad_alloc&) {
+        return false;
+    }
+    Chunk* chunk = nullptr;
+    try {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        chunk = new Chunk{backing, add, pool->overflow_};
+    } catch (const std::bad_alloc&) {
+        release_backing(backing);
+        return false;
+    }
+
+    initialize_free_list(backing, pool->block_size_, add);
+    pool->overflow_ = chunk;
+    pool->head_ = backing;  // pool was empty; the new chunk is now the free list
+    return true;
+}
+#endif
+
 // ADR-0021 — the thread-safety Strategy (ADR-0020) plugs into the
 // allocation / deallocation Template Method here. A policy is a struct of
 // two static hooks owning the only place the head is read-modify-written:
@@ -240,7 +292,11 @@ bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
 struct SingleThreadedPolicy {
     static void* pop_head(memory_pool* pool) noexcept {
         if (pool->head_ == nullptr) {
-            return nullptr;
+            // ADR-0024 §1 — dynamic pools grow on exhaustion; fixed pools
+            // (grow_factor_ < 2) and a failed growth report exhaustion.
+            if (pool->grow_factor_ < 2U || !grow_pool(pool)) {
+                return nullptr;
+            }
         }
         void* const block = pool->head_;
         // The returned block still carries the next-link in its first
@@ -269,7 +325,11 @@ struct MutexPolicy {
     static void* pop_head(memory_pool* pool) noexcept {
         const std::lock_guard<std::mutex> guard{pool->mutex_};
         if (pool->head_ == nullptr) {
-            return nullptr;
+            // ADR-0024 §1 — growth runs under the held mutex, so the chunk
+            // append and free-list seeding are serialized for free.
+            if (pool->grow_factor_ < 2U || !grow_pool(pool)) {
+                return nullptr;
+            }
         }
         void* const block = pool->head_;
         pool->head_ = *static_cast<void**>(block);
@@ -411,8 +471,10 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     pool->block_count_ = block_count;
     pool->alignment_ = POOL_ALIGNMENT;
     // The pool starts as a single chunk (the inline backing_ above); the
-    // Composite overflow list is empty until dynamic growth (M5.3).
+    // Composite overflow list is empty, and grow_factor_ 0 means fixed mode
+    // (memory_pool_create_dynamic overrides it — ADR-0024 §3).
     pool->overflow_ = nullptr;
+    pool->grow_factor_ = 0U;
 
     // Step 3 — initialise the implicit free list per ADR-0009 §1. The
     // in-slot next-links are plain pointers in every thread-safety mode
@@ -426,6 +488,33 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
 #endif
 
     return pool;
+}
+
+// The three size_t parameters mirror the frozen memory_pool_create signature
+// plus the growth factor; a config struct would diverge from the established
+// create API, so the swappable-parameters check is suppressed at the source.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+memory_pool_t* memory_pool_create_dynamic(std::size_t block_size, std::size_t block_count, std::size_t growth_factor) {
+    // ADR-0024 §2/§3 — dynamic-mode creation. Under the lock-free policy,
+    // dynamic growth is not supported (safe concurrent chunk-list growth is
+    // deferred); reject so the caller gets a clear NULL rather than a pool
+    // that silently never grows.
+#if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE
+    static_cast<void>(block_size);
+    static_cast<void>(block_count);
+    static_cast<void>(growth_factor);
+    return nullptr;
+#else
+    // A factor must actually grow (new total = current total × factor).
+    if (growth_factor < 2U) {
+        return nullptr;
+    }
+    memory_pool_t* const pool = memory_pool_create(block_size, block_count);
+    if (pool != nullptr) {
+        pool->grow_factor_ = growth_factor;
+    }
+    return pool;
+#endif
 }
 
 void memory_pool_destroy(memory_pool_t* pool) {
@@ -486,9 +575,10 @@ std::size_t memory_pool_block_size(const memory_pool_t* pool) {
 
 void* memory_pool_alloc(memory_pool_t* pool) {
     // O(1) pop of the implicit free-list head via the ADR-0021 Template
-    // Method skeleton and the active thread-safety policy (ADR-0020). NULL
-    // on a null or exhausted pool — fixed-size mode per ADR-0009 §7;
-    // dynamic growth on exhaustion arrives in Milestone 5.
+    // Method skeleton and the active thread-safety policy (ADR-0020). NULL on
+    // a null pool, or on exhaustion when the pool is fixed-mode or its growth
+    // allocation fails; a dynamic pool grows on exhaustion inside pop_head
+    // (ADR-0024 §1).
     return alloc_skeleton<ActivePolicy>(pool);
 }
 
@@ -631,6 +721,22 @@ std::optional<Pool> Pool::make(std::size_t block_size, std::size_t block_count) 
     return {Pool{handle}};
 }
 
+// Mirrors the C memory_pool_create_dynamic signature (three sizes); same
+// rationale for suppressing the swappable-parameters check.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+std::optional<Pool> Pool::make_dynamic(std::size_t block_size, std::size_t block_count, std::size_t growth_factor) {
+    // ADR-0024 §3 — the dynamic-mode Factory Method, mirroring make(). Returns
+    // std::nullopt on any failure: an ADR-0009 §2/§3 violation, OOM, a
+    // growth_factor < 2, or — under the lock-free policy — because dynamic
+    // growth is unsupported there (ADR-0024 §2), which memory_pool_create_dynamic
+    // signals as NULL.
+    memory_pool_t* const handle = ::memory_pool_create_dynamic(block_size, block_count, growth_factor);
+    if (handle == nullptr) {
+        return std::nullopt;
+    }
+    return {Pool{handle}};
+}
+
 PoolBuilder& PoolBuilder::with_block_size(std::size_t block_size) noexcept {
     block_size_ = block_size;
     return *this;
@@ -641,11 +747,19 @@ PoolBuilder& PoolBuilder::with_block_count(std::size_t block_count) noexcept {
     return *this;
 }
 
+PoolBuilder& PoolBuilder::with_growth_factor(std::size_t growth_factor) noexcept {
+    growth_factor_ = growth_factor;
+    return *this;
+}
+
 std::optional<Pool> PoolBuilder::build() const {
-    // Builder per ADR-0011 §2 — delegate to the Factory Method so the
-    // failure semantics flow through a single point (Pool::make). build()
-    // is const so the same configured builder can produce multiple
-    // identically-configured pools without resetting state.
+    // Builder per ADR-0011 §2 — delegate to the Factory Method so the failure
+    // semantics flow through a single point. A growth factor >= 2 routes to
+    // the dynamic factory (ADR-0024 §3); otherwise the fixed one. build() is
+    // const so the same configured builder can produce multiple pools.
+    if (growth_factor_ >= 2U) {
+        return Pool::make_dynamic(block_size_, block_count_, growth_factor_);
+    }
     return Pool::make(block_size_, block_count_);
 }
 
