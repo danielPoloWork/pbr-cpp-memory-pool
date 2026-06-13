@@ -257,17 +257,19 @@ std::string_view policy_name() {
 }
 
 unsigned effective_threads(const Config& cfg) {
-    unsigned t = cfg.threads_ == 0U ? std::thread::hardware_concurrency() : static_cast<unsigned>(cfg.threads_);
-    if (t == 0U) {
-        t = 1U;  // hardware_concurrency() may report 0 — fall back to 1
-    }
 #if PBR_MEMORY_POOL_THREAD_SAFETY == PBR_MEMORY_POOL_THREAD_SAFETY_NONE
     // The single-threaded build is intentionally racy (spec §2.4); never run
     // the concurrent scenario with more than one thread against it. The T=1
     // number is the fast-path baseline the thread-safe modes are compared to.
-    t = 1U;
+    // (The whole body is branched here rather than computing then overwriting
+    // `t`, which clang-analyzer-deadcode flags as a dead store.)
+    (void)cfg;
+    return 1U;
+#else
+    const unsigned requested =
+        cfg.threads_ == 0U ? std::thread::hardware_concurrency() : static_cast<unsigned>(cfg.threads_);
+    return requested == 0U ? 1U : requested;  // hardware_concurrency() may report 0
 #endif
-    return t;
 }
 
 double time_pool_concurrent(mem::Pool& pool, const Config& cfg, unsigned threads) {
