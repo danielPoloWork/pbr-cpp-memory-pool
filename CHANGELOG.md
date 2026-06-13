@@ -113,6 +113,21 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 - **Iterator** added to [`docs/patterns/README.md`](docs/patterns/README.md)
   *Adopted / Planned* table as row #6, status `Implemented`.
 
+### Added (M3.5)
+
+- Dedicated `container_integration` CTest binary
+  ([`container_integration_test.cpp`](src/test/cpp/it/d4np/memorypool/container_integration_test.cpp))
+  exercising the M3.3 `PoolAllocator<T>` (ADR-0018) end-to-end through
+  `std::list` (pool fast path, with diagnostics-gated free-count delta
+  assertions and `std::string` elements for non-trivial construct/destroy),
+  `std::vector` (heap fallback, contents/growth/copy/`<algorithm>` interop),
+  and a small hand-written allocator-aware `ForwardList<T, Allocator>` driven
+  with both `std::allocator` and `PoolAllocator`. Seven `TEST_CASE`s.
+- The pool-sizing recipe for node-based containers (deferred to M3.5 by
+  ADR-0018 §3) is documented as a worked example in the test file header:
+  `block_size ≥ sizeof(rebound node)`; an undersized pool degrades safely to
+  the heap fallback. The comprehensive README usage section remains M7.2.
+
 ### Changed (M3.1)
 
 - **Breaking (pre-1.0):** `Pool::allocate()` now throws `std::bad_alloc` on
