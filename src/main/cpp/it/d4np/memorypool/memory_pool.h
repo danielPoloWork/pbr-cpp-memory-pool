@@ -139,6 +139,42 @@ void memory_pool_destroy(memory_pool_t* pool);
  */
 size_t memory_pool_metadata_bytes(const memory_pool_t* pool);
 
+/**
+ * Report the configured per-block size of @p pool in bytes (ADR-0018
+ * section 2).
+ *
+ * The value is exactly the `block_size` argument accepted by
+ * ::memory_pool_create — the implementation never silently rounds
+ * (ADR-0009 section 2), so the reported size is also the caller's
+ * original request. Consumers use it for capacity planning and, in the
+ * STL allocator adapter, to decide whether a type fits a pool slot.
+ *
+ * @param pool Pool to inspect, or `NULL`.
+ * @return The per-block size in bytes, or 0 if @p pool is `NULL`.
+ */
+size_t memory_pool_block_size(const memory_pool_t* pool);
+
+/**
+ * Report whether @p block points at a slot of @p pool (ADR-0018
+ * section 2).
+ *
+ * This is the ADR-0012 O(1) range + alignment check promoted to public
+ * API: the result is 1 if and only if @p block lies inside the pool's
+ * contiguous backing buffer at an exact slot boundary. The predicate
+ * reports *address ownership*, NOT allocation state — it cannot
+ * distinguish a currently-allocated slot from a free one (the same
+ * limitation recorded for double-free detection in ADR-0012; the
+ * optional Milestone 6 instrumentation addresses it).
+ *
+ * Never dereferences @p block, so it is safe to probe arbitrary
+ * pointers, including foreign heap and stack addresses.
+ *
+ * @param pool  Pool whose extents are checked, or `NULL` (returns 0).
+ * @param block Pointer to test, or `NULL` (returns 0).
+ * @return 1 when @p block is a slot of @p pool, 0 otherwise.
+ */
+int memory_pool_owns(const memory_pool_t* pool, const void* block);
+
 #ifdef __cplusplus
 }
 #endif
