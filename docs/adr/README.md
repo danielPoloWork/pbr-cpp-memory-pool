@@ -53,5 +53,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0018   | [STL-compatible allocator Adapter — routing and propagation traits](0018-stl-allocator-adapter.md)   | Accepted |
 | 0019   | [Read-only free-list diagnostic Iterator — gating and traversal](0019-free-list-diagnostic-iterator.md) | Accepted |
 | 0020   | [Thread-safety Strategy and compile-time configuration knob](0020-thread-safety-strategy-and-compile-time-knob.md) | Accepted |
+| 0021   | [Template Method allocation skeleton with thread-safety hook points](0021-template-method-allocation-skeleton.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

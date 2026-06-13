@@ -158,6 +158,79 @@ bool is_block_in_range(const memory_pool* pool, const void* block) noexcept {
     return true;
 }
 
+// ADR-0021 — the thread-safety Strategy (ADR-0020) plugs into the
+// allocation / deallocation Template Method here. A policy is a struct of
+// two static hooks owning the only place head_ is read-modify-written:
+//
+//   void* Policy::pop_head(memory_pool*)              synchronized pop (nullptr if empty)
+//   void  Policy::push_head(memory_pool*, void* blk)  synchronized push
+//
+// The exhaustion test lives inside pop_head (not the skeleton) so a future
+// lock-free policy can re-test head_ inside its CAS retry loop (ADR-0021 §2).
+//
+// Milestone 4.2 ships only SingleThreadedPolicy — the v0.3.0 fast path with
+// no synchronization — and hard-wires it through ActivePolicy below. The
+// MutexPolicy / LockFreePolicy classes and the PBR_MEMORY_POOL_THREAD_SAFETY
+// selector arrive in Milestone 4.3 beside this one; the skeleton does not
+// change.
+struct SingleThreadedPolicy {
+    static void* pop_head(memory_pool* pool) noexcept {
+        if (pool->head_ == nullptr) {
+            return nullptr;
+        }
+        void* const block = pool->head_;
+        // The returned block still carries the next-link in its first
+        // sizeof(void*) bytes; that is fine — the slot is now user-owned
+        // and its contents are documented as indeterminate.
+        pool->head_ = *static_cast<void**>(block);
+        return block;
+    }
+
+    static void push_head(memory_pool* pool, void* block) noexcept {
+        // Mirrors the *static_cast<void**>(slot) = ptr idiom used in
+        // initialize_free_list: store the current head into the block's
+        // first sizeof(void*) bytes, then make this block the new head.
+        *static_cast<void**>(block) = pool->head_;
+        pool->head_ = block;
+    }
+};
+
+// Template Method skeleton for allocation (ADR-0021 §1). Invariant frame:
+// validate the pool handle (a race-free read of an immutable field), then
+// delegate the synchronized head pop to the policy. nullptr on a null or
+// exhausted pool.
+template <typename SyncPolicy>
+void* alloc_skeleton(memory_pool* pool) noexcept {
+    if (pool == nullptr) {
+        return nullptr;
+    }
+    return SyncPolicy::pop_head(pool);
+}
+
+// Template Method skeleton for deallocation (ADR-0021 §1). Null pool, null
+// block, and foreign / out-of-range pointers are silent no-ops (ADR-0012);
+// those guards read only immutable post-creation fields, so they stay in
+// the skeleton outside the policy's synchronized region. The synchronized
+// head push is the policy's hook.
+template <typename SyncPolicy>
+void free_skeleton(memory_pool* pool, void* block) noexcept {
+    if (pool == nullptr) {
+        return;
+    }
+    if (block == nullptr) {
+        return;
+    }
+    if (!is_block_in_range(pool, block)) {
+        return;
+    }
+    SyncPolicy::push_head(pool, block);
+}
+
+// Milestone 4.2 hard-wires the single-threaded policy; Milestone 4.3 turns
+// this into a PBR_MEMORY_POOL_THREAD_SAFETY-selected alias (ADR-0020 §2)
+// without touching the skeleton above.
+using ActivePolicy = SingleThreadedPolicy;
+
 }  // namespace
 
 extern "C" {
@@ -259,42 +332,18 @@ std::size_t memory_pool_block_size(const memory_pool_t* pool) {
 }
 
 void* memory_pool_alloc(memory_pool_t* pool) {
-    // Pop the head of the implicit free list in O(1) (spec §2.2). NULL on
-    // either a null pool or an exhausted pool — fixed-size mode per
-    // ADR-0009 §7; dynamic growth on exhaustion arrives in Milestone 5.
-    if (pool == nullptr) {
-        return nullptr;
-    }
-    if (pool->head_ == nullptr) {
-        return nullptr;
-    }
-    void* const block = pool->head_;
-    // Advance the head to the next-link stored in this slot. The block
-    // returned to the caller still carries the link value in its first
-    // sizeof(void*) bytes; that is acceptable because the slot is now
-    // user-owned and the contents are documented as indeterminate.
-    pool->head_ = *static_cast<void**>(block);
-    return block;
+    // O(1) pop of the implicit free-list head via the ADR-0021 Template
+    // Method skeleton and the active thread-safety policy (ADR-0020). NULL
+    // on a null or exhausted pool — fixed-size mode per ADR-0009 §7;
+    // dynamic growth on exhaustion arrives in Milestone 5.
+    return alloc_skeleton<ActivePolicy>(pool);
 }
 
 void memory_pool_free(memory_pool_t* pool, void* block) {
-    // Push the block onto the head of the implicit free list in O(1)
-    // (spec §2.3). Null pool, null block, and foreign-pointer /
-    // out-of-range pointer are all silent no-ops per ADR-0012.
-    if (pool == nullptr) {
-        return;
-    }
-    if (block == nullptr) {
-        return;
-    }
-    if (!is_block_in_range(pool, block)) {
-        return;
-    }
-    // Store the current head into the block's first sizeof(void*) bytes,
-    // then make this block the new head. Mirrors the
-    // *static_cast<void**>(slot) = ptr idiom used in initialize_free_list.
-    *static_cast<void**>(block) = pool->head_;
-    pool->head_ = block;
+    // O(1) push onto the implicit free-list head via the ADR-0021 Template
+    // Method skeleton and the active policy. Null pool, null block, and
+    // foreign / out-of-range pointers are silent no-ops per ADR-0012.
+    free_skeleton<ActivePolicy>(pool, block);
 }
 
 #if PBR_MEMORY_POOL_DIAGNOSTICS
