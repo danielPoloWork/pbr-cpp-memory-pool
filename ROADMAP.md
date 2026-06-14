@@ -122,21 +122,13 @@ Goal: ship a v1.0.0 reference implementation.
 
 Goal: *post-`v1.0.0`*, stand up a **modular, professional documentation-translation system** (Simplified Chinese + Japanese to start; English stays the single normative source), codify the **maintenance protocol** that governs updates / fixes / patches after a public release, and add an **agent-runnable consistency lint** that proves the project is still internally congruent after every change. This is additive, post-1.0 work → targets `v1.1.0` (SemVer `MINOR`). Pre-1.0 closes at `v1.0.0` (Milestone 7); Milestone 8 begins the maintained-product phase, so each item is sized to ship independently under the §6.1 one-PR-at-a-time rule.
 
-### Internationalization (i18n)
-
 - [ ] 8.1 ADR: documentation **i18n architecture** — a modular per-language tree under `docs/i18n/<lang>/` mirroring the translatable English surface, English as the single normative source, a machine-checkable translation-status manifest, a terminology glossary, and explicit English fallback for untranslated pages. File-based and **zero-external-dependency** (no SaaS translation platform in the build graph, consistent with spec §3.3's philosophy applied to docs). Language codes: `zh-Hans` (Simplified Chinese), `ja` (Japanese). The ADR fixes the **translatable surface** — what is localized (README, spec, getting-started / usage, patterns-catalogue overview) vs. **English-only** (ADRs, `CHANGELOG.md`, this `ROADMAP.md`): an ADR is an immutable architectural record, so localizing ADRs invites drift and is rejected.
 - [ ] 8.2 Scaffold the i18n skeleton: `docs/i18n/README.md` (contributor guide + translation workflow), the `<lang>/` directory shape mirroring the §8.1 surface, `docs/i18n/translation-status.md` (per-file manifest: source path, source commit hash translated from, translated-at commit, status, reviewer), and `docs/i18n/glossary.md` (canonical term ↔ `zh-Hans` ↔ `ja`, including explicit "keep in English" entries for `free list`, `RAII`, `Pimpl`, etc.).
 - [ ] 8.3 Simplified Chinese (`zh-Hans`) translation of the §8.1 surface; each page seeded in the §8.2 manifest with the source commit hash it was translated from.
 - [ ] 8.4 Japanese (`ja`) translation of the same surface; manifest entries seeded identically.
-
-### Post-release governance
-
 - [ ] 8.5 ADR + doc: **post-release maintenance protocol** — `docs/workflow/maintenance.md` defining the patch / minor / major decision tree (SemVer post-1.0), the hotfix-branch + backport workflow, the security-fix handling path, the deprecation policy, and exactly how `version.hpp` / `CHANGELOG.md` / release notes move for a **patch** release (`v1.0.x`) vs. a **milestone minor**. Formalizes the update / fix / patch governance for the maintained-product phase; cross-links ADR-0004 (versioning), ADR-0008 (tag delegation), and §11 of `AGENTS.md`.
 - [ ] 8.6 **Agent-runnable consistency lint** + ADR: a dependency-free checker (portable runner under `tools/`, wired into a CI job — extends the existing `docs.yml` ADR-sanity checks) asserting the project is internally congruent after any change — version constants in lockstep across `version.hpp` / `CHANGELOG.md` / README badge / latest `docs/releases/*.md`; every ADR indexed and reciprocally linked; every catalogued pattern has both an ADR **and** a live code location; the Spec Coverage Map has no dangling rows; the i18n manifest (§8.2) has no entry staler than its English source; and `ROADMAP.md` checkbox state is internally consistent. Exits non-zero with an actionable report. The ADR records the check catalogue and the "post-release congruence" contract.
 - [ ] 8.7 Wire the §8.6 lint into the agent contract: a **post-release congruence checklist** added to `AGENTS.md` (and surfaced as a checkbox in the PR template) — run the lint before drafting any post-1.0 PR — plus the mapping from each failing check to its remediation in the §8.5 maintenance protocol.
-
-### Close-out
-
 - [ ] 8.8 **Close Milestone 8 → `v1.1.0`**: bump `version.hpp` (`MINOR=1`), roll `CHANGELOG.md` `Unreleased` into a `[1.1.0]` block, draft `docs/releases/v1.1.0.md`, refresh the README status block / badge / milestone table, and open the release PR (ADR-0004 §2). First post-1.0 minor — the §8.5 protocol governs from here on.
 
 ---
