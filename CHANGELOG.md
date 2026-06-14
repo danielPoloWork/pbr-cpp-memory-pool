@@ -110,6 +110,18 @@ Full release notes will live in `docs/releases/v1.0.0.md` (M7.7).
   row (no longer "dormant" — dynamic growth populates `overflow_`), and the RAII
   row (M2 scaffolding phrasing dropped). A dated audit-provenance note was added.
 
+### Added (M7.6)
+
+- **Specification-compliance acceptance audit** ([ADR-0029](docs/adr/0029-spec-compliance-acceptance-audit.md),
+  ROADMAP §7.6) — the `v1.0.0` acceptance gate. All fifteen Spec Coverage Map
+  rows were re-verified end-to-end against live evidence (ten CTest targets / 95
+  doctest cases + the `spec_6_2_valgrind` C program + `c_consumer_min.c`, and the
+  `ci.yml` build / `ansi-c-compat` / `zero-external-deps` / `valgrind` /
+  `thread-safety` / `tsan` / bench jobs), each cross-referenced to its satisfying
+  ADR. **Verdict: every normative spec clause is satisfied; no gap, regression,
+  or unsupported mark — the project is acceptance-ready for `v1.0.0`.** No
+  coverage cell changes state (all fifteen remain ✅).
+
 ## [0.6.0] — 2026-06-14
 
 **Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing
