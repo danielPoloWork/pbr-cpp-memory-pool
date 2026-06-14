@@ -39,6 +39,17 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   (`::%operator new` / `::%operator delete`) to silence spurious unresolved-link warnings
   on the global operators under the new warn-as-error gate. No API or behavior change.
 
+### Changed (M7.2)
+
+- **README expanded for the v1.0 audience** (ROADMAP §7.2): a new **Usage** section with
+  six compilable examples (C core, RAII `Pool` + `PoolBuilder`, `TypedPool<T>`,
+  `PoolAllocator<T>` with `std::list`, dynamic growth, `InstrumentedPool` + `PoolObserver`),
+  each verified by compiling and running a single program against the real headers under
+  MSVC 19.51 `/W4`; a consolidated **Performance** summary covering the fixed (4–11×),
+  dynamic-growth (~2×), and threaded regimes with links to every `docs/bench/` report; and a
+  new **Compatibility** section (Tier-1/Tier-2 platforms, compiler floor versions, C++17 /
+  C89+C99 standards, thread-safety modes, zero external dependencies — [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md)).
+
 ## [0.6.0] — 2026-06-14
 
 **Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing
