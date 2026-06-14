@@ -72,3 +72,6 @@ Testing/
 # Python bytecode (e.g. from py_compile on the Conan recipe)
 __pycache__/
 *.pyc
+
+# Harness artifact (AskUserQuestion scratch) — never commit
+.questions
