@@ -176,7 +176,7 @@ void memory_pool_free(memory_pool_t* pool, void* block);
  * back to the operating system, per spec section 3.1 and ADR-0009 §7.
  *
  * The backing buffer is released through the matching aligned
- * `::operator delete` overload of the C++17 `::operator new(size,
+ * `::%operator delete` overload of the C++17 `::%operator new(size,
  * std::align_val_t)` used at creation; the metadata struct is released
  * via the matching plain `delete`. Passing `NULL` is a no-op. After this
  * call, @p pool must not be reused.
