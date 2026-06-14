@@ -42,6 +42,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   two README rows are re-pinned to the current source commit and flipped from
   `stale` back to `translated`, clearing the `i18n-freshness` consistency-lint
   flag the `v1.1.0` release raised. Documentation-only; no API change.
+- **CI GitHub Actions bumped off the deprecated Node 20 runtime onto Node 24.**
+  `actions/checkout` v4 → v6, `actions/upload-artifact` v4 → v7,
+  `actions/download-artifact` v4 → v8, `actions/deploy-pages` v4 → v5,
+  `actions/upload-pages-artifact` v3 → v5, and
+  `DavidAnson/markdownlint-cli2-action` v16 → v23 — all of which previously ran on
+  `node20`, which GitHub is retiring. The markdownlint bump pulls in a newer
+  markdownlint that adds the `MD060` (table-column-style) rule; it is disabled in
+  [`.markdownlint.json`](.markdownlint.json) because byte-aligned table pipes are
+  not achievable for the CJK-width tables in the `docs/i18n/` translations —
+  preserving the prior (rule-absent) behaviour. `ilammy/msvc-dev-cmd` stays on `v1`
+  (no Node 24 release exists upstream yet); `lukka/get-cmake@latest` and
+  `lycheeverse/lychee-action@v2` already run on Node 24 / as composite actions.
+  CI / build only; no API/ABI/behaviour change.
 
 ## [1.1.0] — 2026-06-14
 
