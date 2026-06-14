@@ -61,5 +61,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0026   | [Observer for pool-lifecycle events](0026-observer-for-pool-lifecycle-events.md) | Accepted |
 | 0027   | [Doxygen HTML API site published to GitHub Pages](0027-doxygen-html-site-and-publication-pipeline.md) | Accepted |
 | 0028   | [Install and packaging layout — Phase 1 distribution](0028-install-and-packaging-layout.md) | Accepted |
+| 0029   | [Specification-compliance acceptance audit (v1.0.0 gate)](0029-spec-compliance-acceptance-audit.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
