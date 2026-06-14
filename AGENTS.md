@@ -175,6 +175,14 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 
 See [`docs/workflow/git-workflow.md`](docs/workflow/git-workflow.md) for the full convention details and examples, including §4.5 on merge commit messages.
 
+**Post-release congruence check (mandatory for post-1.0 PRs).** Before drafting any PR on the maintained-product line (post-`v1.0.0`), run the consistency lint and make it pass:
+
+```bash
+python tools/consistency_lint.py
+```
+
+It asserts cross-artifact congruence — version constants in lockstep, ADR index ↔ files, every catalogued pattern backed by an ADR + code, no dangling Spec Coverage Map row, no stale i18n translation, and README ↔ ROADMAP milestone agreement ([ADR-0035](docs/adr/0035-agent-runnable-consistency-lint.md)). The PR template carries the checkbox, and CI re-runs it (the `consistency` job in [`docs.yml`](.github/workflows/docs.yml)) — but running it locally first avoids a red CI round-trip. When it fails, the **failure → remediation map** in [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md) says exactly how to fix each check.
+
 ## 7. Documentation Maintenance
 
 Documentation is part of the deliverable, not an afterthought. Every PR ships its own doc updates.

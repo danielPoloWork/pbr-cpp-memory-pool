@@ -44,6 +44,7 @@ Pattern names must match docs/patterns/design-patterns.md.
 - [ ] `docs/patterns/README.md` updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec under `docs/specs/` updated (if behavior diverges)
 - [ ] `CHANGELOG.md` updated (for user-visible changes; see [ADR-0004](../docs/adr/0004-versioning-and-release-policy.md) §3)
+- [ ] Consistency lint passes — `python tools/consistency_lint.py` (mandatory for post-1.0 PRs; see [`docs/workflow/maintenance.md`](../docs/workflow/maintenance.md))
 
 <!--
 Reminder of the agent-vs-human boundary (AGENTS.md §6.1):
