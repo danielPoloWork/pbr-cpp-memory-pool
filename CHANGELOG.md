@@ -25,6 +25,12 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   top-of-page **"Read this in: 简体中文 · 日本語"** pointer to the `docs/i18n/`
   translations. Documentation-only; no API change. (Post-1.0 maintenance; the
   `zh-Hans` / `ja` README translations are re-synced to match in a follow-up PR.)
+- **`SECURITY.md`** — the public security policy: supported versions (`1.1.x`),
+  private vulnerability reporting via GitHub's advisory feature, the
+  coordinated-disclosure expectations, and the in-scope/out-of-scope boundary.
+  Realizes the planned addition referenced by the post-release maintenance
+  protocol ([`docs/workflow/maintenance.md`](docs/workflow/maintenance.md), which
+  now links it).
 
 ## [1.1.0] — 2026-06-14
 

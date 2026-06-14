@@ -51,7 +51,7 @@ A hotfix is always the **smallest change that fixes the defect** — no refactor
 
 ## Security fixes
 
-1. **Report privately**, never in a public issue/PR: via [GitHub private vulnerability reporting](https://docs.github.com/code-security/security-advisories) on the repository (a `SECURITY.md` with the contact is a planned addition; until then use the repository's private advisory feature).
+1. **Report privately**, never in a public issue/PR: via [GitHub private vulnerability reporting](https://docs.github.com/code-security/security-advisories) on the repository (Security tab → *Report a vulnerability*). The public-facing policy — supported versions, what to include, what to expect — is [`SECURITY.md`](../../SECURITY.md).
 2. **Triage & fix under embargo** on a private branch / draft advisory; assess the SemVer level by the decision tree (a fix is usually a **PATCH**, but a fix that must change public behaviour is **MINOR**/**MAJOR**).
 3. **Coordinated release**: cut the release, then publish the advisory. Record the fix in `CHANGELOG.md` under a **`Security`** category (Keep a Changelog) with the advisory / CVE reference.
 4. Backport to every still-supported release line per the hotfix workflow.
