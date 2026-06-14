@@ -177,6 +177,28 @@ add_test(
 set_tests_properties(instrumented_pool PROPERTIES
     LABELS "smoke;milestone-6")
 
+# ROADMAP item 6.3 — zero-overhead-when-disabled verification (ADR-0025 §5).
+# The proof is structural (static_asserts on type footprint + opt-in-by-type
+# surface) plus a runtime behavioural-equivalence check, so the binary builds
+# and passes in every configuration — including the Release matrix cells, which
+# is the "in release builds" coverage the roadmap item asks for. Header-only;
+# no thread-safety macro mirror is needed.
+add_executable(zero_overhead_test
+    zero_overhead_test.cpp)
+
+target_link_libraries(zero_overhead_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(zero_overhead_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    zero_overhead
+    COMMAND zero_overhead_test)
+
+set_tests_properties(zero_overhead PROPERTIES
+    LABELS "smoke;milestone-6")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.
