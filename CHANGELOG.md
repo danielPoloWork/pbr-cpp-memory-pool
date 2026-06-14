@@ -18,6 +18,21 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M8.5)
+
+- **Post-release maintenance protocol** ([ADR-0034](docs/adr/0034-post-release-maintenance-protocol.md),
+  ROADMAP §8.5) — [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md)
+  governs the maintained-product phase: it names the version-protected surface
+  (C ABI + C++ types + compile-time knobs + the CMake imported target), a
+  three-question patch/minor/major **decision tree** (ambiguous rounds up), the
+  per-level `version.hpp` / `CHANGELOG` / release-notes mechanics (reusing the
+  milestone-close flow), the **hotfix-by-releasability** path (fix on `master` →
+  next PATCH, else branch from the tag → PATCH → forward-port), a private-first
+  `Security`-categorized fix path, and a deprecate-in-MINOR → window →
+  remove-in-MAJOR deprecation policy. Cross-links ADR-0004 / ADR-0008 / AGENTS §11;
+  `release.md` gains a reciprocal pointer. The agent-vs-human release boundary is
+  unchanged.
+
 ### Added (M8.4)
 
 - **Japanese (`ja`) translation — the specification** (ROADMAP §8.4, page 1/3,
