@@ -18,6 +18,24 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [0.6.0] — 2026-06-14
+
+**Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing
+"without touching the hot path of release builds" (ROADMAP §6 goal). A new header-only
+`it::d4np::memorypool::InstrumentedPool` **Decorator** composes a `Pool` and counts
+allocation activity (allocations, deallocations, failures, live blocks, and the
+`peak_live_` high-water mark), exposed as a `PoolStats` snapshot + `write_summary`. A
+runtime **Observer** (`PoolObserver` registered via `add_observer`) delivers
+pool-lifecycle events — `exhausted`, `grew`, `destroyed` — reusing the Decorator's
+interception points. Observability is **opt-in by type**: a program that uses `Pool`
+directly pays nothing — no counter, no branch, no atomic — verified structurally by the
+new `zero_overhead` test. The single library-side addition is one `std::atomic<size_t>
+grow_count_` on `struct memory_pool` (incremented only on the growth slow path) exposed
+by the O(1) `memory_pool_growths` accessor, within the ADR-0015 192-byte budget. Two new
+ADRs (0025–0026) take the running total to 26; the patterns catalogue gains **Decorator**
+and **Observer** as Implemented. No spec row changes (observability is additive). Full
+release notes in [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md).
+
 ### Added (M6.3)
 
 - Dedicated `zero_overhead` CTest binary
@@ -742,7 +760,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0
 [0.5.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0
 [0.4.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0
 [0.3.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.3.0

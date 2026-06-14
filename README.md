@@ -4,7 +4,7 @@
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0.5.0 dynamic growth](https://img.shields.io/badge/Status-v0.5.0%20dynamic%20growth-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0)
+[![Status: v0.6.0 observability](https://img.shields.io/badge/Status-v0.6.0%20observability-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -18,6 +18,7 @@ Many high-performance systems — graphics engines, financial trading servers, d
 - **Standards:** ANSI C public surface, C++17 internals and wrapper. No external dependencies.
 - **Thread safety:** opt-in, configurable at compile time (Milestone 4).
 - **Dynamic growth:** optional contiguous overflow chunks (Milestone 5).
+- **Observability:** opt-in `InstrumentedPool` Decorator (stats, occupancy) + `PoolObserver` for lifecycle events — zero cost to undecorated pools (Milestone 6).
 - **Quality gates:** `clang-tidy` clean, ASan + UBSan + (when threading lands) TSan green, Valgrind clean, Doxygen-documented public surface.
 - **Benchmark target:** measured against `malloc`/`free` over 1,000,000 iterations.
 
@@ -77,7 +78,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
-`v0.5.0` — dynamic growth mode. Optional, runtime, per-pool dynamic growth (spec §2.2): a pool created with `memory_pool_create_dynamic` / `Pool::make_dynamic` / `PoolBuilder::with_growth_factor` acquires a new geometric contiguous chunk on exhaustion instead of failing; the default stays fixed-size (v0.4.0 behaviour, bit-for-bit). The pool is now a **Composite** — an inline first chunk plus an append-only list of overflow chunks under one shared free list — so `alloc`/`free` stay O(1) (only the `free` safety check and `destroy` are O(log N) in dynamic mode) and per-block overhead stays zero. Growth runs under the policy's synchronization (NONE / MUTEX); lock-free + dynamic is rejected at creation (deferred). Three new ADRs (0022–0024) bring the total to 24; **Composite** flips to Implemented; the per-pool metadata budget is renegotiated 128 → 192. Release notes for `v0.5.0` live in [`docs/releases/v0.5.0.md`](docs/releases/v0.5.0.md).
+`v0.6.0` — observability & decorators. Optional statistics, on-demand logging, and lifecycle-event notification, all **opt-in by type** — a program that uses `Pool` directly is byte-identical to v0.5.0 and pays nothing. The header-only `InstrumentedPool` **Decorator** composes a `Pool` and counts allocation activity (allocations / deallocations / failures / live + the `peak_live_` high-water mark) via relaxed atomics, exposed as a `PoolStats` snapshot plus `write_summary`; a runtime **Observer** (`PoolObserver` via `add_observer`) delivers `exhausted` / `grew` / `destroyed` events from the same interception points. The one library-side addition is a `grow_count_` atomic on `struct memory_pool` (bumped only on the growth slow path) behind the O(1) `memory_pool_growths` accessor, within the ADR-0015 192-byte budget. The new `zero_overhead` test verifies the zero-cost-when-disabled contract structurally. Two new ADRs (0025–0026) bring the total to 26; **Decorator** and **Observer** flip to Implemented. Release notes for `v0.6.0` live in [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
@@ -87,8 +88,8 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 3         | C++ Wrapper & Type Safety          | ✅ complete |
 | 4         | Thread-Safe Variant                | ✅ complete |
 | 5         | Dynamic Growth Mode                | ✅ complete |
-| 6         | Observability & Decorators         | ⏳ next     |
-| 7         | Release & Polish                   | ⏳ planned  |
+| 6         | Observability & Decorators         | ✅ complete |
+| 7         | Release & Polish                   | ⏳ next     |
 
 See [`ROADMAP.md`](ROADMAP.md) for the per-task breakdown and the Spec Coverage Map at the bottom (traceability from spec sections to roadmap items).
 
