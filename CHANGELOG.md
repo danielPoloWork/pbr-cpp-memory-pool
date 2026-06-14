@@ -50,6 +50,13 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   agent rule in [`AGENTS.md`](AGENTS.md) §7.6). `ROADMAP.md` drops from 301 to ~171
   lines and reads as a forward plan again. Documentation-only; the ten historical
   checkpoints were migrated verbatim.
+- **New-feature roadmap-placement rule** — [`AGENTS.md`](AGENTS.md) §7.3 now states
+  that every feature reaches the roadmap as part of the PR that starts it, and gives
+  the judgment for *new milestone* (cohesive capability → `Milestone 9`, `10`, …;
+  closes as a MINOR) vs. *appended item* (extends an open milestone) vs. *neither*
+  (a maintenance change). Recorded in [ADR-0037](docs/adr/0037-new-feature-roadmap-placement.md)
+  and cross-referenced from [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md).
+  Documentation/process-only.
 
 ### Changed
 

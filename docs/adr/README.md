@@ -69,5 +69,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0034   | [Post-release maintenance protocol](0034-post-release-maintenance-protocol.md) | Accepted |
 | 0035   | [Agent-runnable consistency lint](0035-agent-runnable-consistency-lint.md) | Accepted |
 | 0036   | [Extract the session journal from ROADMAP.md into dated per-session files](0036-session-journal-extraction.md) | Accepted |
+| 0037   | [A new feature is planned on the roadmap — new milestone or appended item](0037-new-feature-roadmap-placement.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
