@@ -18,6 +18,19 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M8.1)
+
+- **Documentation i18n architecture** ([ADR-0032](docs/adr/0032-documentation-i18n-architecture.md),
+  ROADMAP §8.1). Fixes the shape of the upcoming translation system: a file-based,
+  zero-external-dependency per-language Markdown tree under `docs/i18n/<lang>/`
+  (`zh-Hans`, `ja`) mirroring the English source path 1:1; English stays normative
+  and is the explicit fallback (no empty stubs); the translatable surface is
+  README + spec + getting-started/usage + patterns-catalogue overview, while ADRs /
+  `CHANGELOG.md` / `ROADMAP.md` / `AGENTS.md` / the Doxygen API reference are
+  English-only; a commit-pinned `translation-status.md` manifest makes staleness
+  CI-detectable (for §8.6) and a `glossary.md` carries the canonical ↔ `zh-Hans` ↔
+  `ja` terms. Decision only — the scaffold is §8.2.
+
 ## [1.0.1] — 2026-06-14
 
 **Packaging patch over the frozen `v1.0.0` API.** Ships the two Phase-2
