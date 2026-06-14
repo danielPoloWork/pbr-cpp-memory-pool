@@ -40,6 +40,10 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   version-pinned, so the schedule is the main signal for toolchain / registry
   drift). Adds a small `ci/packaging-smoke/vcpkg-consumer/` fixture; the Conan side
   reuses the existing `conan/test_package/`. CI only; no API change.
+- **API reference badge** in the README header linking directly to the published
+  Doxygen site (`https://danielpolowork.github.io/pbr-cpp-memory-pool/`), so the
+  generated API reference is reachable in one click rather than only from prose.
+  Mirrored into the `zh-Hans` / `ja` README translations. Documentation-only.
 
 ### Changed
 

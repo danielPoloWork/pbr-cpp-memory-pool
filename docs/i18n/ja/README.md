@@ -3,6 +3,7 @@
 [![ci](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml)
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
+[![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
 [![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
