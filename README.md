@@ -90,6 +90,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 5         | Dynamic Growth Mode                | ✅ complete |
 | 6         | Observability & Decorators         | ✅ complete |
 | 7         | Release & Polish                   | ⏳ next     |
+| 8         | i18n & Post-Release Governance     | ⏳ planned  |
 
 See [`ROADMAP.md`](ROADMAP.md) for the per-task breakdown and the Spec Coverage Map at the bottom (traceability from spec sections to roadmap items).
 
