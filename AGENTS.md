@@ -230,6 +230,18 @@ Never let code and spec silently drift.
 
 `docs/patterns/README.md` is the living catalogue of every design pattern adopted, in flight, or explicitly rejected. See §8.
 
+### 7.6 Session journal
+
+End-of-session **checkpoints** — what got done, where the project stands, and how the next session resumes — live in [`docs/journal/`](docs/journal/), **never inline in `ROADMAP.md`** ([ADR-0036](docs/adr/0036-session-journal-extraction.md)). `ROADMAP.md` is the forward plan; the journal is the dated trail.
+
+At the **close of a work session that changed the project's state**, the agent:
+
+1. Creates `docs/journal/<YYYY>/<MM>/<YYYY-MM-DD>-<short-slug>.md` (e.g. `docs/journal/2026/06/2026-06-14-m8-release-v1.1.0.md`). One file per session; multiple sessions on the same day get distinct slugs. Relative links to repo files use paths relative to that depth (`../../../` reaches `docs/`).
+2. Adds a link row to the [`docs/journal/README.md`](docs/journal/README.md) index (newest first, grouped by year/month).
+3. Updates the **Latest checkpoint** pointer in the `ROADMAP.md` *Session journal* section to the new file.
+
+The journal is documentation that ships with the work, like any other doc in this section — not a separate bookkeeping PR.
+
 ## 8. Design Patterns Policy
 
 This is a **reference implementation**, and demonstrating fluency with classical design patterns is part of its value. Therefore:
