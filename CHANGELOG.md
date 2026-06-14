@@ -18,6 +18,19 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M7.8)
+
+- **vcpkg port — Phase 2 distribution** ([ADR-0030](docs/adr/0030-vcpkg-port.md),
+  ROADMAP §7.8). An in-repo overlay port under [`ports/pbr-memory-pool/`](ports/pbr-memory-pool/)
+  ([`vcpkg.json`](ports/pbr-memory-pool/vcpkg.json) + [`portfile.cmake`](ports/pbr-memory-pool/portfile.cmake)),
+  pinned to the `v1.0.0` source tag by SHA512. It builds from source through the
+  project's own ADR-0028 install rules and relocates the `find_package` config and
+  pkg-config `.pc` into vcpkg's layout, so a vcpkg consumer links the same
+  `pbr::memory_pool` target. Consumable today via
+  `vcpkg install pbr-memory-pool --overlay-ports=ports`; upstream registration in
+  microsoft/vcpkg is deferred (the port is written to upstream conventions —
+  [`ports/README.md`](ports/README.md)). First post-`v1.0.0` change.
+
 ## [1.0.0] — 2026-06-14
 
 **Milestone 7 — Release & Polish (`v1.0.0`).** The first **stable** release: the

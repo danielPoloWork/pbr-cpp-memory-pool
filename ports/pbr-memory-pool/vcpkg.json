@@ -1,0 +1,19 @@
+{
+  "name": "pbr-memory-pool",
+  "version": "1.0.0",
+  "description": "Purpose-built reference high-performance fixed-block O(1) memory pool — C++17 with an ANSI C public surface, zero external dependencies.",
+  "homepage": "https://github.com/danielPoloWork/pbr-cpp-memory-pool",
+  "documentation": "https://danielpolowork.github.io/pbr-cpp-memory-pool/",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
