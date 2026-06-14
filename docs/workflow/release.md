@@ -155,6 +155,8 @@ The maintainer reviews the draft release, edits notes if needed, and clicks *Pub
 
 ## Hotfix flow
 
+> Post-1.0 **governance** — how to choose the SemVer level (patch / minor / major), the hotfix-by-releasability and backport rules, the security-fix path, and the deprecation policy — lives in [`maintenance.md`](maintenance.md) ([ADR-0034](../adr/0034-post-release-maintenance-protocol.md)). This section is the mechanical short form for the common case.
+
 A defect found between milestone tags follows a compressed version of the above:
 
 1. `git switch -c fix/<short-name>` from `master`.
