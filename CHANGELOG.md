@@ -32,6 +32,14 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   pinned to source commit `6c6aeb7`. Per ADR-0032 §2 the per-row ADR-link table is
   **not** reproduced — it points to the English catalogue; pattern names,
   identifiers, and status keywords stay verbatim. Manifest + `ja` index updated.
+- **`ja` translation — the README** (page 3/3, completing §8.4). [`docs/i18n/ja/README.md`](docs/i18n/ja/README.md)
+  is the full `ja` translation of the project README (and the `ja` landing page,
+  with nav to the spec + patterns translations), pinned to source commit
+  `be70cf8`. Code blocks, badge URLs, identifiers, `O(1)`, GoF pattern names, tool
+  names, and the numeric benchmark tables kept verbatim; relative links recomputed
+  for the deeper path. All three `ja` manifest rows are now `translated` and
+  **ROADMAP §8.4 is complete** — both `zh-Hans` and `ja` now cover the full §8.1
+  translatable surface.
 
 ### Added (M8.3)
 

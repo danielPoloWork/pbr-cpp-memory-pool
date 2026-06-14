@@ -24,7 +24,7 @@ Status vocabulary:
 
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
-| [`README.md`](../../README.md) | — | — | `missing` | — |
+| [`README.md`](../../README.md) | `be70cf8` | `be70cf8` | `translated` | — |
 | [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `612f9d2` | `612f9d2` | `translated` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | `6c6aeb7` | `6c6aeb7` | `translated` | — |
 
