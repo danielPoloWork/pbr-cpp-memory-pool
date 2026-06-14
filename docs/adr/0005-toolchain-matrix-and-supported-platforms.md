@@ -10,7 +10,7 @@
 Milestone 1 begins the implementation phase. Before any line of CMake or C/C++ code lands we need to pin down which compilers, operating systems, architectures, and language standards `pbr-cpp-memory-pool` is contractually built and tested against. Without this contract:
 
 - The CI matrix in [ROADMAP 1.8](../../ROADMAP.md) has no shape — we cannot decide which jobs gate `master`.
-- The compatibility claim in spec §3.3 ("ANSI C o C++17 standard senza dipendenze esterne") cannot be objectively asserted; "ANSI C" admits at least four published standards (C89, C99, C11, C17) and "C++17" can be exercised at very different conformance levels across compilers.
+- The compatibility claim in spec §3.3 ("standard ANSI C (or C++17) with no external dependencies") cannot be objectively asserted; "ANSI C" admits at least four published standards (C89, C99, C11, C17) and "C++17" can be exercised at very different conformance levels across compilers.
 - The future install / packaging layout (Milestone 7.4) and the package-registry recipes (Milestones 7.8 / 7.9) cannot be authored without a target list.
 
 Two project-shape decisions drive the answer:
