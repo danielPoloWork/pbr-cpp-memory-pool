@@ -8,6 +8,6 @@
 |--------|------|--------|
 | README（プロジェクト概要 / 使い方） | 未翻訳 | [English](../../../README.md) |
 | 仕様（spec） | ✅ 翻訳済み | [日本語](docs/specs/01_spec_cpp_memory_pool.md) · [English](../../specs/01_spec_cpp_memory_pool.md) |
-| デザインパターンカタログ概要 | 未翻訳 | [English](../../patterns/README.md) |
+| デザインパターンカタログ概要 | ✅ 翻訳済み | [日本語](docs/patterns/README.md) · [English](../../patterns/README.md) |
 
 翻訳は ROADMAP §8.4 で追加されます。その際、本表の「状態」とリンクが更新されます。

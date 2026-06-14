@@ -27,6 +27,11 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   identifiers, `O(1)`, `Free List`, and the Valgrind command kept verbatim per the
   glossary. The `ja` spec manifest row flips to `translated` and the `ja` index
   links the page. The patterns overview and README follow in subsequent PRs.
+- **`ja` translation — the patterns-catalogue overview** (page 2/3). [`docs/i18n/ja/docs/patterns/README.md`](docs/i18n/ja/docs/patterns/README.md)
+  translates the catalogue's didactic overview (mirroring the `zh-Hans` page),
+  pinned to source commit `6c6aeb7`. Per ADR-0032 §2 the per-row ADR-link table is
+  **not** reproduced — it points to the English catalogue; pattern names,
+  identifiers, and status keywords stay verbatim. Manifest + `ja` index updated.
 
 ### Added (M8.3)
 
