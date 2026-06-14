@@ -32,6 +32,17 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   protocol ([`docs/workflow/maintenance.md`](docs/workflow/maintenance.md), which
   now links it).
 
+### Changed
+
+- **`zh-Hans` / `ja` README translations re-synced to `v1.1.0`.** Carries the
+  English README's post-1.0 deltas into both locales — `v1.1.0` status badge and
+  banner, the cross-language "read this in" links, the sharpened project
+  description, the `v1.1.0` status paragraph, Milestone 8 → complete, and a
+  translated **Technology stack** section. The `translation-status.md` manifest's
+  two README rows are re-pinned to the current source commit and flipped from
+  `stale` back to `translated`, clearing the `i18n-freshness` consistency-lint
+  flag the `v1.1.0` release raised. Documentation-only; no API change.
+
 ## [1.1.0] — 2026-06-14
 
 **Milestone 8 — Internationalization & Post-Release Governance.** The first

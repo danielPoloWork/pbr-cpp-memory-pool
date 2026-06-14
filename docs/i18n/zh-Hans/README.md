@@ -5,15 +5,16 @@
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.0.1 stable](https://img.shields.io/badge/Status-v1.0.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.1)
+[![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
 
-> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `a01d4f4`）。
+> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `1fdcf2b`）。
 > **英文版本为唯一权威来源** —— 如本译文与原文不一致，以英文版为准。
+> 用其他语言阅读：[English](../../../README.md) · [日本語](../ja/README.md)。
 > 本目录其他简体中文页面：[规范](docs/specs/01_spec_cpp_memory_pool.md) · [设计模式目录（概览）](docs/patterns/README.md)。未翻译的页面回退到英文原文。
 >
 > 隶属于 **Purpose-Built References (PBR)** 系列 —— 一组小而精、具教学性、达生产质量的 C/C++ 高性能构建块参考实现。
 
-许多高性能系统 —— 图形引擎、金融交易服务器、数据库 —— 都受到内存碎片化，以及频繁调用 `malloc`/`free`（或 `new`/`delete`）开销的困扰。本组件提供一个**自定义内存池（Memory Pool）**，它预先分配一块连续的内存，并提供**常数时间、固定大小、零外部碎片的分配**。
+许多高性能系统 —— 图形引擎、金融交易服务器、数据库 —— 都受到内存碎片化，以及频繁调用 `malloc`/`free`（或 `new`/`delete`）开销的困扰。本组件提供一个**自定义内存池（Memory Pool）**，它预先分配一块连续的内存，并提供**常数时间、固定大小、零外部碎片的分配**。它是一个单一、聚焦的 C/C++ 库 —— 一个由头文件支撑的静态库，带有四函数的 C ABI 和一个地道的 C++17 包装器 —— 以企业级质量构建（警告即错误、消毒器、Valgrind、Doxygen），并在其 [ADR](../../../docs/adr/) 中逐项决策地记录。
 
 ## 概览
 
@@ -195,6 +196,8 @@ cmake --build --preset bench
 
 ## 状态
 
+`v1.1.0` —— **国际化与发布后治理**（里程碑 8），首个 1.0 之后的 MINOR。纯**附加**性 —— 库的二进制与 `v1.0.x` 相同。文档现已提供**简体中文（`zh-Hans`）与日语（`ja`）**版本（英文为权威来源 —— [`docs/i18n/`](../../../docs/i18n/)、[ADR-0032](../../../docs/adr/0032-documentation-i18n-architecture.md)）；规范以英文为权威（[ADR-0033](../../../docs/adr/0033-english-as-the-spec-normative-language.md)）；一份[发布后维护协议](../../../docs/workflow/maintenance.md)（[ADR-0034](../../../docs/adr/0034-post-release-maintenance-protocol.md)）治理维护期；一个可由代理运行的[一致性 lint](../../../tools/consistency_lint.py)（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)）在 CI 与代理契约中对跨产物一致性进行门禁。四个新 ADR（0032–0035）使总数达到 35。发布说明：[`docs/releases/v1.1.0.md`](../../../docs/releases/v1.1.0.md)。更早的版本：
+
 `v1.0.1` —— 在已冻结的 `v1.0.0` API 之上的**打包补丁**：新增 vcpkg port 和 Conan 2.x recipe（第二阶段分发，ADR [0030](../../../docs/adr/0030-vcpkg-port.md) / [0031](../../../docs/adr/0031-conan-recipe.md)）。所发布的库与 `v1.0.0` 逐字节相同 —— 这是一个 `PATCH`，无 API/ABI/行为变化。发布说明：[`docs/releases/v1.0.1.md`](../../../docs/releases/v1.0.1.md)。它所补丁的稳定基线：
 
 `v1.0.0` —— **首个稳定发布。** 公共 C ABI（`memory_pool_create` / `_alloc` / `_free` / `_destroy` 加上 O(1) 自省访问器）和 C++ 接口（`Pool`、`TypedPool<T>`、`PoolAllocator<T>`、`InstrumentedPool`、`PoolObserver`）在 SemVer 1.0 承诺下冻结 —— 不经 `2.0.0` 不做破坏性变更。`v1.0.0` 封存了里程碑 0–6 构建的特性集 —— O(1) 隐式空闲链表定长块池（每块零元数据）、RAII / 类型化 / STL 分配器 C++ 包装器、编译期可配置的线程安全、可选的几何动态增长以及可选的可观测性 —— 并加入里程碑 7 的打磨：已发布的 Doxygen API 站点（M7.1）、扩展的用法 / 性能 / 兼容性 README（M7.2）、`find_package` 安装 + pkg-config 打包（M7.4），以及设计模式目录（M7.5）和规范符合性（M7.6，[ADR-0029](../../../docs/adr/0029-spec-compliance-acceptance-audit.md)）验收审计。全部十五行 Spec Coverage Map 均为 ✅，并经端到端复核。二十九个 ADR（0001–0029）记录了每一个决策；全部十一个已采用的设计模式均为 Implemented。`v1.0.0` 的发布说明见 [`docs/releases/v1.0.0.md`](../../../docs/releases/v1.0.0.md)。
@@ -209,7 +212,7 @@ cmake --build --preset bench
 | 5 | 动态增长模式 | ✅ 完成 |
 | 6 | 可观测性与 Decorator | ✅ 完成 |
 | 7 | 发布与打磨 | ✅ 完成 |
-| 8 | 国际化与发布后治理 | ⏳ 下一步 |
+| 8 | 国际化与发布后治理 | ✅ 完成 |
 
 逐任务的分解以及底部的 Spec Coverage Map（从规范章节到路线图条目的可追溯性）见 [`ROADMAP.md`](../../../ROADMAP.md)。
 
@@ -235,6 +238,27 @@ cmake --build --preset bench
 | C 公共头文件 | ANSI C (C89) **与** C99 | 专用 CI 作业：`-std=c89 -pedantic -Werror`、`-std=c99 -pedantic -Werror` |
 
 **线程安全**在构建期通过 `PBR_MEMORY_POOL_THREAD_SAFETY` CMake 选项选择 —— `NONE`（默认，单线程快速路径）、`MUTEX` 或 `LOCKFREE`（[ADR-0020](../../../docs/adr/0020-thread-safety-strategy-and-compile-time-knob.md)）。动态增长在 `NONE` 和 `MUTEX` 下受支持（`LOCKFREE` 下不支持 —— [ADR-0024](../../../docs/adr/0024-dynamic-growth-synchronization-and-creation-surface.md) §2）。
+
+## 技术栈
+
+除 C 与 C++ 标准库外，本库**无任何运行时/构建依赖**（规范 §3.3）；下表中的每一项要么是语言标准，要么是构建/测试/文档工具，要么是打包集成。面向使用者的编译器与平台矩阵见上文「兼容性」一节。
+
+| 层 | 技术 | 版本 |
+|----|------|------|
+| 语言（实现） | C++ | C++17（严格，无扩展） |
+| 语言（C 公共头文件） | ANSI C | C89 **与** C99 |
+| 构建系统 | CMake | ≥ 3.21 |
+| 构建生成器 | Ninja（CI 与预设） | 任意较新版本 |
+| 编译器（最低） | GCC / Clang / MSVC / Apple Clang | 11 / 14 / 19.30 (VS 2022 17.0) / 14（[ADR-0005](../../../docs/adr/0005-toolchain-matrix-and-supported-platforms.md)） |
+| 单元测试 | [doctest](https://github.com/doctest/doctest)（经 CMake `FetchContent`，仅测试） | v2.4.11 |
+| 运行时消毒器 | ASan · UBSan · TSan | 编译器自带 |
+| 内存检查器 | Valgrind | 发行版（CI：Ubuntu 24.04） |
+| 静态分析 / 风格 | clang-tidy · clang-format | LLVM 14+ |
+| API 文档 | Doxygen → GitHub Pages | 1.10.x（[ADR-0027](../../../docs/adr/0027-doxygen-html-site-and-publication-pipeline.md)） |
+| 项目工具 | Python（一致性 lint，仅标准库） | 3.x（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)） |
+| 打包 | CMake `find_package` + pkg-config · vcpkg port · Conan recipe | [ADR-0028](../../../docs/adr/0028-install-and-packaging-layout.md) / [0030](../../../docs/adr/0030-vcpkg-port.md) / [0031](../../../docs/adr/0031-conan-recipe.md) |
+| CI | GitHub Actions | — |
+| 运行时依赖 | **无** | — |
 
 ## 验证与质量门禁
 

@@ -5,15 +5,16 @@
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.0.1 stable](https://img.shields.io/badge/Status-v1.0.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.1)
+[![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
 
-> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `be70cf8` 時点）。
+> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `1fdcf2b` 時点）。
 > **英語版が唯一の正本です** —— 本訳文と原文に相違がある場合は英語版が優先します。
+> 他の言語で読む：[English](../../../README.md) · [简体中文](../zh-Hans/README.md)。
 > 本ディレクトリの他の日本語ページ：[仕様](docs/specs/01_spec_cpp_memory_pool.md) · [デザインパターンカタログ（概要）](docs/patterns/README.md)。未翻訳のページは英語原文にフォールバックします。
 >
 > **Purpose-Built References (PBR)** シリーズの一部 —— 小さく、教育的で、本番品質の、高性能な構築ブロックの C/C++ リファレンス実装群。
 
-多くの高性能システム —— グラフィックスエンジン、金融取引サーバ、データベース —— は、メモリの断片化や、`malloc`/`free`（あるいは `new`/`delete`）の頻繁な呼び出しのオーバーヘッドに悩まされます。本コンポーネントは、連続したメモリブロックを事前確保し、**定数時間・固定サイズ・外部断片化ゼロの確保**を提供する**カスタムメモリプール（Memory Pool）**を提供します。
+多くの高性能システム —— グラフィックスエンジン、金融取引サーバ、データベース —— は、メモリの断片化や、`malloc`/`free`（あるいは `new`/`delete`）の頻繁な呼び出しのオーバーヘッドに悩まされます。本コンポーネントは、連続したメモリブロックを事前確保し、**定数時間・固定サイズ・外部断片化ゼロの確保**を提供する**カスタムメモリプール（Memory Pool）**を提供します。これは単一で焦点を絞った C/C++ ライブラリ —— 4 関数の C ABI と地道な C++17 ラッパーを備えた、ヘッダに支えられた静的ライブラリ —— であり、企業級の品質（警告＝エラー、サニタイザ、Valgrind、Doxygen）で構築され、その [ADR](../../../docs/adr/) に決定ごとに記録されています。
 
 ## 概要
 
@@ -195,6 +196,8 @@ cmake --build --preset bench
 
 ## ステータス
 
+`v1.1.0` —— **国際化とリリース後ガバナンス**（マイルストーン 8）、1.0 以降最初の MINOR。純粋に**追加的** —— ライブラリのバイナリは `v1.0.x` と同一です。ドキュメントは**簡体字中国語（`zh-Hans`）と日本語（`ja`）**で提供されるようになりました（英語が正本 —— [`docs/i18n/`](../../../docs/i18n/)、[ADR-0032](../../../docs/adr/0032-documentation-i18n-architecture.md)）；仕様は英語を正本とします（[ADR-0033](../../../docs/adr/0033-english-as-the-spec-normative-language.md)）；[リリース後保守プロトコル](../../../docs/workflow/maintenance.md)（[ADR-0034](../../../docs/adr/0034-post-release-maintenance-protocol.md)）が保守フェーズを統治し；エージェントが実行可能な[一貫性 lint](../../../tools/consistency_lint.py)（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)）が CI とエージェント契約で成果物間の整合をゲートします。4 つの新規 ADR（0032–0035）で総数は 35 になりました。リリースノート：[`docs/releases/v1.1.0.md`](../../../docs/releases/v1.1.0.md)。より以前のバージョン：
+
 `v1.0.1` —— 凍結された `v1.0.0` API 上の**パッケージングパッチ**：vcpkg port と Conan 2.x recipe を追加（第 2 段階の配布、ADR [0030](../../../docs/adr/0030-vcpkg-port.md) / [0031](../../../docs/adr/0031-conan-recipe.md)）。出荷されるライブラリは `v1.0.0` とバイト単位で同一 —— `PATCH` であり、API/ABI/挙動の変更なし。リリースノート：[`docs/releases/v1.0.1.md`](../../../docs/releases/v1.0.1.md)。これがパッチを当てた安定ベースライン：
 
 `v1.0.0` —— **最初の安定リリース。** 公開 C ABI（`memory_pool_create` / `_alloc` / `_free` / `_destroy` と O(1) の自省アクセサ）と C++ インターフェース（`Pool`、`TypedPool<T>`、`PoolAllocator<T>`、`InstrumentedPool`、`PoolObserver`）は SemVer 1.0 の約束の下で凍結されます —— `2.0.0` なしに破壊的変更はありません。`v1.0.0` はマイルストーン 0–6 で構築した機能群 —— O(1) 暗黙空きリストの固定ブロックプール（1 ブロックあたりメタデータゼロ）、RAII / 型付き / STL アロケータの C++ ラッパー、コンパイル時設定可能なスレッドセーフ、任意の幾何級数的動的拡張、任意の可観測性 —— を封印し、マイルストーン 7 の仕上げを加えます：公開された Doxygen API サイト（M7.1）、拡充された 使い方 / 性能 / 互換性 README（M7.2）、`find_package` インストール + pkg-config パッケージング（M7.4）、デザインパターンカタログ（M7.5）と仕様適合性（M7.6、[ADR-0029](../../../docs/adr/0029-spec-compliance-acceptance-audit.md)）の受け入れ監査。Spec Coverage Map の全 15 行が ✅ で、エンドツーエンドに再検証済み。29 個の ADR（0001–0029）が各決定を記録し、採用済みの全 11 デザインパターンが Implemented。`v1.0.0` のリリースノートは [`docs/releases/v1.0.0.md`](../../../docs/releases/v1.0.0.md) にあります。
@@ -209,7 +212,7 @@ cmake --build --preset bench
 | 5 | 動的拡張モード | ✅ 完了 |
 | 6 | 可観測性と Decorator | ✅ 完了 |
 | 7 | リリースと仕上げ | ✅ 完了 |
-| 8 | 国際化と発リリース後ガバナンス | ⏳ 次 |
+| 8 | 国際化とリリース後ガバナンス | ✅ 完了 |
 
 タスク単位の内訳と、末尾の Spec Coverage Map（仕様章から路線図項目への追跡可能性）は [`ROADMAP.md`](../../../ROADMAP.md) を参照。
 
@@ -235,6 +238,27 @@ cmake --build --preset bench
 | C 公開ヘッダ | ANSI C (C89) **と** C99 | 専用 CI ジョブ：`-std=c89 -pedantic -Werror`、`-std=c99 -pedantic -Werror` |
 
 **スレッドセーフ**はビルド時に `PBR_MEMORY_POOL_THREAD_SAFETY` CMake オプションで選択します —— `NONE`（既定、単一スレッド高速経路）、`MUTEX`、または `LOCKFREE`（[ADR-0020](../../../docs/adr/0020-thread-safety-strategy-and-compile-time-knob.md)）。動的拡張は `NONE` と `MUTEX` でサポートされます（`LOCKFREE` では非対応 —— [ADR-0024](../../../docs/adr/0024-dynamic-growth-synchronization-and-creation-surface.md) §2）。
+
+## 技術スタック
+
+C と C++ の標準ライブラリを除き、本ライブラリに**実行時／ビルド依存はありません**（仕様 §3.3）；下表の各項目は、言語標準か、ビルド／テスト／ドキュメントのツールか、パッケージング連携のいずれかです。利用者向けのコンパイラとプラットフォーム行列は上記「互換性」節を参照してください。
+
+| 層 | 技術 | バージョン |
+|----|------|------------|
+| 言語（実装） | C++ | C++17（厳格、拡張なし） |
+| 言語（C 公開ヘッダ） | ANSI C | C89 **と** C99 |
+| ビルドシステム | CMake | ≥ 3.21 |
+| ビルドジェネレータ | Ninja（CI とプリセット） | 任意の新しめのバージョン |
+| コンパイラ（最低） | GCC / Clang / MSVC / Apple Clang | 11 / 14 / 19.30 (VS 2022 17.0) / 14（[ADR-0005](../../../docs/adr/0005-toolchain-matrix-and-supported-platforms.md)） |
+| 単体テスト | [doctest](https://github.com/doctest/doctest)（CMake `FetchContent` 経由、テスト時のみ） | v2.4.11 |
+| 実行時サニタイザ | ASan · UBSan · TSan | コンパイラ付属 |
+| メモリチェッカ | Valgrind | ディストリ版（CI：Ubuntu 24.04） |
+| 静的解析 / スタイル | clang-tidy · clang-format | LLVM 14+ |
+| API ドキュメント | Doxygen → GitHub Pages | 1.10.x（[ADR-0027](../../../docs/adr/0027-doxygen-html-site-and-publication-pipeline.md)） |
+| プロジェクトツール | Python（一貫性 lint、標準ライブラリのみ） | 3.x（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)） |
+| パッケージング | CMake `find_package` + pkg-config · vcpkg port · Conan recipe | [ADR-0028](../../../docs/adr/0028-install-and-packaging-layout.md) / [0030](../../../docs/adr/0030-vcpkg-port.md) / [0031](../../../docs/adr/0031-conan-recipe.md) |
+| CI | GitHub Actions | — |
+| 実行時依存 | **なし** | — |
 
 ## 検証と品質ゲート
 
