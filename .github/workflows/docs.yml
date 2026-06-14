@@ -6,12 +6,16 @@ on:
       - '**/*.md'
       - '.markdownlint.json'
       - '.github/workflows/docs.yml'
+      - 'tools/**'
+      - 'src/main/cpp/it/d4np/memorypool/version.hpp'
   push:
     branches: [master]
     paths:
       - '**/*.md'
       - '.markdownlint.json'
       - '.github/workflows/docs.yml'
+      - 'tools/**'
+      - 'src/main/cpp/it/d4np/memorypool/version.hpp'
 
 permissions:
   contents: read
@@ -88,3 +92,16 @@ jobs:
             exit 1
           fi
           echo "All ADRs are listed in $index."
+
+  consistency:
+    name: Project consistency lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The i18n-freshness check compares each translation's recorded source
+          # commit against the source file's history, so it needs full history,
+          # not the default shallow clone.
+          fetch-depth: 0
+      - name: Run the consistency lint
+        run: python3 tools/consistency_lint.py

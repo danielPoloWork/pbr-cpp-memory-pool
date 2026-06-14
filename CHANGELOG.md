@@ -18,6 +18,21 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M8.6)
+
+- **Agent-runnable consistency lint** ([ADR-0035](docs/adr/0035-agent-runnable-consistency-lint.md),
+  ROADMAP §8.6) — [`tools/consistency_lint.py`](tools/consistency_lint.py), a
+  dependency-free (Python 3 stdlib only) checker that asserts cross-artifact
+  congruence and exits non-zero with an actionable report. Six checks: version
+  lockstep (`version.hpp` ⇆ CHANGELOG ⇆ README badge ⇆ newest release notes), ADR
+  index↔file bijection + numbering, every Adopted pattern cites an existing ADR +
+  `src/main/cpp/` location, Spec Coverage Map has no dangling row, no `translated`
+  i18n entry staler than its English source, and README↔ROADMAP milestone-state
+  consistency. Wired into a new `consistency` job in
+  [`docs.yml`](.github/workflows/docs.yml) (full-history checkout); also runnable
+  locally as `python tools/consistency_lint.py`. The pre-PR checklist that invokes
+  it is §8.7.
+
 ### Added (M8.5)
 
 - **Post-release maintenance protocol** ([ADR-0034](docs/adr/0034-post-release-maintenance-protocol.md),

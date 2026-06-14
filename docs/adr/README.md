@@ -67,5 +67,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0032   | [Documentation i18n architecture](0032-documentation-i18n-architecture.md) | Accepted |
 | 0033   | [English as the specification's normative language](0033-english-as-the-spec-normative-language.md) | Accepted |
 | 0034   | [Post-release maintenance protocol](0034-post-release-maintenance-protocol.md) | Accepted |
+| 0035   | [Agent-runnable consistency lint](0035-agent-runnable-consistency-lint.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
