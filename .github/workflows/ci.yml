@@ -74,7 +74,7 @@ jobs:
           - { os: macos-14,      compiler: apple-clang, preset: ubsan }
     steps:
       - name: Check out the source tree
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install a recent CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Ensure clang-format is available
         shell: bash
@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out (full history needed for diff)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -216,7 +216,7 @@ jobs:
         std: [c89, c99]
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Compile the minimal C consumer under -std=${{ matrix.std }} -pedantic -Werror
         shell: bash
@@ -239,7 +239,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -336,7 +336,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Valgrind
         shell: bash
@@ -420,7 +420,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -468,7 +468,7 @@ jobs:
         mode: [MUTEX, LOCKFREE]
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -516,7 +516,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -560,7 +560,7 @@ jobs:
         mode: [MUTEX, LOCKFREE]
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest

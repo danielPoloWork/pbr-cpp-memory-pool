@@ -110,7 +110,7 @@ jobs:
           echo "Building artifact for tag=$tag (version=$version) on ${{ matrix.platform }}"
 
       - name: Check out the tagged commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.tag.outputs.tag }}
 
@@ -174,7 +174,7 @@ jobs:
           ls -la "pbr-memory-pool-${version}-${platform}.tar.gz"
 
       - name: Upload the platform artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-${{ matrix.platform }}
           path: pbr-memory-pool-${{ steps.tag.outputs.version }}-${{ matrix.platform }}.tar.gz
@@ -217,7 +217,7 @@ jobs:
           echo "Drafting release for tag=$tag (version=$version, prerelease=$prerelease)"
 
       - name: Check out the tagged commit (for release notes file)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.tag.outputs.tag }}
 
@@ -234,7 +234,7 @@ jobs:
           echo "Release notes file present at: $notes"
 
       - name: Download all platform artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts/
           pattern: artifact-*

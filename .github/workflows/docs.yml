@@ -26,8 +26,8 @@ jobs:
     name: Lint Markdown
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v16
+      - uses: actions/checkout@v6
+      - uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           globs: |
             **/*.md
@@ -37,7 +37,7 @@ jobs:
     name: Check internal links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Lychee — offline (internal links only)
         uses: lycheeverse/lychee-action@v2
         with:
@@ -48,7 +48,7 @@ jobs:
     name: ADR numbering & index sanity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify sequential numbering and index coverage
         shell: bash
         run: |
@@ -97,7 +97,7 @@ jobs:
     name: Project consistency lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # The i18n-freshness check compares each translation's recorded source
           # commit against the source file's history, so it needs full history,
