@@ -1,0 +1,96 @@
+name: packaging-smoke
+
+# Smoke-tests the Phase-2 packaging recipes end to end on CI: the vcpkg overlay
+# port (ADR-0030) and the Conan 2.x recipe (ADR-0031). Both recipes are pinned to
+# the published v1.0.0 source tag (SHA-verified downloads), so these jobs validate
+# the *recipes against the released artifact* — that the port / recipe still
+# configure, build, install, and expose the pbr::memory_pool imported target on
+# current toolchains.
+#
+# They are deliberately NOT a test of the working tree: each recipe fetches the
+# v1.0.0 tarball from GitHub, not local sources, so an in-tree CMake change does
+# not reach them until a new release is tagged and the recipe re-pinned. That is
+# why the path filter is limited to ports/**, conan/**, and this workflow — and why
+# a weekly schedule runs them regardless, to catch toolchain / registry drift
+# between releases. vcpkg and Conan cannot be installed on the maintainer's box, so
+# CI is the only place these recipes are exercised.
+
+on:
+  pull_request:
+    paths:
+      - 'ports/**'
+      - 'conan/**'
+      - 'ci/packaging-smoke/**'
+      - '.github/workflows/packaging-smoke.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'ports/**'
+      - 'conan/**'
+      - 'ci/packaging-smoke/**'
+      - '.github/workflows/packaging-smoke.yml'
+  schedule:
+    # Mondays 06:00 UTC — the recipes are version-pinned and rarely change, so the
+    # schedule is the main signal for toolchain / registry drift on a green tree.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vcpkg:
+    name: vcpkg overlay port — install + consume
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install the overlay port (fetches v1.0.0, SHA512-pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="${VCPKG_INSTALLATION_ROOT:?GitHub-hosted runners provide vcpkg}"
+          "$VCPKG_ROOT/vcpkg" version
+          # Classic-mode install against the overlay, exactly as ports/README.md
+          # documents. Exercises the portfile: fetch + SHA512 verify, configure,
+          # install, vcpkg_cmake_config_fixup, vcpkg_fixup_pkgconfig.
+          "$VCPKG_ROOT/vcpkg" install pbr-memory-pool \
+              --overlay-ports="$GITHUB_WORKSPACE/ports"
+
+      - name: Build and run the consumer (find_package + link pbr::memory_pool)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="${VCPKG_INSTALLATION_ROOT:?}"
+          cmake -S ci/packaging-smoke/vcpkg-consumer -B build/vcpkg-smoke \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build/vcpkg-smoke
+          ./build/vcpkg-smoke/smoke
+
+  conan:
+    name: Conan recipe — create + test_package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Conan 2.x
+        shell: bash
+        run: |
+          set -euo pipefail
+          # pipx is preinstalled on GitHub-hosted Ubuntu runners; it isolates
+          # Conan from the system Python (PEP 668) without a manual venv.
+          pipx install conan
+          conan --version
+
+      - name: Detect a default profile
+        shell: bash
+        run: conan profile detect --force
+
+      - name: conan create (fetches v1.0.0, SHA256-pinned; runs test_package)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Builds the package from the pinned source tag and then builds + runs
+          # conan/test_package/, which does find_package + link + run the example.
+          conan create conan/ --build=missing

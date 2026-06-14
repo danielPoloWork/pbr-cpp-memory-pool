@@ -31,6 +31,15 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   Realizes the planned addition referenced by the post-release maintenance
   protocol ([`docs/workflow/maintenance.md`](docs/workflow/maintenance.md), which
   now links it).
+- **`packaging-smoke` CI workflow** — end-to-end smoke tests for the Phase-2
+  packaging recipes that cannot be built on the maintainer's box: a **vcpkg**
+  overlay-port install + consumer build (`find_package` + link `pbr::memory_pool`)
+  and a **Conan** `conan create` that runs the `test_package`. Both validate the
+  recipes against the SHA-pinned `v1.0.0` source tag, so they run on changes to
+  `ports/**` / `conan/**` / the workflow and on a weekly schedule (the recipes are
+  version-pinned, so the schedule is the main signal for toolchain / registry
+  drift). Adds a small `ci/packaging-smoke/vcpkg-consumer/` fixture; the Conan side
+  reuses the existing `conan/test_package/`. CI only; no API change.
 
 ### Changed
 

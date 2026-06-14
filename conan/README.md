@@ -26,6 +26,10 @@ conan install . --build=missing
 - [`conanfile.py`](conanfile.py) — the recipe: fetches the `v<version>` source tag (SHA256-pinned), builds with tests/benchmarks off via `CMakeToolchain` / `CMake`, installs, drops the upstream-bundled CMake config + `.pc` (Conan provides its own through `package_info`), and sets `cmake_file_name` / `cmake_target_name` so consumers get `pbr::memory_pool`.
 - [`test_package/`](test_package/) — a minimal consumer (`find_package` + link + run) that Conan builds during `conan create` to verify the package.
 
+## CI smoke test
+
+The [`packaging-smoke`](../.github/workflows/packaging-smoke.yml) workflow runs `conan create conan/` — which builds the package from the pinned `v1.0.0` tag and then builds + runs the [`test_package/`](test_package/) consumer — on every change to `conan/**` and on a weekly schedule (the recipe is version-pinned, so the schedule is the main signal for Conan / toolchain drift). Conan cannot be run on the maintainer's box, so CI is where the recipe is exercised.
+
 ## Publishing
 
 The recipe is written to ConanCenter conventions and can be contributed to [conan-io/conan-center-index](https://github.com/conan-io/conan-center-index) when desired (its layout there is `recipes/pbr-memory-pool/all/conanfile.py` + a `config.yml` mapping the version to the source). Alternatively, upload to a self-hosted Artifactory / `conan remote`:

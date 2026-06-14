@@ -24,6 +24,10 @@ Or, in manifest mode, add `"pbr-memory-pool"` to your `vcpkg.json` `dependencies
 - [`pbr-memory-pool/vcpkg.json`](pbr-memory-pool/vcpkg.json) — manifest: name, version (`1.0.0`), license, and the `vcpkg-cmake` / `vcpkg-cmake-config` host tools.
 - [`pbr-memory-pool/portfile.cmake`](pbr-memory-pool/portfile.cmake) — fetches the `v${VERSION}` source tag (SHA512-pinned), configures with tests/benchmarks off, installs, then relocates the CMake config (`vcpkg_cmake_config_fixup`) and the pkg-config `.pc` (`vcpkg_fixup_pkgconfig`) into vcpkg's layout.
 
+## CI smoke test
+
+The [`packaging-smoke`](../.github/workflows/packaging-smoke.yml) workflow installs this overlay port and builds a small consumer (`find_package(pbr_memory_pool)` + link `pbr::memory_pool`) on every change to `ports/**` and on a weekly schedule — the recipe is pinned to `v1.0.0`, so the schedule is the main signal for vcpkg / toolchain drift on an otherwise-static recipe. vcpkg cannot be run on the maintainer's box, so CI is where the port is exercised.
+
 ## Submitting upstream to microsoft/vcpkg
 
 The port is written to the upstream conventions so it can be contributed to [microsoft/vcpkg](https://github.com/microsoft/vcpkg) when desired:
