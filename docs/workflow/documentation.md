@@ -74,6 +74,8 @@ Files under `docs/specs/` are **frozen contracts**. If implementation diverges:
 
 Never let the code and the spec drift without a paper trail.
 
+The spec is maintained in **English** (the normative source), per [ADR-0033](../adr/0033-english-as-the-spec-normative-language.md) — it was originally authored in Italian and translated to English in place so the whole repository is uniformly English-normative (AGENTS.md §2) and the spec can be localized like the rest of the translatable surface ([ADR-0032](../adr/0032-documentation-i18n-architecture.md)). "Frozen" governs the *requirements*, not the language.
+
 ## Language and style
 
 - English only, in every file under `docs/`.

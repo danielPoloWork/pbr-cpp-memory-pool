@@ -44,6 +44,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   page to its English source — the explicit fallback; no empty stubs). README's
   repository-layout table gains a `docs/i18n/` row. Translations are §8.3 / §8.4.
 
+### Changed (M8.9)
+
+- **The specification is now maintained in English** ([ADR-0033](docs/adr/0033-english-as-the-spec-normative-language.md),
+  ROADMAP §8.9). [`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md)
+  was authored in Italian (the original contract); it is translated to English
+  **in place** as the single normative source, so the whole repository is uniformly
+  English-normative (AGENTS.md §2) and the spec can be localized coherently under
+  ADR-0032. The translation is **faithful** — every requirement, the API, the Free
+  List description, the diagram, and the verification strategy are preserved with
+  identical meaning; only the prose language changes, so the frozen contract is not
+  semantically altered. The Italian original remains in git history (commit
+  `3ccff68`). Prerequisite for the §8.3 / §8.4 spec translations.
+
 ## [1.0.1] — 2026-06-14
 
 **Packaging patch over the frozen `v1.0.0` API.** Ships the two Phase-2
