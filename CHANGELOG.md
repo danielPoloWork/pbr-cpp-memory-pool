@@ -18,6 +18,15 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Changed (M8.7)
+
+- **Consistency lint wired into the agent contract** (ROADMAP §8.7). [`AGENTS.md`](AGENTS.md)
+  §6.4 now mandates running `python tools/consistency_lint.py` (and passing it)
+  before drafting any post-`v1.0.0` PR; the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
+  gains the corresponding checkbox; and [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md)
+  gains a **failure → remediation table** mapping each of the six lint checks to
+  exactly how to fix it.
+
 ### Added (M8.6)
 
 - **Agent-runnable consistency lint** ([ADR-0035](docs/adr/0035-agent-runnable-consistency-lint.md),

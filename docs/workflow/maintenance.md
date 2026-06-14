@@ -66,6 +66,19 @@ The public API is **not removed abruptly**. To retire or change a public symbol:
 
 A deprecation is itself a backward-compatible change (the symbol still works), so it ships in a **MINOR**.
 
+## Consistency lint — failure → remediation
+
+Run `python tools/consistency_lint.py` before drafting any post-1.0 PR ([AGENTS.md](../../AGENTS.md) §6.4; the PR template carries the checkbox; CI re-runs it via the `consistency` job — [ADR-0035](../adr/0035-agent-runnable-consistency-lint.md)). Each failure prints `[check] message`; fix it as follows:
+
+| Failing check | What it means | Remediation |
+|---------------|---------------|-------------|
+| `version-lockstep` | `version.hpp`, the newest dated `CHANGELOG` block, the README `Status-vX.Y.Z` badge, and the newest `docs/releases/vX.Y.Z.md` disagree. | Move all four together per the per-level mechanics above (and [`release.md`](release.md)). Outside a release PR, they should already equal the last released version. |
+| `adr-index` | An ADR file is missing from `docs/adr/README.md` (or vice-versa), or numbering has a gap. | Add the index row for the new `NNNN-*.md` (ADRs are appended with the next sequential number — never reuse/renumber). |
+| `patterns` | An Adopted catalogue row cites an ADR or a `src/main/cpp/` path that does not exist. | Fix the moved/renamed path or add the missing ADR link in `docs/patterns/README.md`. |
+| `spec-map` | A Spec Coverage Map row has an empty *Roadmap items* cell or no status glyph. | Give the spec row at least one fulfilling roadmap item and a legend glyph (⏳/🚧/✅/❎). |
+| `i18n-freshness` | A `translated` page's English source changed after the source commit recorded in the manifest. | Re-sync the affected `docs/i18n/<lang>/…` page to the new source, then update that manifest row's source commit (or, if the source change does not affect the prose, re-pin the commit after reviewing). |
+| `milestones` | The README marks a milestone ✅ while a ROADMAP item in it is unchecked, or a checkbox is malformed. | Check the remaining ROADMAP item(s), or correct the README table; fix any `- [ ]`/`- [x]` typo. |
+
 ## What this protocol does not change
 
 - The agent-vs-human release boundary and tag delegation are unchanged ([AGENTS.md](../../AGENTS.md) §11, [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md)).
