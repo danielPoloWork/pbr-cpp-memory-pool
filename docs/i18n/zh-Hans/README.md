@@ -3,11 +3,12 @@
 [![ci](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml)
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
+[![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
 [![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
 
-> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `1fdcf2b`）。
+> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `90c6fb3`）。
 > **英文版本为唯一权威来源** —— 如本译文与原文不一致，以英文版为准。
 > 用其他语言阅读：[English](../../../README.md) · [日本語](../ja/README.md)。
 > 本目录其他简体中文页面：[规范](docs/specs/01_spec_cpp_memory_pool.md) · [设计模式目录（概览）](docs/patterns/README.md)。未翻译的页面回退到英文原文。
