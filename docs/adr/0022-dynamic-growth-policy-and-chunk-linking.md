@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-13
 - **Deciders:** Daniel Polo (maintainer)
-- **Related:** spec §2.2 ("richiedere un nuovo blocco contiguo se configurato in modalità dinamica" — the optional dynamic-growth requirement this ADR answers), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §1/§6 (the single contiguous backing and the implicit free list this ADR generalises to multiple chunks), [ADR-0012](0012-foreign-pointer-and-out-of-range-pointer-policy.md) (the `O(1)` range check whose cost this ADR changes in dynamic mode), [ADR-0015](0015-metadata-overhead-budget-and-introspection.md) (the per-pool budget the chunk-list head grows, and the per-block-zero guarantee this ADR preserves), [ADR-0020](0020-thread-safety-strategy-and-compile-time-knob.md) (the *compile-time* knob this ADR deliberately does **not** mirror), [ROADMAP](../../ROADMAP.md) §5.1 (this item) → §5.2 (the **Composite** chunk-list representation) → §5.3 (the implementation behind the flag) → §5.4 (tests + benchmarks).
+- **Related:** spec §2.2 ("request a new contiguous block if configured in dynamic mode" — the optional dynamic-growth requirement this ADR answers), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §1/§6 (the single contiguous backing and the implicit free list this ADR generalises to multiple chunks), [ADR-0012](0012-foreign-pointer-and-out-of-range-pointer-policy.md) (the `O(1)` range check whose cost this ADR changes in dynamic mode), [ADR-0015](0015-metadata-overhead-budget-and-introspection.md) (the per-pool budget the chunk-list head grows, and the per-block-zero guarantee this ADR preserves), [ADR-0020](0020-thread-safety-strategy-and-compile-time-knob.md) (the *compile-time* knob this ADR deliberately does **not** mirror), [ROADMAP](../../ROADMAP.md) §5.1 (this item) → §5.2 (the **Composite** chunk-list representation) → §5.3 (the implementation behind the flag) → §5.4 (tests + benchmarks).
 
 ## Context
 
@@ -40,7 +40,7 @@ The chunk-list structure realised this way is the **Composite** pattern — its 
 
 ### 4. Chunks are append-only and never moved
 
-A new chunk is *added*; existing chunks are never reallocated or relocated. This is non-negotiable: the entire value of a pool is **stable block addresses** — outstanding pointers must never be invalidated. This rules out a `realloc`/vector-style "grow by moving to a bigger buffer" model. Each chunk is individually contiguous (spec §2.2's "blocco contiguo"); the pool is contiguous *per chunk*, not globally.
+A new chunk is *added*; existing chunks are never reallocated or relocated. This is non-negotiable: the entire value of a pool is **stable block addresses** — outstanding pointers must never be invalidated. This rules out a `realloc`/vector-style "grow by moving to a bigger buffer" model. Each chunk is individually contiguous (spec §2.2's "contiguous block"); the pool is contiguous *per chunk*, not globally.
 
 ## Alternatives Considered
 
@@ -79,7 +79,7 @@ No source changes land in this PR — M5.1 is the policy decision. The Composite
 
 ## References
 
-- spec §2.2 — the optional dynamic-growth requirement and the "nuovo blocco contiguo" wording.
+- spec §2.2 — the optional dynamic-growth requirement and the "new contiguous block" wording.
 - [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §1 — the implicit free list this ADR threads across chunks; §3 — the `size_t`-overflow guard the growth arithmetic reuses.
 - [ADR-0012](0012-foreign-pointer-and-out-of-range-pointer-policy.md) — the range check whose cost moves from O(1) to O(log N) in dynamic mode.
 - [ADR-0015](0015-metadata-overhead-budget-and-introspection.md) — per-block zero (preserved) and the per-pool 128-byte budget (pressured).

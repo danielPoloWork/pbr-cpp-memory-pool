@@ -7,7 +7,7 @@
 
 ## Context
 
-Spec §2.4: *"Il pool deve supportare accessi concorrenti da parte di più thread senza corruzione della memoria (facoltativo o configurabile tramite macro di compilazione per massimizzare le prestazioni single-thread)."* — thread safety is **optional**, **macro-configurable**, and the **single-thread fast path must be preserved**.
+Spec §2.4: *"The pool must support concurrent access by multiple threads without memory corruption (optional, or configurable via a compile-time macro to maximize single-thread performance)."* — thread safety is **optional**, **macro-configurable**, and the **single-thread fast path must be preserved**.
 
 The v0.3.0 hot path is a non-atomic LIFO on `pool->head_`: `alloc` pops the head, `free` pushes it (ADR-0009 §1). Two threads racing on `head_` corrupt the free list. Making that safe forces three coupled decisions, which this ADR settles before any code is written (the implementation is M4.2/M4.3):
 
@@ -53,7 +53,7 @@ Per-thread (magazine / thread-local-cache) allocation — the tcmalloc/jemalloc 
 - **Lock-free only (drop the mutex policy).** Rejected. Lock-free-with-ABA-defeat depends on a lock-free 128-bit CAS that not every Tier-1 target guarantees; the `MutexPolicy` is the always-correct, always-portable fallback and the conservative recommendation for most consumers.
 - **Mutex only (drop the lock-free policy).** Rejected. It would forgo the didactic and practical value of demonstrating a correct Treiber-stack allocator — a core reason this reference project exists — and the comparative benchmark (M4.5) needs both to be meaningful.
 - **Per-thread caches in Milestone 4.** Deferred (see §4) — out of scope for "make it correct and configurable"; the seam keeps it a future, non-breaking addition.
-- **Naïve (untagged) lock-free Treiber stack.** Rejected — ABA-unsafe for a recycling fixed-block pool; correctness is non-negotiable (§2.4 "senza corruzione della memoria").
+- **Naïve (untagged) lock-free Treiber stack.** Rejected — ABA-unsafe for a recycling fixed-block pool; correctness is non-negotiable (§2.4 "without memory corruption").
 
 ## Consequences
 

@@ -7,7 +7,7 @@
 
 ## Context
 
-Spec §3.2 says *"L'uso di metadati interni per tracciare i blocchi liberi (es. tramite una lista concatenata interna o un bitmask) deve essere minimo"* — metadata overhead must be minimal. The wording is intentionally qualitative and leaves three concrete questions open:
+Spec §3.2 says *"The use of internal metadata to track free blocks (e.g. via an internal linked list or a bitmask) must be minimal"* — metadata overhead must be minimal. The wording is intentionally qualitative and leaves three concrete questions open:
 
 1. **What counts as "metadata"?** The bytes that aren't user-visible block storage. Concretely: the five-field `struct memory_pool` (per-pool fixed cost) plus any auxiliary state that scales with `block_count` (per-block variable cost).
 
@@ -122,7 +122,7 @@ Renegotiation must be explicit. A milestone PR that quietly nudges `sizeof(memor
 
 ## References
 
-- [Spec §3.2](../specs/01_spec_cpp_memory_pool.md) — *L'uso di metadati interni... deve essere minimo.*
+- [Spec §3.2](../specs/01_spec_cpp_memory_pool.md) — *The use of internal metadata... must be minimal.*
 - [ROADMAP §2.10](../../ROADMAP.md) — the milestone item this ADR fulfils.
 - [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §1 + §6 — the implicit free list (which is why per-block metadata is 0) and the five-field struct (which is what per-pool metadata measures).
 - [ADR-0010](0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) §1 — the Pimpl boundary that hides the struct from consumers and motivates the public introspection accessor.

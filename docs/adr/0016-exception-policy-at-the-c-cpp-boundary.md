@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-12
 - **Deciders:** Daniel Polo (maintainer)
-- **Related:** [ADR-0005](0005-toolchain-matrix-and-supported-platforms.md) §3 (no exceptions across the C ABI — the rule this ADR builds on), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §2/§3 (the preconditions whose violations collapse to `NULL` at the C boundary), [ADR-0010](0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) §2 (the silent-empty-state ctor semantic this ADR amends), [ADR-0011](0011-factory-method-and-builder-for-pool-construction.md) (the non-throwing construction path that remains in force), [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) §2.2 (*"restituire `NULL` (o lanciare un'eccezione in C++)"* — the requirement this ADR satisfies), [ROADMAP](../../ROADMAP.md) §3.1 (this ADR's roadmap item).
+- **Related:** [ADR-0005](0005-toolchain-matrix-and-supported-platforms.md) §3 (no exceptions across the C ABI — the rule this ADR builds on), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §2/§3 (the preconditions whose violations collapse to `NULL` at the C boundary), [ADR-0010](0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) §2 (the silent-empty-state ctor semantic this ADR amends), [ADR-0011](0011-factory-method-and-builder-for-pool-construction.md) (the non-throwing construction path that remains in force), [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) §2.2 (*"return `NULL` (or throw an exception in C++)"* — the requirement this ADR satisfies), [ROADMAP](../../ROADMAP.md) §3.1 (this ADR's roadmap item).
 
 ## Context
 
@@ -14,7 +14,7 @@ Spec §2.2 names two acceptable exhaustion behaviours — return `NULL`, or thro
 
 Milestone 3 makes the deferral untenable for three converging reasons:
 
-1. **The spec clause is unimplemented.** The §2.2 *"o lanciare un'eccezione in C++"* alternative has no code behind it; the Spec Coverage Map row is still ⏳ on the C++-side half.
+1. **The spec clause is unimplemented.** The §2.2 *"or throw an exception in C++"* alternative has no code behind it; the Spec Coverage Map row is still ⏳ on the C++-side half.
 2. **M3.3's STL allocator Adapter requires a throwing `allocate`.** The C++17 *Cpp17Allocator* requirements ([allocator.requirements]) state that `allocate(n)` *throws* on failure — returning `nullptr` is not an option for an allocator plugged into `std::vector`. Whatever surface the Adapter forwards to must be able to throw `std::bad_alloc`.
 3. **M3.2's `TypedPool<T>` is specified with `try_allocate` / `allocate` variants** — the roadmap item presupposes a project-wide convention for which verb throws and which does not. That convention must be fixed once, here, and reused verbatim by every later surface.
 
@@ -55,7 +55,7 @@ Construction-failure causes are **deliberately collapsed**: a precondition viola
 
 ## Alternatives Considered
 
-- **Global compile-time macro flipping `allocate()` between throwing and returning `nullptr`.** Rejected. A macro forks the *semantics* of the same expression across builds: the same line of consumer code means two different things depending on a `-D` flag, every consumer binary must agree on the flag (ODR hazard for mixed static-library consumers), and the test matrix doubles for every cell. The spec's literal *"configurabile tramite macro di compilazione"* phrase belongs to §2.4 (thread safety, where the fork is structural and M4 will use exactly that mechanism) — §2.2 only requires that both behaviours exist.
+- **Global compile-time macro flipping `allocate()` between throwing and returning `nullptr`.** Rejected. A macro forks the *semantics* of the same expression across builds: the same line of consumer code means two different things depending on a `-D` flag, every consumer binary must agree on the flag (ODR hazard for mixed static-library consumers), and the test matrix doubles for every cell. The spec's literal *"configurable via a compile-time macro"* phrase belongs to §2.4 (thread safety, where the fork is structural and M4 will use exactly that mechanism) — §2.2 only requires that both behaviours exist.
 - **Policy template parameter — `Pool<ThrowingPolicy>` / `Pool<NullPolicy>`.** Rejected. The policy infects every type signature that mentions the pool (function parameters, member declarations, the future `TypedPool<T, Policy>` would need two parameters), bifurcates the ABI of the wrapper, and buys nothing the two-verb surface doesn't already provide at zero structural cost.
 - **Keep `allocate()` returning `nullptr`; add a separate `allocate_or_throw()`.** Rejected. It inverts the standard-library convention — `std::allocator::allocate`, `operator new`, every *Cpp17Allocator* model throws by default, and M3.3's Adapter would forward to the awkwardly-named verb forever. The `try_` prefix is the idiomatic marker for the non-throwing variant, not the other way around.
 - **`std::invalid_argument` from the ctor for precondition violations, `std::bad_alloc` for OOM.** Rejected. Discriminating requires re-validating the ADR-0009 §2/§3 preconditions inside the wrapper — a second copy of the validation logic that *will* drift from the C-side copy (the single-source-of-truth argument from ADR-0009 §7). The collapse to `std::bad_alloc` is honest about what the C boundary actually reports.
@@ -89,7 +89,7 @@ Construction-failure causes are **deliberately collapsed**: a precondition viola
 
 ## References
 
-- [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) §2.2 — the requirement (*"restituire `NULL` (o lanciare un'eccezione in C++)"*).
+- [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) §2.2 — the requirement (*"return `NULL` (or throw an exception in C++)"*).
 - ISO C++17 [allocator.requirements] — `allocate` throws on failure; the constraint that fixes the verb naming.
 - [ADR-0005](0005-toolchain-matrix-and-supported-platforms.md) §3 — no exceptions across the C ABI.
 - [ADR-0010](0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md) §2 — the silent-empty-state semantic amended here.

@@ -56,6 +56,12 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   identical meaning; only the prose language changes, so the frozen contract is not
   semantically altered. The Italian original remains in git history (commit
   `3ccff68`). Prerequisite for the §8.3 / §8.4 spec translations.
+- **English-quote propagation.** Following the spec's translation, the Italian
+  quotations embedded elsewhere were updated to the English wording so the
+  repository is uniformly English: four spec quotes in `ROADMAP.md`, the spec
+  citations in six ADRs (0005, 0009, 0015, 0016, 0020, 0022), and a verbatim
+  Italian session-question quote in ADR-0013. Mechanical citation-sync — no ADR
+  decision or reasoning changed; `src/**` was already English (audited).
 
 ## [1.0.1] — 2026-06-14
 
