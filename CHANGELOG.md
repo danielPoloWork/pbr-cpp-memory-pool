@@ -28,6 +28,14 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   the glossary. The manifest's `zh-Hans` spec row flips to `translated` and the
   `zh-Hans` index links the page. First of the three `zh-Hans` pages (README and
   the patterns overview follow in subsequent PRs).
+- **`zh-Hans` translation — the patterns-catalogue overview** (page 2/3). [`docs/i18n/zh-Hans/docs/patterns/README.md`](docs/i18n/zh-Hans/docs/patterns/README.md)
+  translates the catalogue's didactic overview (intro, how-to-use, status
+  vocabulary, an Adopted *overview* table, the candidate-pattern discussion, and
+  out-of-scope categories), pinned to source commit `524f0cc`. Per ADR-0032 §2 the
+  per-row ADR-link table is **not** reproduced — it points to the English
+  catalogue for the authoritative per-row links + code locations; pattern names,
+  identifiers, and status keywords stay verbatim. Manifest + `zh-Hans` index
+  updated.
 
 ### Added (M8.1)
 

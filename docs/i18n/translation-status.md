@@ -18,7 +18,7 @@ Status vocabulary:
 |-------------|:-------------:|:-------------:|:------:|----------|
 | [`README.md`](../../README.md) | — | — | `missing` | — |
 | [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `2e55dfa` | `2e55dfa` | `translated` | — |
-| [`docs/patterns/README.md`](../patterns/README.md) | — | — | `missing` | — |
+| [`docs/patterns/README.md`](../patterns/README.md) | `524f0cc` | `524f0cc` | `translated` | — |
 
 ## `ja` (Japanese)
 
