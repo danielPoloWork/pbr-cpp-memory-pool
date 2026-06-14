@@ -63,5 +63,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0028   | [Install and packaging layout — Phase 1 distribution](0028-install-and-packaging-layout.md) | Accepted |
 | 0029   | [Specification-compliance acceptance audit (v1.0.0 gate)](0029-spec-compliance-acceptance-audit.md) | Accepted |
 | 0030   | [vcpkg port — Phase 2 distribution (overlay, pinned to v1.0.0)](0030-vcpkg-port.md) | Accepted |
+| 0031   | [Conan recipe — Phase 2 distribution (in-repo, pinned to v1.0.0)](0031-conan-recipe.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

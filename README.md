@@ -299,7 +299,13 @@ target_link_libraries(my_app PRIVATE pbr::memory_pool)
 vcpkg install pbr-memory-pool --overlay-ports=ports
 ```
 
-Upstream registration in microsoft/vcpkg and the Conan recipe (ROADMAP §7.9) are deferred — see [`ports/README.md`](ports/README.md).
+**Conan** (Phase 2 — [ADR-0031](docs/adr/0031-conan-recipe.md)): a Conan 2.x recipe pinned to `v1.0.0` ships in [`conan/`](conan/), creatable today (same `pbr::memory_pool` target via `CMakeDeps`):
+
+```bash
+conan create conan/        # then depend on pbr-memory-pool/1.0.0
+```
+
+Registry publication (microsoft/vcpkg, ConanCenter / self-hosted) is deferred — see [`ports/README.md`](ports/README.md) and [`conan/README.md`](conan/README.md).
 
 ## Repository layout
 
