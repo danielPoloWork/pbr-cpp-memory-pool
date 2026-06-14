@@ -1,0 +1,106 @@
+# Doxygen configuration for pbr-cpp-memory-pool.
+#
+# Generates the public API reference site from the Doxygen comments in the
+# project's public headers. The format split (Doxygen for the API contract,
+# Markdown for the narrative) is ADR-0013; the publication pipeline this file
+# feeds (Doxygen HTML -> GitHub Pages, warn-as-error gate) is ADR-0027.
+#
+# This is a PARTIAL configuration: every option not set here keeps its Doxygen
+# default. Run it from the REPOSITORY ROOT so the relative INPUT / OUTPUT paths
+# resolve, and inject the version at invocation time (the single source of truth
+# is version.hpp, so PROJECT_NUMBER is deliberately left blank here):
+#
+#   ver=$(sed -n 's/.*PBR_MEMORY_POOL_VERSION_STRING[^"]*"\([^"]*\)".*/\1/p' \
+#       src/main/cpp/it/d4np/memorypool/version.hpp)
+#   ( cat docs/doxygen/Doxyfile; echo "PROJECT_NUMBER = $ver" ) | doxygen -
+#
+# Doxygen version this file targets: 1.10.x.
+
+#---------------------------------------------------------------------------
+# Project identity
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "pbr-cpp-memory-pool"
+PROJECT_BRIEF          = "Fixed-block-size O(1) memory pool — C++17 with an ANSI C public surface"
+PROJECT_NUMBER         =
+OUTPUT_DIRECTORY       = build/doxygen
+OUTPUT_LANGUAGE        = English
+MARKDOWN_SUPPORT       = YES
+TAB_SIZE               = 4
+
+#---------------------------------------------------------------------------
+# Input — the public contract surface only (ADR-0013 §2)
+#---------------------------------------------------------------------------
+INPUT                  = docs/doxygen/mainpage.md \
+                         src/main/cpp/it/d4np/memorypool
+FILE_PATTERNS          = *.h *.hpp
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = docs/doxygen/mainpage.md
+EXCLUDE_SYMBOLS        =
+
+#---------------------------------------------------------------------------
+# Extraction — public symbols only (ADR-0013 §5)
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+OPTIMIZE_OUTPUT_FOR_C  = NO
+BUILTIN_STL_SUPPORT    = YES
+SHOW_INCLUDE_FILES     = YES
+SORT_MEMBER_DOCS       = NO
+
+#---------------------------------------------------------------------------
+# Preprocessing — make the diagnostic surface visible to the parser
+#---------------------------------------------------------------------------
+# Predefining PBR_MEMORY_POOL_DIAGNOSTICS=1 documents the free-list iterator
+# (ADR-0019) and its C accessors, which are otherwise compiled out. The C++
+# version macro keeps the C++17 attribute / noexcept parsing deterministic.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = src/main/cpp
+PREDEFINED             = PBR_MEMORY_POOL_DIAGNOSTICS=1 \
+                         __cplusplus=201703L
+
+#---------------------------------------------------------------------------
+# Warnings — the CI gate (ADR-0013 §5, ADR-0027 §4)
+#---------------------------------------------------------------------------
+# FAIL_ON_WARNINGS runs the full pass, prints every warning, then exits
+# non-zero — the modern, CI-friendly form of the ADR-0013 "WARN_AS_ERROR = YES"
+# requirement (it surfaces all problems in one run rather than stopping at the
+# first). The gate validates documentation *correctness*, not *exhaustiveness*
+# (ADR-0027 §4, refining the expectation sketched in ADR-0013 §5): a malformed
+# command, an unresolved cross-reference, or a @param whose name no longer
+# matches the signature (the doc-rot class) fails the build. We deliberately do
+# NOT gate on WARN_IF_UNDOCUMENTED / WARN_NO_PARAMDOC — forcing a @param stanza
+# onto every comparison operator and every iterator trait typedef produces
+# ceremonial noise that degrades the reference rather than improving it; "every
+# public symbol carries a comment" stays an AGENTS.md §9 review obligation.
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = NO
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+
+#---------------------------------------------------------------------------
+# HTML output — dependency-free, no Graphviz (consistent with spec §3.3)
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+HAVE_DOT               = NO

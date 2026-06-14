@@ -41,8 +41,8 @@ namespace it::d4np::memorypool {
  * `T` is not over-aligned. Such requests are served by `Pool::allocate`
  * (O(1), throwing `std::bad_alloc` on exhaustion per ADR-0016 §2). Every
  * other request — `n > 1`, an over-aligned `T`, or a rebound node larger
- * than the block — is delegated to over-aligned `::operator new` /
- * `::operator delete`.
+ * than the block — is delegated to over-aligned `::%operator new` /
+ * `::%operator delete`.
  *
  * Because the standard guarantees `deallocate(p, n)` is called with the
  * same `n` (and on the same allocator type, hence the same `sizeof(T)` /
@@ -103,7 +103,7 @@ public:
      * @return Pointer to uninitialized storage for @p n contiguous `T`.
      * @throw std::bad_alloc on pool exhaustion (pool-eligible requests), on
      *        `size_t` overflow of `n * sizeof(T)`, or from the fallback
-     *        `::operator new`.
+     *        `::%operator new`.
      */
     [[nodiscard]] T* allocate(std::size_t n) {
         if (routes_to_pool(n)) {

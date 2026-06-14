@@ -1,0 +1,80 @@
+name: docs-site
+
+# Builds the Doxygen API-reference site and publishes it to GitHub Pages
+# (ADR-0027). On pull requests the build runs as a warn-as-error gate only
+# (ADR-0013 §5) — no deploy, so PRs are never blocked by Pages configuration.
+# On push to master the same build's output is published to Pages.
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/cpp/it/d4np/memorypool/**.h'
+      - 'src/main/cpp/it/d4np/memorypool/**.hpp'
+      - 'docs/doxygen/**'
+      - '.github/workflows/docs-site.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'src/main/cpp/it/d4np/memorypool/**.h'
+      - 'src/main/cpp/it/d4np/memorypool/**.hpp'
+      - 'docs/doxygen/**'
+      - '.github/workflows/docs-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build API docs (warn-as-error gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends doxygen
+          doxygen --version
+
+      - name: Generate API reference (PROJECT_NUMBER from version.hpp)
+        run: |
+          set -euo pipefail
+          ver=$(sed -n 's/.*PBR_MEMORY_POOL_VERSION_STRING[^"]*"\([^"]*\)".*/\1/p' \
+              src/main/cpp/it/d4np/memorypool/version.hpp)
+          if [ -z "$ver" ]; then
+            echo "::error::could not extract PBR_MEMORY_POOL_VERSION_STRING from version.hpp"
+            exit 1
+          fi
+          echo "Building docs for version $ver"
+          # WARN_AS_ERROR = FAIL_ON_WARNINGS in the Doxyfile makes any doc
+          # warning fail this step — the M7.1 / ADR-0013 §5 gate.
+          ( cat docs/doxygen/Doxyfile; echo "PROJECT_NUMBER = $ver" ) | doxygen -
+          test -f build/doxygen/html/index.html
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/doxygen/html
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Deploy only off master / manual dispatch — never from a PR.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    # Serialize deploys; never cancel an in-progress deployment.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

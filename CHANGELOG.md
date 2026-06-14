@@ -18,6 +18,27 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M7.1)
+
+- **Doxygen-generated API reference published as a static site** ([ADR-0027](docs/adr/0027-doxygen-html-site-and-publication-pipeline.md), ROADMAP §7.1). A
+  checked-in partial Doxyfile ([`docs/doxygen/Doxyfile`](docs/doxygen/Doxyfile)) and a
+  hand-written landing page ([`docs/doxygen/mainpage.md`](docs/doxygen/mainpage.md)) drive
+  a dependency-free Doxygen HTML build (built-in theme + treeview, no Graphviz, no Python
+  doc stack) over the public-header contract surface only. `PROJECT_NUMBER` is injected at
+  build time from `version.hpp` so the version string stays single-sourced.
+- **`docs-site` CI workflow** ([`.github/workflows/docs-site.yml`](.github/workflows/docs-site.yml)) — builds the
+  reference as a **warn-as-error gate on every PR** (`WARN_AS_ERROR = FAIL_ON_WARNINGS`,
+  refining the ADR-0013 §5 expectation to gate documentation *correctness* — doc-rot,
+  stale `@param`, broken refs — not exhaustiveness) and **publishes to GitHub Pages on
+  push to `master`** via the official `upload-pages-artifact` / `deploy-pages` Actions.
+- README gains a `docs-site` build badge and a pointer to the published API reference.
+
+### Changed (M7.1)
+
+- Three public-header Doxygen comments use the `%` auto-link escape
+  (`::%operator new` / `::%operator delete`) to silence spurious unresolved-link warnings
+  on the global operators under the new warn-as-error gate. No API or behavior change.
+
 ## [0.6.0] — 2026-06-14
 
 **Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing

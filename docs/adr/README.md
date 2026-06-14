@@ -59,5 +59,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0024   | [Dynamic-growth synchronization, creation surface, and the lock-free deferral](0024-dynamic-growth-synchronization-and-creation-surface.md) | Accepted |
 | 0025   | [Decorator for an instrumented pool variant](0025-decorator-for-instrumented-pool.md) | Accepted |
 | 0026   | [Observer for pool-lifecycle events](0026-observer-for-pool-lifecycle-events.md) | Accepted |
+| 0027   | [Doxygen HTML API site published to GitHub Pages](0027-doxygen-html-site-and-publication-pipeline.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

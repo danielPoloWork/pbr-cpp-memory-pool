@@ -2,6 +2,7 @@
 
 [![ci](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/ci.yml)
 [![docs](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs.yml)
+[![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
 [![Status: v0.6.0 observability](https://img.shields.io/badge/Status-v0.6.0%20observability-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0)
@@ -36,6 +37,8 @@ void           memory_pool_destroy(memory_pool_t* pool);
 ```
 
 A C++17 RAII wrapper (`it::d4np::memorypool::Pool`) and a typed template (`TypedPool<T>`) layer on top of this surface — see Milestones 2.5 and 3.2 in [`ROADMAP.md`](ROADMAP.md).
+
+The complete, cross-linked **API reference** — every public symbol's parameter / return / throws contract — is generated from the in-header Doxygen comments and published to [GitHub Pages](https://danielpolowork.github.io/pbr-cpp-memory-pool/) on every push to `master` ([ADR-0027](docs/adr/0027-doxygen-html-site-and-publication-pipeline.md)). The same build runs as a warn-as-error gate on every PR.
 
 ## Architecture
 
@@ -109,7 +112,7 @@ Every PR must clear, at minimum:
 | Public API docs               | Doxygen-compatible, builds without warnings                                  |
 | Performance claims            | Backed by reproducible benchmark under `src/bench/`                          |
 
-Full quality contract: [`AGENTS.md`](AGENTS.md) §10. The C++ build matrix, sanitizers, `clang-format`, `clang-tidy` diff gate, ANSI C / C99 verification, and zero-external-dependency audit run on every PR via [`ci.yml`](.github/workflows/ci.yml); a docs-only workflow ([`docs.yml`](.github/workflows/docs.yml)) covers markdownlint, internal link checks, and ADR numbering sanity. Both badges above gate `master`.
+Full quality contract: [`AGENTS.md`](AGENTS.md) §10. The C++ build matrix, sanitizers, `clang-format`, `clang-tidy` diff gate, ANSI C / C99 verification, and zero-external-dependency audit run on every PR via [`ci.yml`](.github/workflows/ci.yml); a docs-only workflow ([`docs.yml`](.github/workflows/docs.yml)) covers markdownlint, internal link checks, and ADR numbering sanity; a docs-site workflow ([`docs-site.yml`](.github/workflows/docs-site.yml)) builds the Doxygen API reference as a warn-as-error gate on every PR and publishes it to GitHub Pages on push to `master` ([ADR-0027](docs/adr/0027-doxygen-html-site-and-publication-pipeline.md)). The badges above gate `master`.
 
 ## Build and test
 
