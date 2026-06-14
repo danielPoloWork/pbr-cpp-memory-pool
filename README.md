@@ -269,6 +269,32 @@ Both invocations are exercised end-to-end on every push to `master` by the [CI m
 
 For first-time setup on a fresh clone — installing CMake, Ninja, and the supported compilers per platform, plus troubleshooting and the full quality-bar workflow — see the **[Local Build Guide](docs/development/local-build.md)**.
 
+## Install and consume
+
+Install to a prefix and consume with CMake's `find_package` ([ADR-0028](docs/adr/0028-install-and-packaging-layout.md) — Phase 1 distribution):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPBR_MEMORY_POOL_BUILD_TESTS=OFF
+cmake --build build
+cmake --install build --prefix /your/prefix
+```
+
+```cmake
+# In the consumer's CMakeLists.txt — the imported target name is identical
+# whether you install the package or vendor it via add_subdirectory / FetchContent.
+find_package(pbr_memory_pool CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE pbr::memory_pool)
+```
+
+The install tree carries every public header (`include/it/d4np/memorypool/`), the static archive, the CMake package config (`SameMajorVersion` compatibility), and a pkg-config `pbr-memory-pool.pc` for non-CMake (Make / autotools / Meson) builds. The same `cmake --install` tree is what each GitHub Release tarball contains. Vendoring without installing also works:
+
+```cmake
+add_subdirectory(path/to/pbr-cpp-memory-pool)   # or FetchContent
+target_link_libraries(my_app PRIVATE pbr::memory_pool)
+```
+
+Package-manager distribution (vcpkg / Conan) is Phase 2, deferred post-`v1.0.0` (ROADMAP §7.8–§7.9).
+
 ## Repository layout
 
 | Path                                          | What lives there                                                                          |

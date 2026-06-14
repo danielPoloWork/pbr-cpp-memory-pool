@@ -95,7 +95,14 @@ target_compile_features(pbr_memory_pool PUBLIC cxx_std_17)
 
 set_target_properties(pbr_memory_pool PROPERTIES
     VERSION   ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR})
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    # Export under the short name so the installed imported target is
+    # `pbr::memory_pool` — identical to the in-build ALIAS above, so consumers
+    # write the same `target_link_libraries(... pbr::memory_pool)` whether they
+    # vendor via add_subdirectory / FetchContent or link an installed package
+    # (ADR-0028). Without this, NAMESPACE pbr:: + target `pbr_memory_pool` would
+    # export the mismatched `pbr::pbr_memory_pool`.
+    EXPORT_NAME memory_pool)
 
 # ---------------------------------------------------------------------------
 # Free-list diagnostics gate (ADR-0019). The diagnostic surface (the
@@ -142,6 +149,72 @@ elseif(NOT PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "NONE")
         "(got '${PBR_MEMORY_POOL_THREAD_SAFETY}').")
 endif()
 # NONE leaves the macro at the memory_pool.h default — no compile definition.
+
+# ---------------------------------------------------------------------------
+# Install / packaging — Phase 1 distribution (ADR-0028, ROADMAP §7.4 /
+# ADR-0004 §5). Exports a namespaced imported target so consumers can
+# `find_package(pbr_memory_pool CONFIG REQUIRED)` + link `pbr::memory_pool`,
+# installs the public-header tree, and emits a pkg-config `.pc`. Gated so a
+# parent project that pulls this in via add_subdirectory / FetchContent does
+# not leak our install rules into its own `cmake --install`.
+# ---------------------------------------------------------------------------
+option(PBR_MEMORY_POOL_INSTALL
+    "Generate install and packaging rules (config file, headers, pkg-config)"
+    ${PROJECT_IS_TOP_LEVEL})
+if(PBR_MEMORY_POOL_INSTALL)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+
+    set(PBR_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/pbr_memory_pool"
+        CACHE STRING "Install location for the CMake package config files")
+
+    # The library archive + the install-tree include directory.
+    install(TARGETS pbr_memory_pool
+        EXPORT pbr_memory_poolTargets
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+    # Public headers, preserving the it/d4np/memorypool/ tree so the
+    # `#include <it/d4np/memorypool/...>` form resolves against <prefix>/include.
+    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/it"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        FILES_MATCHING
+            PATTERN "*.h"
+            PATTERN "*.hpp")
+
+    # The exported targets file — defines the imported pbr::memory_pool target.
+    install(EXPORT pbr_memory_poolTargets
+        FILE pbr_memory_poolTargets.cmake
+        NAMESPACE pbr::
+        DESTINATION "${PBR_INSTALL_CMAKEDIR}")
+
+    # The package config + version files.
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pbr_memory_poolConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/pbr_memory_poolConfig.cmake"
+        INSTALL_DESTINATION "${PBR_INSTALL_CMAKEDIR}")
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/pbr_memory_poolConfigVersion.cmake"
+        VERSION "${PROJECT_VERSION}"
+        COMPATIBILITY SameMajorVersion)
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/pbr_memory_poolConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/pbr_memory_poolConfigVersion.cmake"
+        DESTINATION "${PBR_INSTALL_CMAKEDIR}")
+
+    # pkg-config for non-CMake (autotools / Make / Meson) consumers.
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pbr-memory-pool.pc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/pbr-memory-pool.pc"
+        @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pbr-memory-pool.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+        DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+endif()
 
 # ---------------------------------------------------------------------------
 # Optional sub-trees, wired in by later milestones.
@@ -197,4 +270,5 @@ message(STATUS "  C++ standard        : C++${CMAKE_CXX_STANDARD} (extensions ${C
 message(STATUS "  Build type          : ${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Tests               : ${PBR_MEMORY_POOL_BUILD_TESTS}")
 message(STATUS "  Benchmarks          : ${PBR_MEMORY_POOL_BUILD_BENCHMARKS}")
+message(STATUS "  Install rules        : ${PBR_MEMORY_POOL_INSTALL}")
 message(STATUS "")

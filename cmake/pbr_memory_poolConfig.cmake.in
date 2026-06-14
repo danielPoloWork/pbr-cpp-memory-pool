@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+# CMake package config for pbr-cpp-memory-pool (ADR-0028, ROADMAP §7.4).
+#
+# Consumers use the library with:
+#
+#     find_package(pbr_memory_pool CONFIG REQUIRED)
+#     target_link_libraries(my_app PRIVATE pbr::memory_pool)
+#
+# The imported target pbr::memory_pool carries its public include directory and
+# its C++17 requirement, so no manual include/flag wiring is needed. The default
+# (NONE / single-threaded) build has no external link dependency; a library
+# built with the LOCKFREE thread-safety policy on GCC/Clang may export a plain
+# `atomic` link requirement (libatomic), which the consumer's linker resolves.
+
+include("${CMAKE_CURRENT_LIST_DIR}/pbr_memory_poolTargets.cmake")
+
+check_required_components(pbr_memory_pool)
