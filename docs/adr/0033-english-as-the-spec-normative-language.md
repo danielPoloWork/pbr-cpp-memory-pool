@@ -43,6 +43,7 @@ We **translate the specification to English in place**, so `docs/specs/01_spec_c
 - [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) — translated to English in place.
 - [`docs/adr/README.md`](README.md) — index row for ADR-0033.
 - [`docs/workflow/documentation.md`](../workflow/documentation.md) — a note that the spec is maintained in English (this ADR).
+- [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) — three spec cross-reference **anchors** updated from the old Italian heading slugs (`#2-requisiti-funzionali`, `#3-requisiti-non-funzionali`, `#4-architettura-logica--algoritmo-free-list`) to the new English ones. This is a **mechanical link-only repair** forced by this ADR's heading translation — no decision content of the (immutable) ADR-0009 changes; only the broken fragment targets are fixed.
 - [ROADMAP](../../ROADMAP.md) — a new Milestone 8 item (§8.9) recording this prerequisite; checkbox checked.
 - [`CHANGELOG.md`](../../CHANGELOG.md) `Unreleased` — `Changed` entry.
 

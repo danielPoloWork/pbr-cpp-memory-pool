@@ -121,8 +121,8 @@ The C++ `Pool` wrapper's translation of `NULL` into `std::bad_alloc` is a **sepa
 
 ## References
 
-- [Specification §4](../specs/01_spec_cpp_memory_pool.md#4-architettura-logica--algoritmo-free-list) — the algorithm this ADR turns into a layout.
-- [Specification §2.1](../specs/01_spec_cpp_memory_pool.md#2-requisiti-funzionali), [§3.1](../specs/01_spec_cpp_memory_pool.md#3-requisiti-non-funzionali), [§3.2](../specs/01_spec_cpp_memory_pool.md#3-requisiti-non-funzionali) — the requirements this ADR's layout satisfies.
+- [Specification §4](../specs/01_spec_cpp_memory_pool.md#4-logical-architecture--algorithm-free-list) — the algorithm this ADR turns into a layout.
+- [Specification §2.1](../specs/01_spec_cpp_memory_pool.md#2-functional-requirements), [§3.1](../specs/01_spec_cpp_memory_pool.md#3-non-functional-requirements), [§3.2](../specs/01_spec_cpp_memory_pool.md#3-non-functional-requirements) — the requirements this ADR's layout satisfies.
 - [`memory_pool.h`](../../src/main/cpp/it/d4np/memorypool/memory_pool.h) — the public C contract whose Doxygen comments name this ADR as the resolver of the `block_size` / alignment / `head` semantics.
 - [ADR-0005 §3](0005-toolchain-matrix-and-supported-platforms.md) — the C++17 baseline and the ANSI C interop contract that constrain the implementation language choices.
 - ISO C++ Standard `[basic.align]`, `[new.delete]` — the over-aligned `operator new(size_t, std::align_val_t)` overload introduced in C++17 (P0035R4).
