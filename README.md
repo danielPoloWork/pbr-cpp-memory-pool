@@ -5,7 +5,7 @@
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.0.0 stable](https://img.shields.io/badge/Status-v1.0.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.0)
+[![Status: v1.0.1 stable](https://img.shields.io/badge/Status-v1.0.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.1)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -190,6 +190,8 @@ cmake --build --preset bench
 Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, macOS / Apple Clang) are welcome — see [`docs/bench/README.md`](docs/bench/README.md) for the contribution recipe.
 
 ## Status
+
+`v1.0.1` — **packaging patch** over the frozen `v1.0.0` API: adds the vcpkg port and the Conan 2.x recipe (Phase 2 distribution, ADRs [0030](docs/adr/0030-vcpkg-port.md) / [0031](docs/adr/0031-conan-recipe.md)). The shipped library is byte-identical to `v1.0.0` — a `PATCH`, no API/ABI/behaviour change. Release notes: [`docs/releases/v1.0.1.md`](docs/releases/v1.0.1.md). The stable baseline it patches:
 
 `v1.0.0` — **the first stable release.** The public C ABI (`memory_pool_create` / `_alloc` / `_free` / `_destroy` plus the O(1) introspection accessors) and the C++ surface (`Pool`, `TypedPool<T>`, `PoolAllocator<T>`, `InstrumentedPool`, `PoolObserver`) are frozen under the SemVer 1.0 promise — no breaking change without a `2.0.0`. `v1.0.0` seals the feature set built across Milestones 0–6 — the O(1) implicit-free-list fixed-block pool with zero per-block metadata, the RAII / typed / STL-allocator C++ wrappers, compile-time-configurable thread safety, optional geometric dynamic growth, and opt-in observability — and adds the Milestone 7 polish: the published Doxygen API site (M7.1), the expanded usage / performance / compatibility README (M7.2), `find_package` install + pkg-config packaging (M7.4), and the patterns-catalogue (M7.5) and specification-compliance (M7.6, [ADR-0029](docs/adr/0029-spec-compliance-acceptance-audit.md)) acceptance audits. All fifteen Spec Coverage Map rows are ✅, re-verified end-to-end. Twenty-nine ADRs (0001–0029) record every decision; all eleven adopted design patterns are Implemented. Release notes for `v1.0.0` live in [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md).
 
