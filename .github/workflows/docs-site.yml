@@ -47,6 +47,9 @@ jobs:
             exit 1
           fi
           echo "Building docs for version $ver"
+          # Doxygen creates OUTPUT_DIRECTORY's leaf but not its missing parent,
+          # and a fresh CI checkout has no build/ dir — create it up front.
+          mkdir -p build/doxygen
           # WARN_AS_ERROR = FAIL_ON_WARNINGS in the Doxyfile makes any doc
           # warning fail this step — the M7.1 / ADR-0013 §5 gate.
           ( cat docs/doxygen/Doxyfile; echo "PROJECT_NUMBER = $ver" ) | doxygen -
