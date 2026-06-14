@@ -324,6 +324,7 @@ Registry publication (microsoft/vcpkg, ConanCenter / self-hosted) is deferred â€
 | [`docs/patterns/`](docs/patterns/)            | Design-patterns catalogue + canonical enterprise taxonomy.                                |
 | [`docs/workflow/`](docs/workflow/)            | Git and documentation conventions.                                                        |
 | [`docs/development/`](docs/development/)      | Procedural how-to guides for local development (build, debug, profile).                   |
+| [`docs/i18n/`](docs/i18n/)                    | Documentation translations (`zh-Hans`, `ja`); English is normative ([ADR-0032](docs/adr/0032-documentation-i18n-architecture.md)). |
 
 ## For human contributors
 

@@ -31,6 +31,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   CI-detectable (for §8.6) and a `glossary.md` carries the canonical ↔ `zh-Hans` ↔
   `ja` terms. Decision only — the scaffold is §8.2.
 
+### Added (M8.2)
+
+- **i18n scaffold** (ROADMAP §8.2, [ADR-0032](docs/adr/0032-documentation-i18n-architecture.md)).
+  [`docs/i18n/README.md`](docs/i18n/README.md) (contributor guide + translation
+  workflow), [`docs/i18n/translation-status.md`](docs/i18n/translation-status.md)
+  (the manifest, seeded with all six translatable-page × language rows at
+  `missing`), [`docs/i18n/glossary.md`](docs/i18n/glossary.md) (a *Keep in English*
+  section + ~24 translatable terms with `zh-Hans` / `ja` renderings), and the
+  per-language index pages [`zh-Hans/README.md`](docs/i18n/zh-Hans/README.md) /
+  [`ja/README.md`](docs/i18n/ja/README.md) (localised, linking each untranslated
+  page to its English source — the explicit fallback; no empty stubs). README's
+  repository-layout table gains a `docs/i18n/` row. Translations are §8.3 / §8.4.
+
 ## [1.0.1] — 2026-06-14
 
 **Packaging patch over the frozen `v1.0.0` API.** Ships the two Phase-2
