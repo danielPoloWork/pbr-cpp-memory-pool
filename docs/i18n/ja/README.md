@@ -8,7 +8,7 @@
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
 [![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
 
-> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `1fdcf2b` 時点）。
+> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `90c6fb3` 時点）。
 > **英語版が唯一の正本です** —— 本訳文と原文に相違がある場合は英語版が優先します。
 > 他の言語で読む：[English](../../../README.md) · [简体中文](../zh-Hans/README.md)。
 > 本ディレクトリの他の日本語ページ：[仕様](docs/specs/01_spec_cpp_memory_pool.md) · [デザインパターンカタログ（概要）](docs/patterns/README.md)。未翻訳のページは英語原文にフォールバックします。
