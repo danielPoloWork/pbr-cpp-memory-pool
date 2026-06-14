@@ -217,6 +217,14 @@ ADR status transitions: `Proposed` → `Accepted` → (`Superseded by ADR-XXXX` 
 
 `ROADMAP.md` holds the project's plan as a numbered, checkbox-driven list. When an item is completed in a PR, **flip the checkbox in the same PR** (`- [ ]` → `- [x]`). New work that emerges goes at the bottom of the relevant section with a fresh number.
 
+**Planning a new feature — milestone or item?** Every feature must appear on the roadmap *before or as* its implementation lands; nothing of substance ships without a roadmap home. Whether it becomes a **new milestone** or an **item under an existing one** is a judgment call on the feature's scope — make it deliberately ([ADR-0037](docs/adr/0037-new-feature-roadmap-placement.md)):
+
+- **Open a new milestone** (the next sequential `Milestone N` — post-1.0 that means `Milestone 9`, `10`, …) when the feature is a **cohesive capability with its own arc** — typically an ADR + implementation + tests + docs spread over several numbered items, comparable in scope to Milestones 2–8. Create the milestone in the same PR that starts the work; closing it is the canonical **MINOR** bump ([`docs/workflow/maintenance.md`](docs/workflow/maintenance.md)).
+- **Append item(s) to an existing milestone** when the work **extends a milestone that is still open**, or is a small additive task that clearly belongs to an already-defined theme. Use a fresh `<milestone>.<task>` number; never renumber.
+- **Neither** — a bug fix, docs/i18n, packaging, perf, or CI change that is *not* a feature is **not** a milestone. It is a maintenance change governed by [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md) (PATCH/MINOR by the decision tree), recorded in `CHANGELOG.md`, with an ADR only if it carries a design decision (§7.2).
+
+When the call is not obvious (a feature that *could* be either), record the reasoning in the feature's ADR or the PR body. The default for a genuinely new capability post-1.0 is a **new milestone**, so the roadmap keeps growing as a legible plan rather than accreting loosely-related items under stale headings.
+
 ### 7.4 Specs
 
 `docs/specs/` holds frozen specifications. If implementation diverges from the spec, either:

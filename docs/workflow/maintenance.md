@@ -24,7 +24,7 @@ Ask, in order:
 1. **Does the change remove, rename, or alter the signature/semantics of any public symbol, knob, or the imported target — such that existing consumer code would fail to compile or link, or behave differently?**
    → **MAJOR.** Requires its own ADR (justifying the break) and a migration note in the release notes. Prefer the deprecation path (below) over an abrupt break.
 2. **Does it add new public surface, a new opt-in capability, or a milestone's worth of additive work — while every existing use keeps working?**
-   → **MINOR.** (Closing a roadmap milestone is the canonical MINOR — e.g. Milestone 8 → `v1.1.0`.)
+   → **MINOR.** (Closing a roadmap milestone is the canonical MINOR — e.g. Milestone 8 → `v1.1.0`.) A genuinely new capability is planned on the roadmap first — usually as a **new milestone** (`Milestone 9`, `10`, …), per [`AGENTS.md`](../../AGENTS.md) §7.3 and [ADR-0037](../adr/0037-new-feature-roadmap-placement.md).
 3. **Otherwise** — a bug fix, docs/i18n, packaging, perf, or CI change with no public-API change.
    → **PATCH.**
 
