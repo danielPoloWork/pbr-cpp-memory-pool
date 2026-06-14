@@ -31,6 +31,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   microsoft/vcpkg is deferred (the port is written to upstream conventions —
   [`ports/README.md`](ports/README.md)). First post-`v1.0.0` change.
 
+### Added (M7.9)
+
+- **Conan recipe — Phase 2 distribution** ([ADR-0031](docs/adr/0031-conan-recipe.md),
+  ROADMAP §7.9). A Conan 2.x recipe under [`conan/`](conan/) — [`conanfile.py`](conan/conanfile.py)
+  plus a ConanCenter-style [`test_package/`](conan/test_package/) — pinned to the
+  `v1.0.0` source tag by SHA256. It builds from source through the project's
+  ADR-0028 CMake rules, drops the upstream-bundled CMake config + `.pc` (Conan's
+  `CMakeDeps` supplies the consumer config), and re-exposes the target via
+  `package_info` so a Conan consumer links the same `pbr::memory_pool`. Creatable
+  today via `conan create conan/`; ConanCenter / self-hosted publication is
+  deferred (the recipe follows ConanCenter conventions — [`conan/README.md`](conan/README.md)).
+  Mirrors the vcpkg port (§7.8). With this, Milestone 7's stretch items are complete.
+
 ## [1.0.0] — 2026-06-14
 
 **Milestone 7 — Release & Polish (`v1.0.0`).** The first **stable** release: the
