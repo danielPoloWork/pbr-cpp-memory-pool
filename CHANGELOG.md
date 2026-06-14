@@ -18,6 +18,16 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M8.4)
+
+- **Japanese (`ja`) translation — the specification** (ROADMAP §8.4, page 1/3,
+  page-by-page). [`docs/i18n/ja/docs/specs/01_spec_cpp_memory_pool.md`](docs/i18n/ja/docs/specs/01_spec_cpp_memory_pool.md)
+  is a faithful `ja` translation of the (English) spec at the 1:1 mirrored path,
+  pinned to source commit `612f9d2` with the "English is normative" banner; code,
+  identifiers, `O(1)`, `Free List`, and the Valgrind command kept verbatim per the
+  glossary. The `ja` spec manifest row flips to `translated` and the `ja` index
+  links the page. The patterns overview and README follow in subsequent PRs.
+
 ### Added (M8.3)
 
 - **Simplified Chinese (`zh-Hans`) translation — the specification** (ROADMAP §8.3,

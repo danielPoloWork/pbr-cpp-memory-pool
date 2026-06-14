@@ -25,7 +25,7 @@ Status vocabulary:
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
 | [`README.md`](../../README.md) | — | — | `missing` | — |
-| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | — | — | `missing` | — |
+| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `612f9d2` | `612f9d2` | `translated` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | — | — | `missing` | — |
 
 > Seeded by ROADMAP §8.2 with the full translatable surface at `missing`. The
