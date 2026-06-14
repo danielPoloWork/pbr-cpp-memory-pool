@@ -293,7 +293,13 @@ add_subdirectory(path/to/pbr-cpp-memory-pool)   # or FetchContent
 target_link_libraries(my_app PRIVATE pbr::memory_pool)
 ```
 
-Package-manager distribution (vcpkg / Conan) is Phase 2, deferred post-`v1.0.0` (ROADMAP §7.8–§7.9).
+**vcpkg** (Phase 2 — [ADR-0030](docs/adr/0030-vcpkg-port.md)): a port pinned to `v1.0.0` ships in [`ports/`](ports/), consumable today as an overlay port (the same `pbr::memory_pool` target):
+
+```bash
+vcpkg install pbr-memory-pool --overlay-ports=ports
+```
+
+Upstream registration in microsoft/vcpkg and the Conan recipe (ROADMAP §7.9) are deferred — see [`ports/README.md`](ports/README.md).
 
 ## Repository layout
 
