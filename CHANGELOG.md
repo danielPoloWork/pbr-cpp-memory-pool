@@ -18,6 +18,24 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [1.1.0] — 2026-06-14
+
+**Milestone 8 — Internationalization & Post-Release Governance.** The first
+post-1.0 **MINOR**: purely **additive** documentation and governance — the library
+binary is unchanged from `v1.0.x` (no API/ABI/behaviour change), so existing
+consumers are unaffected. It stands up a **documentation-translation system**
+(English stays the single normative source; Simplified Chinese `zh-Hans` and
+Japanese `ja` cover the full translatable surface — README, spec, patterns-catalogue
+overview — under `docs/i18n/`, with a commit-pinned staleness manifest and a
+glossary), establishes the **maintained-product governance** (the post-release
+maintenance protocol, and English made the spec's normative language), and adds an
+**agent-runnable consistency lint** (`tools/consistency_lint.py`) plus its CI gate
+and agent-contract wiring that prove the project stays internally congruent after
+every change. Four new ADRs (0032 i18n architecture, 0033 English-normative spec,
+0034 maintenance protocol, 0035 consistency lint) take the running total to **35**. No spec row changes — Milestone 8 is additive
+documentation/governance. Full release notes in
+[`docs/releases/v1.1.0.md`](docs/releases/v1.1.0.md).
+
 ### Changed (M8.7)
 
 - **Consistency lint wired into the agent contract** (ROADMAP §8.7). [`AGENTS.md`](AGENTS.md)
@@ -1035,7 +1053,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0
 [1.0.1]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.1
 [1.0.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.0
 [0.6.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0
