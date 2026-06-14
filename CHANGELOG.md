@@ -36,6 +36,14 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   catalogue for the authoritative per-row links + code locations; pattern names,
   identifiers, and status keywords stay verbatim. Manifest + `zh-Hans` index
   updated.
+- **`zh-Hans` translation — the README** (page 3/3, completing §8.3). [`docs/i18n/zh-Hans/README.md`](docs/i18n/zh-Hans/README.md)
+  is the full `zh-Hans` translation of the project README (and doubles as the
+  `zh-Hans` landing page, with nav to the spec + patterns translations), pinned to
+  source commit `a01d4f4`. Code blocks, badge URLs, identifiers, `O(1)`, GoF
+  pattern names, tool names, and the numeric benchmark tables are kept verbatim;
+  relative links are recomputed for the deeper path. With this, all three
+  `zh-Hans` manifest rows are `translated` and **ROADMAP §8.3 is complete**.
+  Japanese (`ja`) is §8.4.
 
 ### Added (M8.1)
 
