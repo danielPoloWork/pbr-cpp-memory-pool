@@ -44,6 +44,12 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   Doxygen site (`https://danielpolowork.github.io/pbr-cpp-memory-pool/`), so the
   generated API reference is reachable in one click rather than only from prose.
   Mirrored into the `zh-Hans` / `ja` README translations. Documentation-only.
+- **`docs/journal/` session journal** — the dated end-of-session checkpoints were
+  extracted from `ROADMAP.md` into one file per session under `YYYY/MM/`, with an
+  index and a `ROADMAP.md` *Latest checkpoint* pointer ([ADR-0036](docs/adr/0036-session-journal-extraction.md);
+  agent rule in [`AGENTS.md`](AGENTS.md) §7.6). `ROADMAP.md` drops from 301 to ~171
+  lines and reads as a forward plan again. Documentation-only; the ten historical
+  checkpoints were migrated verbatim.
 
 ### Changed
 
