@@ -17,9 +17,8 @@ under *Changed* or *Removed*.
 
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
-These entries are being assembled for **`v1.0.0`** (Milestone 7); the summary headline
-below is the draft `v1.0.0` entry headline, finalized and dated by the release PR
-(ROADMAP §7.7).
+
+## [1.0.0] — 2026-06-14
 
 **Milestone 7 — Release & Polish (`v1.0.0`).** The first **stable** release: the
 public C ABI (`memory_pool_create` / `_alloc` / `_free` / `_destroy` plus the O(1)
@@ -34,7 +33,7 @@ published Doxygen API-reference site (M7.1), the expanded usage / performance /
 compatibility README (M7.2), the install / packaging layout (M7.4), and the
 patterns-catalogue (M7.5) and spec-compliance (M7.6) acceptance audits. The
 row-by-row Spec Coverage Map acceptance is recorded in M7.6; no spec row regresses.
-Full release notes will live in `docs/releases/v1.0.0.md` (M7.7).
+Full release notes in [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md).
 
 ### Added (M7.1)
 
@@ -864,7 +863,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.0
 [0.6.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0
 [0.5.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0
 [0.4.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.4.0

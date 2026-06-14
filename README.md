@@ -5,7 +5,7 @@
 [![docs-site](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml/badge.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/actions/workflows/docs-site.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v0.6.0 observability](https://img.shields.io/badge/Status-v0.6.0%20observability-green.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0)
+[![Status: v1.0.0 stable](https://img.shields.io/badge/Status-v1.0.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -191,7 +191,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
-`v0.6.0` — observability & decorators. Optional statistics, on-demand logging, and lifecycle-event notification, all **opt-in by type** — a program that uses `Pool` directly is byte-identical to v0.5.0 and pays nothing. The header-only `InstrumentedPool` **Decorator** composes a `Pool` and counts allocation activity (allocations / deallocations / failures / live + the `peak_live_` high-water mark) via relaxed atomics, exposed as a `PoolStats` snapshot plus `write_summary`; a runtime **Observer** (`PoolObserver` via `add_observer`) delivers `exhausted` / `grew` / `destroyed` events from the same interception points. The one library-side addition is a `grow_count_` atomic on `struct memory_pool` (bumped only on the growth slow path) behind the O(1) `memory_pool_growths` accessor, within the ADR-0015 192-byte budget. The new `zero_overhead` test verifies the zero-cost-when-disabled contract structurally. Two new ADRs (0025–0026) bring the total to 26; **Decorator** and **Observer** flip to Implemented. Release notes for `v0.6.0` live in [`docs/releases/v0.6.0.md`](docs/releases/v0.6.0.md).
+`v1.0.0` — **the first stable release.** The public C ABI (`memory_pool_create` / `_alloc` / `_free` / `_destroy` plus the O(1) introspection accessors) and the C++ surface (`Pool`, `TypedPool<T>`, `PoolAllocator<T>`, `InstrumentedPool`, `PoolObserver`) are frozen under the SemVer 1.0 promise — no breaking change without a `2.0.0`. `v1.0.0` seals the feature set built across Milestones 0–6 — the O(1) implicit-free-list fixed-block pool with zero per-block metadata, the RAII / typed / STL-allocator C++ wrappers, compile-time-configurable thread safety, optional geometric dynamic growth, and opt-in observability — and adds the Milestone 7 polish: the published Doxygen API site (M7.1), the expanded usage / performance / compatibility README (M7.2), `find_package` install + pkg-config packaging (M7.4), and the patterns-catalogue (M7.5) and specification-compliance (M7.6, [ADR-0029](docs/adr/0029-spec-compliance-acceptance-audit.md)) acceptance audits. All fifteen Spec Coverage Map rows are ✅, re-verified end-to-end. Twenty-nine ADRs (0001–0029) record every decision; all eleven adopted design patterns are Implemented. Release notes for `v1.0.0` live in [`docs/releases/v1.0.0.md`](docs/releases/v1.0.0.md).
 
 | Milestone | Title                              | Status      |
 |-----------|------------------------------------|-------------|
@@ -202,8 +202,8 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 4         | Thread-Safe Variant                | ✅ complete |
 | 5         | Dynamic Growth Mode                | ✅ complete |
 | 6         | Observability & Decorators         | ✅ complete |
-| 7         | Release & Polish                   | ⏳ next     |
-| 8         | i18n & Post-Release Governance     | ⏳ planned  |
+| 7         | Release & Polish                   | ✅ complete |
+| 8         | i18n & Post-Release Governance     | ⏳ next     |
 
 See [`ROADMAP.md`](ROADMAP.md) for the per-task breakdown and the Spec Coverage Map at the bottom (traceability from spec sections to roadmap items).
 
