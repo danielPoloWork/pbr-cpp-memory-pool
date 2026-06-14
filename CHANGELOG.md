@@ -97,6 +97,19 @@ Full release notes will live in `docs/releases/v1.0.0.md` (M7.7).
   deliverable. Release tarballs are now complete `find_package`-ready install
   trees.
 
+### Changed (M7.5)
+
+- **Patterns-catalogue audit** ([`docs/patterns/README.md`](docs/patterns/README.md), ROADMAP §7.5). All
+  eleven adopted patterns (RAII, Pimpl, Factory Method, Builder, Adapter,
+  Iterator, Strategy, Template Method, Composite, Decorator, Observer) were
+  verified to have an `Accepted` ADR and a live code-location symbol; statuses
+  are unchanged (`Implemented`). Forward-looking phrasing that diverged from the
+  realized design was refreshed — the Factory Method row (M4 thread safety became
+  a compile-time **Strategy**, not Factory dispatch), the Builder row (growth via
+  `.with_growth_factor()`; thread safety is a compile-time knob), the Composite
+  row (no longer "dormant" — dynamic growth populates `overflow_`), and the RAII
+  row (M2 scaffolding phrasing dropped). A dated audit-provenance note was added.
+
 ## [0.6.0] — 2026-06-14
 
 **Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing
