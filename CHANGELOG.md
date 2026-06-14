@@ -18,6 +18,18 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+## [1.0.1] — 2026-06-14
+
+**Packaging patch over the frozen `v1.0.0` API.** Ships the two Phase-2
+package-manager integrations completed as Milestone 7's stretch items — the
+**vcpkg** overlay port (M7.8, [ADR-0030](docs/adr/0030-vcpkg-port.md)) and the
+**Conan 2.x** recipe (M7.9, [ADR-0031](docs/adr/0031-conan-recipe.md)), both
+pinned to the `v1.0.0` source tag and building through the project's own ADR-0028
+install rules. This is a **`PATCH`** because the shipped library is **byte-identical
+to `v1.0.0`** — no source, API, ABI, or behaviour change; only repository-side
+packaging metadata was added (which is also why the closing of Milestone 8 stays
+targeted at `v1.1.0`). Full release notes in [`docs/releases/v1.0.1.md`](docs/releases/v1.0.1.md).
+
 ### Added (M7.8)
 
 - **vcpkg port — Phase 2 distribution** ([ADR-0030](docs/adr/0030-vcpkg-port.md),
@@ -889,7 +901,8 @@ Milestone 2 → `v0.2.0`. Full release notes in
 
 ---
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.1
 [1.0.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.0.0
 [0.6.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.6.0
 [0.5.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.5.0

@@ -56,12 +56,12 @@ TEST_CASE("version constants are consistent with the project version") {
     const std::string_view ver{mem::PBR_MEMORY_POOL_VERSION_STRING};
     CHECK(ver.find('.') != std::string_view::npos);
 
-    // Milestone 7 closes at v1.0.0 — the first stable release; these constants
-    // are bumped from this release PR (M7.7) in lockstep with version.hpp. The
-    // public C ABI and C++ surface are frozen here under the SemVer 1.0 promise.
+    // v1.0.1 — a packaging-only patch over the frozen v1.0.0 API (the vcpkg
+    // port + Conan recipe, M7.8/M7.9). The library binary is unchanged; only
+    // these constants move, in lockstep with version.hpp.
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MAJOR == 1U);
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 0U);
-    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 0U);
+    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 1U);
 }
 
 TEST_CASE("memory_pool_create / _destroy round-trip on valid arguments") {

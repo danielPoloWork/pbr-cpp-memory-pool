@@ -167,6 +167,10 @@ When a roadmap item flips from ⏳ to ✅, update the corresponding cell(s) in t
 
 > Living, dated note describing where the project stands at the end of the most recent work session. Updated at the close of each session so the next session resumes from a known point without re-reading the full PR history. Latest entry first; older entries are kept for trail.
 
+### 2026-06-14 — Packaging patch release (v1.0.1)
+
+- A maintenance **`PATCH`** cut by the maintainer's request, immediately after M7.9 merged: it bundles the M7.8 vcpkg port + M7.9 Conan recipe (the post-1.0 packaging additions) into a tagged release. **Chosen as `1.0.1`, not `1.1.0`,** because the shipped library is byte-identical to `v1.0.0` (only repository-side packaging metadata was added) and to keep the Milestone 8 close targeted at `v1.1.0`. `version.hpp` → `1.0.1`, `pool_smoke` asserts updated, `CHANGELOG.md` `[Unreleased]` rolled into `## [1.0.1] — 2026-06-14`, `docs/releases/v1.0.1.md` added, README badge/status refreshed. Not a numbered roadmap item — an ad-hoc patch release. After merge: agent tags `v1.0.1`, maintainer publishes. Next: Milestone 8 (i18n & governance → `v1.1.0`).
+
 ### 2026-06-14 — End of M7 release session (v1.0.0 — the stable release)
 
 - **Done in this session** — the whole of Milestone 7: 7.1 (ADR-0027 Doxygen API site → GitHub Pages, PR #53), 7.2 (full usage / performance / compatibility README, PR #55), 7.3 (CHANGELOG audit + draft v1.0.0 headline, PR #56), 7.4 (ADR-0028 install/export + pkg-config `find_package`, PR #57), 7.5 (patterns-catalogue audit, PR #58), 7.6 (ADR-0029 spec-compliance acceptance audit, PR #59), and 7.7 (this release PR — bump to `1.0.0`, roll `CHANGELOG.md` into `[1.0.0] — 2026-06-14`, add `docs/releases/v1.0.0.md`, refresh README).
