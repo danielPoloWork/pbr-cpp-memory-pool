@@ -68,6 +68,35 @@ Full release notes will live in `docs/releases/v1.0.0.md` (M7.7).
   new **Compatibility** section (Tier-1/Tier-2 platforms, compiler floor versions, C++17 /
   C89+C99 standards, thread-safety modes, zero external dependencies — [ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md)).
 
+### Added (M7.4)
+
+- **CMake install / export + pkg-config — Phase 1 distribution** ([ADR-0028](docs/adr/0028-install-and-packaging-layout.md),
+  ROADMAP §7.4, ADR-0004 §5). A `PBR_MEMORY_POOL_INSTALL` option (default
+  `PROJECT_IS_TOP_LEVEL`) gates `install(TARGETS … EXPORT)` + `install(EXPORT …
+  NAMESPACE pbr::)`, the full `it/d4np/memorypool/` public-header tree, a
+  relocatable package config (`configure_package_config_file` +
+  `SameMajorVersion` version file), a pkg-config
+  [`pbr-memory-pool.pc`](cmake/pbr-memory-pool.pc.in), and `LICENSE` under
+  `share/doc/`. Consumers use
+  `find_package(pbr_memory_pool CONFIG REQUIRED)` +
+  `target_link_libraries(app pbr::memory_pool)`.
+- The internal target carries `EXPORT_NAME memory_pool` so the **installed**
+  imported target is `pbr::memory_pool` — identical to the in-build alias, so a
+  single link line serves `add_subdirectory` / `FetchContent` and installed
+  packages alike. Verified end-to-end locally (MSVC 19.51 + Ninja): install to a
+  prefix, then a separate `find_package` consumer built, linked, and ran.
+- README gains an **Install and consume** section.
+
+### Changed (M7.4)
+
+- **`release.yml` packages via `cmake --install`** instead of hand-copying.
+  This fixes a latent bug: the previous tarball shipped only three of the seven
+  public headers (`typed_pool.hpp`, `pool_allocator.hpp`, `instrumented_pool.hpp`,
+  `free_list_iterator.hpp` were missing) and no CMake config / `.pc`, so the
+  ADR-0004 §5 "install the artifacts from a Release" path was not actually
+  deliverable. Release tarballs are now complete `find_package`-ready install
+  trees.
+
 ## [0.6.0] — 2026-06-14
 
 **Milestone 6 — Observability & Decorators.** Optional logging / statistics / tracing

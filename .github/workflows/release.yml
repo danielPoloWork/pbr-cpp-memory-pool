@@ -148,28 +148,20 @@ jobs:
           # Inner directory name embeds the platform so extractions of
           # multiple platforms into the same parent dir do not collide.
           stage="pbr-memory-pool-${version}-${platform}"
-          mkdir -p "${stage}/include/it/d4np/memorypool" "${stage}/lib"
 
-          # Public headers.
-          cp src/main/cpp/it/d4np/memorypool/memory_pool.h   "${stage}/include/it/d4np/memorypool/"
-          cp src/main/cpp/it/d4np/memorypool/memory_pool.hpp "${stage}/include/it/d4np/memorypool/"
-          cp src/main/cpp/it/d4np/memorypool/version.hpp     "${stage}/include/it/d4np/memorypool/"
+          # Use the CMake install rules (ADR-0028) so the tarball is a
+          # complete, find_package-ready tree rather than a hand-copied subset:
+          # the FULL public-header set (every *.h / *.hpp, not just the three
+          # core ones), the static archive under whatever name the toolchain
+          # produced, the CMake package config (pbr_memory_poolConfig.cmake +
+          # the pbr::memory_pool targets export + the version file), and the
+          # pkg-config .pc. This is the "installing the artifacts from a GitHub
+          # Release" path promised by ADR-0004 §5. The exported imported target
+          # is pbr::memory_pool — identical to the in-build alias (ADR-0028).
+          cmake --install build/release-artifact --prefix "${PWD}/${stage}"
 
-          # Static archive — file name differs by toolchain
-          # (libpbr_memory_pool.a on GCC/Clang/Apple Clang,
-          # pbr_memory_pool.lib on MSVC). M1 ships STATIC only; shared
-          # libraries arrive in a later milestone, see ADR-0004 §4 item 2.
-          if   [[ -f build/release-artifact/libpbr_memory_pool.a   ]]; then
-            cp build/release-artifact/libpbr_memory_pool.a   "${stage}/lib/"
-          elif [[ -f build/release-artifact/pbr_memory_pool.lib    ]]; then
-            cp build/release-artifact/pbr_memory_pool.lib    "${stage}/lib/"
-          else
-            echo "::error::Could not find the built static library under build/release-artifact/"
-            ls -la build/release-artifact/
-            exit 1
-          fi
-
-          # Top-level project docs that travel with every distribution.
+          # Top-level project docs that travel with every distribution (the
+          # install also places LICENSE under share/doc/pbr_memory_pool/).
           cp LICENSE      "${stage}/"
           cp README.md    "${stage}/"
           cp CHANGELOG.md "${stage}/"
