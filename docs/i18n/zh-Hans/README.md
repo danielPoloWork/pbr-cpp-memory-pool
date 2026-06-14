@@ -7,7 +7,7 @@
 | 页面 | 状态 | 链接 |
 |------|------|------|
 | README（项目主页 / 用法） | 未翻译 | [English](../../../README.md) |
-| 规范（spec） | 未翻译 | [English](../../specs/01_spec_cpp_memory_pool.md) |
+| 规范（spec） | ✅ 已翻译 | [简体中文](docs/specs/01_spec_cpp_memory_pool.md) · [English](../../specs/01_spec_cpp_memory_pool.md) |
 | 设计模式目录概览 | 未翻译 | [English](../../patterns/README.md) |
 
 翻译将由 ROADMAP §8.3 补充；届时本表的「状态」与链接会相应更新。

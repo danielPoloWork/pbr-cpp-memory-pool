@@ -18,6 +18,17 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added (M8.3)
+
+- **Simplified Chinese (`zh-Hans`) translation — the specification** (ROADMAP §8.3,
+  done page-by-page). [`docs/i18n/zh-Hans/docs/specs/01_spec_cpp_memory_pool.md`](docs/i18n/zh-Hans/docs/specs/01_spec_cpp_memory_pool.md)
+  is a faithful `zh-Hans` translation of the (English) spec, pinned to source
+  commit `2e55dfa` with the standard "English is normative" banner; code,
+  identifiers, `O(1)`, `Free List`, and the Valgrind command are kept verbatim per
+  the glossary. The manifest's `zh-Hans` spec row flips to `translated` and the
+  `zh-Hans` index links the page. First of the three `zh-Hans` pages (README and
+  the patterns overview follow in subsequent PRs).
+
 ### Added (M8.1)
 
 - **Documentation i18n architecture** ([ADR-0032](docs/adr/0032-documentation-i18n-architecture.md),
