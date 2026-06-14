@@ -17,6 +17,24 @@ under *Changed* or *Removed*.
 
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
+These entries are being assembled for **`v1.0.0`** (Milestone 7); the summary headline
+below is the draft `v1.0.0` entry headline, finalized and dated by the release PR
+(ROADMAP §7.7).
+
+**Milestone 7 — Release & Polish (`v1.0.0`).** The first **stable** release: the
+public C ABI (`memory_pool_create` / `_alloc` / `_free` / `_destroy` plus the O(1)
+introspection accessors) and the C++ surface (`Pool`, `TypedPool<T>`,
+`PoolAllocator<T>`, `InstrumentedPool`) are frozen under the SemVer 1.0 stability
+promise — no breaking change without a `2.0.0`. `v1.0.0` seals the complete feature
+set delivered across Milestones 0–6 — the O(1) implicit-free-list fixed-block pool
+(spec §2.1–§2.4, §4) with zero per-block metadata, the RAII / typed / STL-allocator
+C++ wrapper, compile-time-configurable thread safety, optional geometric dynamic
+growth, and opt-in observability — and adds the Milestone 7 release polish: the
+published Doxygen API-reference site (M7.1), the expanded usage / performance /
+compatibility README (M7.2), the install / packaging layout (M7.4), and the
+patterns-catalogue (M7.5) and spec-compliance (M7.6) acceptance audits. The
+row-by-row Spec Coverage Map acceptance is recorded in M7.6; no spec row regresses.
+Full release notes will live in `docs/releases/v1.0.0.md` (M7.7).
 
 ### Added (M7.1)
 
