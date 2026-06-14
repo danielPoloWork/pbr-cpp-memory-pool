@@ -18,6 +18,14 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added
+
+- README gains a **Technology stack** section (language standards, build / test /
+  docs / tooling, and packaging, with versions — `zero runtime dependencies`) and a
+  top-of-page **"Read this in: 简体中文 · 日本語"** pointer to the `docs/i18n/`
+  translations. Documentation-only; no API change. (Post-1.0 maintenance; the
+  `zh-Hans` / `ja` README translations are re-synced to match in a follow-up PR.)
+
 ## [1.1.0] — 2026-06-14
 
 **Milestone 8 — Internationalization & Post-Release Governance.** The first

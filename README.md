@@ -9,7 +9,9 @@
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
-Many high-performance systems — graphics engines, financial trading servers, databases — suffer from memory fragmentation and the overhead of frequent `malloc`/`free` (or `new`/`delete`) calls. This component provides a **custom Memory Pool** that pre-allocates a contiguous block of memory and delivers **constant-time, fixed-size allocation with zero external fragmentation**.
+**Read this in:** [简体中文](docs/i18n/zh-Hans/README.md) · [日本語](docs/i18n/ja/README.md) — English is the normative source ([ADR-0032](docs/adr/0032-documentation-i18n-architecture.md)).
+
+Many high-performance systems — graphics engines, financial trading servers, databases — suffer from memory fragmentation and the overhead of frequent `malloc`/`free` (or `new`/`delete`) calls. This component provides a **custom Memory Pool** that pre-allocates a contiguous block of memory and delivers **constant-time, fixed-size allocation with zero external fragmentation**. It is a single, focused C/C++ library — a header-backed static library with a four-function C ABI and an idiomatic C++17 wrapper — built to enterprise quality (warnings-as-errors, sanitizers, Valgrind, Doxygen) and documented decision-by-decision in its [ADRs](docs/adr/).
 
 ## At a glance
 
@@ -233,6 +235,27 @@ The library targets **C++17** (strict, no compiler extensions) for the implement
 | C public header     | ANSI C (C89) **and** C99       | dedicated CI jobs: `-std=c89 -pedantic -Werror`, `-std=c99 -pedantic -Werror` |
 
 **Thread safety** is selected at build time via the `PBR_MEMORY_POOL_THREAD_SAFETY` CMake option — `NONE` (default, single-thread fast path), `MUTEX`, or `LOCKFREE` ([ADR-0020](docs/adr/0020-thread-safety-strategy-and-compile-time-knob.md)). Dynamic growth is supported under `NONE` and `MUTEX` (not `LOCKFREE` — [ADR-0024](docs/adr/0024-dynamic-growth-synchronization-and-creation-surface.md) §2).
+
+## Technology stack
+
+The library has **zero runtime/build dependencies** beyond the C and C++ standard libraries (spec §3.3); everything below is either a language standard, a build/test/docs tool, or a packaging integration. The consumer-facing compiler & platform matrix is in [Compatibility](#compatibility) above.
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Language (impl) | C++ | C++17 (strict, no extensions) |
+| Language (C public header) | ANSI C | C89 **and** C99 |
+| Build system | CMake | ≥ 3.21 |
+| Build generator | Ninja (CI & presets) | any recent |
+| Compilers (floor) | GCC / Clang / MSVC / Apple Clang | 11 / 14 / 19.30 (VS 2022 17.0) / 14 ([ADR-0005](docs/adr/0005-toolchain-matrix-and-supported-platforms.md)) |
+| Unit tests | [doctest](https://github.com/doctest/doctest) (via CMake `FetchContent`, test-only) | v2.4.11 |
+| Runtime sanitizers | ASan · UBSan · TSan | compiler-bundled |
+| Memory checker | Valgrind | distro (CI: Ubuntu 24.04) |
+| Static analysis / style | clang-tidy · clang-format | LLVM 14+ |
+| API docs | Doxygen → GitHub Pages | 1.10.x ([ADR-0027](docs/adr/0027-doxygen-html-site-and-publication-pipeline.md)) |
+| Project tooling | Python (consistency lint, stdlib-only) | 3.x ([ADR-0035](docs/adr/0035-agent-runnable-consistency-lint.md)) |
+| Packaging | CMake `find_package` + pkg-config · vcpkg port · Conan recipe | [ADR-0028](docs/adr/0028-install-and-packaging-layout.md) / [0030](docs/adr/0030-vcpkg-port.md) / [0031](docs/adr/0031-conan-recipe.md) |
+| CI | GitHub Actions | — |
+| Runtime dependencies | **none** | — |
 
 ## Verification & Quality Gates
 
