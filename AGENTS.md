@@ -139,6 +139,33 @@ The agent prepares the PR locally (branch pushed, draft body written) and report
 
 PR title = lead commit subject (Conventional-Commits format).
 
+**PR metadata — set on every PR.** Beyond title and body, every agent-opened PR sets ([ADR-0040](docs/adr/0040-pull-request-metadata-policy.md)):
+
+- **Assignee** — the maintainer (`--assignee @me`; the agent authenticates as the owner account `danielPoloWork`).
+- **Label** — **exactly one type label** matching the lead commit's Conventional-Commit `type` (one PR = one type), per the map below.
+- **Milestone** — the current open **release milestone** (per-release scheme, e.g. `v1.1.1`; the SemVer level of the next release is decided by [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md)). Create it with `gh api repos/:owner/:repo/milestones -f title="vX.Y.Z" -f state="open"` if the next release has none yet.
+
+| Commit `type` | Label          |
+|---------------|----------------|
+| `feat`        | `feat`         |
+| `fix`         | `fix`          |
+| `docs`        | `documentation` (built-in) |
+| `refactor`    | `refactor`     |
+| `perf`        | `perf`         |
+| `test`        | `test`         |
+| `build`       | `build`        |
+| `chore`       | `chore`        |
+| `ci`          | `ci`           |
+
+Canonical invocation (the same `--add-label` / `--add-assignee` / `--milestone` flags on `gh pr edit` backfill an existing PR):
+
+```bash
+gh pr create --title "<full Conventional-Commits subject>" --body-file <file> \
+  --assignee @me --label <type-label> --milestone "<vX.Y.Z>"
+```
+
+**Reviewers** are **not** set yet: the sole collaborator is the maintainer, who is also the PR author, and GitHub forbids requesting review from the author. When a second collaborator or a review team exists, add `--reviewer <user|org/team>` to this rule. **Projects** are deferred until the `gh` token carries the `project` scope (`gh auth refresh -s read:project,project`) and a board exists; then add `--project <name>`.
+
 PR body template:
 
 ```markdown
@@ -170,6 +197,7 @@ Link to the spec section, ADR, roadmap item, or issue that prompted this work.
 - [ ] docs/patterns/README.md updated (if a pattern was introduced, refined, or rejected)
 - [ ] Spec updated (if behavior diverges from `docs/specs/`)
 - [ ] CHANGELOG.md updated (for user-visible changes; see ADR-0004 §3)
+- [ ] PR metadata set — assignee, one type label, release milestone (§6.4 / ADR-0040)
 ```
 
 **Merge commit semantics.** The repository is configured (`squash_merge_commit_message=PR_BODY`, `merge_commit_message=PR_BODY`, both titles set to `PR_TITLE`) so the **PR title and PR body become the merge commit's subject and extended description verbatim**. Write the PR body as you want it to read in `git log` forever — Summary, Motivation, Changes, Design Patterns, Verification, Documentation Impact. The maintainer scrubs HTML comments and placeholders at merge time. Squash-and-merge is the preferred strategy.
