@@ -91,13 +91,23 @@ def check_version_lockstep():
     elif bm.group(1) != string:
         fail(name, f"README badge v{bm.group(1)} != version.hpp {string}")
 
-    # Latest dated CHANGELOG block (topmost `## [X.Y.Z] — ...`).
-    changelog = read("CHANGELOG.md")
-    cm = re.search(r"^##\s*\[(\d+\.\d+\.\d+)\]\s+—", changelog, re.MULTILINE)
-    if cm is None:
-        fail(name, "no dated `## [X.Y.Z] — ...` block found in CHANGELOG.md")
-    elif cm.group(1) != string:
-        fail(name, f"latest CHANGELOG [{cm.group(1)}] != version.hpp {string}")
+    # Latest changelog entry by semver. Released entries are immutable, one file
+    # per release under docs/changelog/v<major>/v<X.Y.Z>.md (ADR-0038); the root
+    # CHANGELOG.md keeps only [Unreleased] + the index, so scan the per-version
+    # files rather than a dated block in the root.
+    cl_dir = os.path.join(ROOT, "docs", "changelog")
+    cl_versions = []
+    for cur, _dirs, files in os.walk(cl_dir):
+        for fn in files:
+            m = re.fullmatch(r"v(\d+\.\d+\.\d+)\.md", fn)
+            if m:
+                cl_versions.append(m.group(1))
+    if not cl_versions:
+        fail(name, "no docs/changelog/**/vX.Y.Z.md entries found")
+    else:
+        latest_cl = max(cl_versions, key=semver_tuple)
+        if latest_cl != string:
+            fail(name, f"latest docs/changelog v{latest_cl} != version.hpp {string}")
 
     # Latest release-notes file by semver.
     rel_dir = os.path.join(ROOT, "docs", "releases")

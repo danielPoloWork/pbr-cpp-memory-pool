@@ -66,23 +66,29 @@ Bump the three integers and the string to the target version. Commit:
 git commit -m "chore(release): bump version to 0.1.0"
 ```
 
-### 3. Roll over `CHANGELOG.md` (agent)
+### 3. Roll over the changelog (agent)
 
-`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com). The `Unreleased` section at the top is renamed to the target version with an ISO date, and a fresh empty `Unreleased` section is inserted above it:
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com). Released entries are **immutable, one file per release** under `docs/changelog/v<MAJOR>/v<X.Y.Z>.md`; the root `CHANGELOG.md` carries only the `[Unreleased]` block and the *Released versions* index ([ADR-0038](../adr/0038-changelog-version-split.md)). To cut a release, move — never copy-and-edit-in-place — the accumulated `Unreleased` entries into a new per-version file:
 
-```markdown
-## [Unreleased]
+1. **Create** `docs/changelog/v<MAJOR>/v<X.Y.Z>.md` from the current `Unreleased` body, with the dated heading and its own link definition:
 
-## [0.1.0] — YYYY-MM-DD
+   ```markdown
+   # Changelog — v0.1.0
 
-### Added
-- ...
+   > Immutable release entry — part of the [project changelog](../../../CHANGELOG.md). …
 
-### Changed
-- ...
-```
+   ## [0.1.0] — YYYY-MM-DD
 
-Commit:
+   ### Added
+   - …
+
+   [0.1.0]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v0.1.0
+   ```
+
+2. **Reset** the root `Unreleased` block to empty (keep its intro sentence), and update the `[Unreleased]:` compare link to `compare/v<X.Y.Z>...HEAD`.
+3. **Add** a row to the *Released versions* index table in `CHANGELOG.md` (newest first): version link, date, one-line highlight.
+
+The `version-lockstep` consistency check reads the **latest version from the per-version files**, so the new file must exist and match `version.hpp`. Commit:
 
 ```
 git commit -m "docs(changelog): roll Unreleased into 0.1.0"
