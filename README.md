@@ -6,7 +6,7 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
+[![Status: v1.1.1 stable](https://img.shields.io/badge/Status-v1.1.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.1)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -193,6 +193,8 @@ cmake --build --preset bench
 Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, macOS / Apple Clang) are welcome — see [`docs/bench/README.md`](docs/bench/README.md) for the contribution recipe.
 
 ## Status
+
+`v1.1.1` — **maintenance** (documentation / process / tooling), the first post-`v1.1.0` PATCH. The shipped library is byte-identical to `v1.1.0` — no API/ABI/behaviour change. Adds the in-repo [bug ledger](docs/bugs/) + triage protocol ([ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)), a [PR-metadata policy](docs/adr/0040-pull-request-metadata-policy.md), a [`SECURITY.md`](SECURITY.md), `packaging-smoke` CI for the vcpkg/Conan recipes, the [session journal](docs/journal/) ([ADR-0036](docs/adr/0036-session-journal-extraction.md)), the new-feature roadmap-placement rule ([ADR-0037](docs/adr/0037-new-feature-roadmap-placement.md)), and the per-release changelog split ([ADR-0038](docs/adr/0038-changelog-version-split.md)). Five new ADRs (0036–0040) bring the total to 40. Release notes: [`docs/releases/v1.1.1.md`](docs/releases/v1.1.1.md). The earlier line:
 
 `v1.1.0` — **internationalization & post-release governance** (Milestone 8), the first post-1.0 MINOR. Purely **additive** — the library binary is unchanged from `v1.0.x`. Documentation now ships in **Simplified Chinese (`zh-Hans`) and Japanese (`ja`)** (English stays normative — [`docs/i18n/`](docs/i18n/), [ADR-0032](docs/adr/0032-documentation-i18n-architecture.md)); the spec is English-normative ([ADR-0033](docs/adr/0033-english-as-the-spec-normative-language.md)); a [post-release maintenance protocol](docs/workflow/maintenance.md) ([ADR-0034](docs/adr/0034-post-release-maintenance-protocol.md)) governs the maintained-product phase; and an agent-runnable [`consistency lint`](tools/consistency_lint.py) ([ADR-0035](docs/adr/0035-agent-runnable-consistency-lint.md)) gates cross-artifact congruence in CI and the agent contract. Four new ADRs (0032–0035) bring the total to 35. Release notes: [`docs/releases/v1.1.0.md`](docs/releases/v1.1.0.md). The earlier line:
 
