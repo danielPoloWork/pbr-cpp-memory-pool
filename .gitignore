@@ -75,3 +75,4 @@ __pycache__/
 
 # Harness artifact (AskUserQuestion scratch) — never commit
 .questions
+.bugs
