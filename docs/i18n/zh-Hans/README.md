@@ -5,9 +5,9 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.1 stable](https://img.shields.io/badge/Status-v1.1.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.1)
+[![Status: v1.1.2 stable](https://img.shields.io/badge/Status-v1.1.2%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.2)
 
-> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `23fc6c4`）。
+> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `d38b598`）。
 > **英文版本为唯一权威来源** —— 如本译文与原文不一致，以英文版为准。
 > 用其他语言阅读：[English](../../../README.md) · [日本語](../ja/README.md)。
 > 本目录其他简体中文页面：[规范](docs/specs/01_spec_cpp_memory_pool.md) · [设计模式目录（概览）](docs/patterns/README.md)。未翻译的页面回退到英文原文。
@@ -195,6 +195,8 @@ cmake --build --preset bench
 欢迎提供其他 主机 × 编译器 组合（Linux / GCC、Linux / Clang、macOS / Apple Clang）的报告 —— 贡献方法见 [`docs/bench/README.md`](../../../docs/bench/README.md)。
 
 ## 状态
+
+`v1.1.2` —— **维护版本**（缺陷修复 + 文档），在 `v1.1.1` 之上的 PATCH。公共接口不变 —— 无 API/ABI 变化。修复了四个经核实的外部报告缺陷（仓库内[缺陷台账（bug ledger）](../../../docs/bugs/)的首次使用，[ADR-0039](../../../docs/adr/0039-bug-ledger-and-triage-protocol.md)）：`InstrumentedPool` 增长计数器的**数据竞争**（BUG-0001）、对外部/双重释放指针的 `live_` 计数器**下溢**（BUG-0002）、移动赋值时缺失的 `destroyed` 事件（BUG-0003），以及 `grow_pool` 潜在的**溢出**保护（BUG-0004）。另外移除了多余的 `docs-site` README 徽章，并将 `zh-Hans`/`ja` 译文重新同步。发布说明：[`docs/releases/v1.1.2.md`](../../../docs/releases/v1.1.2.md)。更早的版本：
 
 `v1.1.1` —— **维护版本**（文档 / 流程 / 工具），首个 `v1.1.0` 之后的 PATCH。所发布的库与 `v1.1.0` 逐字节相同 —— 无 API/ABI/行为变化。新增仓库内[缺陷台账（bug ledger）](../../../docs/bugs/)及其分诊协议（[ADR-0039](../../../docs/adr/0039-bug-ledger-and-triage-protocol.md)）、一份 [PR 元数据策略](../../../docs/adr/0040-pull-request-metadata-policy.md)、一个 [`SECURITY.md`](../../../SECURITY.md)、面向 vcpkg/Conan recipe 的 `packaging-smoke` CI、[会话日志（session journal）](../../../docs/journal/)（[ADR-0036](../../../docs/adr/0036-session-journal-extraction.md)）、新特性路线图归置规则（[ADR-0037](../../../docs/adr/0037-new-feature-roadmap-placement.md)），以及按发布拆分的变更日志（[ADR-0038](../../../docs/adr/0038-changelog-version-split.md)）。五个新 ADR（0036–0040）使总数达到 40。发布说明：[`docs/releases/v1.1.1.md`](../../../docs/releases/v1.1.1.md)。更早的版本：
 
