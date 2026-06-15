@@ -72,5 +72,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0037   | [A new feature is planned on the roadmap — new milestone or appended item](0037-new-feature-roadmap-placement.md) | Accepted |
 | 0038   | [Split the changelog into one immutable Markdown file per release](0038-changelog-version-split.md) | Accepted |
 | 0039   | [In-repo bug ledger and agent triage protocol](0039-bug-ledger-and-triage-protocol.md) | Accepted |
+| 0040   | [Pull-request metadata policy (assignee, labels, milestone)](0040-pull-request-metadata-policy.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

@@ -20,6 +20,17 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **Pull-request metadata policy.** Every agent-opened PR now also sets a maintainer
+  **assignee**, **exactly one type label** (Conventional-Commit `type` → label;
+  `docs` reuses the built-in `documentation` label), and the current open **release
+  milestone** (per-release scheme, e.g. `v1.1.1`). The eight type labels
+  (`feat`/`fix`/`refactor`/`perf`/`test`/`build`/`chore`/`ci`) and the `v1.1.1`
+  milestone were created, and PRs #89–#91 backfilled. **Reviewers** are deferred
+  (the sole collaborator is the PR author — GitHub forbids self-review) and
+  **Projects** are deferred (the `gh` token lacks the `project` scope); the rule names
+  how each switches on. Codified in [`AGENTS.md`](AGENTS.md) §6.4, rationale in
+  [ADR-0040](docs/adr/0040-pull-request-metadata-policy.md). Process/repository-metadata
+  only; no API change.
 - **In-repo bug ledger (`docs/bugs/`) + agent triage protocol.** Known defects and
   the triage of incoming reports now have a durable, reviewable home: one Markdown
   record per defect, `BUG-NNNN-<slug>.md` under a discovery-date tree
