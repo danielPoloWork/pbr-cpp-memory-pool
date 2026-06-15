@@ -16,7 +16,7 @@ Status vocabulary:
 
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
-| [`README.md`](../../README.md) | `23fc6c4` | `23fc6c4` | `stale` | — |
+| [`README.md`](../../README.md) | `6f1aa60` | `6f1aa60` | `translated` | — |
 | [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `2e55dfa` | `2e55dfa` | `translated` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | `524f0cc` | `524f0cc` | `translated` | — |
 
@@ -24,7 +24,7 @@ Status vocabulary:
 
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
-| [`README.md`](../../README.md) | `23fc6c4` | `23fc6c4` | `stale` | — |
+| [`README.md`](../../README.md) | `6f1aa60` | `6f1aa60` | `translated` | — |
 | [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `612f9d2` | `612f9d2` | `translated` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | `6c6aeb7` | `6c6aeb7` | `translated` | — |
 
