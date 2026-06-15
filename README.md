@@ -5,7 +5,7 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.1 stable](https://img.shields.io/badge/Status-v1.1.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.1)
+[![Status: v1.1.2 stable](https://img.shields.io/badge/Status-v1.1.2%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.2)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -192,6 +192,8 @@ cmake --build --preset bench
 Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, macOS / Apple Clang) are welcome — see [`docs/bench/README.md`](docs/bench/README.md) for the contribution recipe.
 
 ## Status
+
+`v1.1.2` — **maintenance** (bug fixes + documentation), a PATCH over `v1.1.1`. The public surface is unchanged — no API/ABI change. Fixes four verified, externally-reported defects (the first use of the in-repo [bug ledger](docs/bugs/), [ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)): an `InstrumentedPool` growth-counter **data race** (BUG-0001), a `live_` counter **underflow** on foreign/double frees (BUG-0002), a missing `destroyed` event on move-assignment (BUG-0003), and a latent `grow_pool` **overflow** guard (BUG-0004). Also removes the redundant `docs-site` README badge and re-syncs the `zh-Hans`/`ja` translations. Release notes: [`docs/releases/v1.1.2.md`](docs/releases/v1.1.2.md). The earlier line:
 
 `v1.1.1` — **maintenance** (documentation / process / tooling), the first post-`v1.1.0` PATCH. The shipped library is byte-identical to `v1.1.0` — no API/ABI/behaviour change. Adds the in-repo [bug ledger](docs/bugs/) + triage protocol ([ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)), a [PR-metadata policy](docs/adr/0040-pull-request-metadata-policy.md), a [`SECURITY.md`](SECURITY.md), `packaging-smoke` CI for the vcpkg/Conan recipes, the [session journal](docs/journal/) ([ADR-0036](docs/adr/0036-session-journal-extraction.md)), the new-feature roadmap-placement rule ([ADR-0037](docs/adr/0037-new-feature-roadmap-placement.md)), and the per-release changelog split ([ADR-0038](docs/adr/0038-changelog-version-split.md)). Five new ADRs (0036–0040) bring the total to 40. Release notes: [`docs/releases/v1.1.1.md`](docs/releases/v1.1.1.md). The earlier line:
 

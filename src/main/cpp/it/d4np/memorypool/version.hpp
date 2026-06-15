@@ -23,10 +23,10 @@ inline constexpr unsigned PBR_MEMORY_POOL_VERSION_MAJOR = 1;
 inline constexpr unsigned PBR_MEMORY_POOL_VERSION_MINOR = 1;
 
 /** Patch version component (incremented for hotfixes between milestones). */
-inline constexpr unsigned PBR_MEMORY_POOL_VERSION_PATCH = 1;
+inline constexpr unsigned PBR_MEMORY_POOL_VERSION_PATCH = 2;
 
 /** Pre-formatted version string, kept in lockstep with the components above. */
-inline constexpr const char* PBR_MEMORY_POOL_VERSION_STRING = "1.1.1";
+inline constexpr const char* PBR_MEMORY_POOL_VERSION_STRING = "1.1.2";
 
 }  // namespace it::d4np::memorypool
 
