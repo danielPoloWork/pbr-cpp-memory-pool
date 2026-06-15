@@ -15,6 +15,7 @@ carrying an ever-growing log ([ADR-0036](../adr/0036-session-journal-extraction.
 
 ### June
 
+- [2026-06-15 — Bug ledger & triage protocol (maintenance session)](2026/06/2026-06-15-bug-ledger.md)
 - [2026-06-14 — End of M8 release session (v1.1.0) — planned roadmap complete](2026/06/2026-06-14-m8-release-v1.1.0.md)
 - [2026-06-14 — Packaging patch release (v1.0.1)](2026/06/2026-06-14-packaging-patch-v1.0.1.md)
 - [2026-06-14 — End of M7 release session (v1.0.0 — the stable release)](2026/06/2026-06-14-m7-release-v1.0.0.md)
