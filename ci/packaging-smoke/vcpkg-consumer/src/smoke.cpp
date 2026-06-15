@@ -19,7 +19,6 @@ int main() {
     const int got = *value;
     typed.destroy(value);
 
-    std::printf("vcpkg smoke OK: got=%d block_size=%zu\n", got,
-                pool.block_size());
+    std::printf("vcpkg smoke OK: got=%d block_size=%zu\n", got, pool.block_size());
     return got == 7 ? 0 : 1;
 }
