@@ -82,3 +82,4 @@ Newest first, grouped by year and month.
 | [BUG-0001](2026/06/BUG-0001-instrumented-pool-growth-counter-data-race.md) | Data race on `InstrumentedPool::last_growths_` under concurrent use | `fixed` | high | 2026-06-15 |
 | [BUG-0002](2026/06/BUG-0002-instrumented-pool-live-counter-underflow.md) | `InstrumentedPool::deallocate` underflows `live_` on a foreign / double-freed pointer | `fixed` | medium | 2026-06-15 |
 | [BUG-0003](2026/06/BUG-0003-instrumented-pool-move-assign-missing-destroyed-event.md) | `InstrumentedPool` move-assignment does not notify `destroyed` for the replaced pool | `fixed` | low | 2026-06-15 |
+| [BUG-0004](2026/06/BUG-0004-grow-pool-growth-size-overflow.md) | Unguarded `size_t` overflow in `grow_pool` growth-size computation | `fixed` | low | 2026-06-15 |

@@ -60,6 +60,13 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   Move-assigning over an instrumented pool released its `Pool` and observers without
   notifying `PoolEvent::destroyed`, asymmetric with the destructor. It now notifies
   before reassignment. Header-only; no API change.
+- **Overflow guard in `grow_pool` ([BUG-0004](docs/bugs/2026/06/BUG-0004-grow-pool-growth-size-overflow.md)).**
+  The dynamic-growth path computed `total * (grow_factor_ - 1)` before any overflow
+  check, so that product could wrap `size_t` and feed the downstream `block_size`
+  guard an already-wrapped value. Added a `would_overflow_product` guard on the
+  growth-count product first, mirroring the create-path guard; on overflow the pool
+  falls back to fixed-mode exhaustion. Latent (not runtime-reachable — RAM exhausts
+  first); no API change.
 
 ## Released versions
 

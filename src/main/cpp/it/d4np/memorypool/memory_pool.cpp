@@ -245,6 +245,12 @@ bool grow_pool(memory_pool* pool) noexcept {
     for (const Chunk* chunk = pool->overflow_; chunk != nullptr; chunk = chunk->next_) {
         total += chunk->block_count_;
     }
+    // Guard the growth-count product itself before computing it: total can be large
+    // after several growths, and total * (grow_factor_ - 1) could wrap size_t,
+    // feeding the block_size guard below an already-wrapped `add` (BUG-0004).
+    if (would_overflow_product(total, pool->grow_factor_ - 1U)) {
+        return false;
+    }
     const std::size_t add = total * (pool->grow_factor_ - 1U);
     if (add == 0U) {
         return false;
