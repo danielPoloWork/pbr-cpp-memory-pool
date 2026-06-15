@@ -56,12 +56,12 @@ TEST_CASE("version constants are consistent with the project version") {
     const std::string_view ver{mem::PBR_MEMORY_POOL_VERSION_STRING};
     CHECK(ver.find('.') != std::string_view::npos);
 
-    // v1.1.1 — maintenance PATCH: docs/process/tooling only (bug ledger,
-    // PR-metadata policy, and the accumulated post-1.1.0 docs/CI entries); the
-    // library binary is unchanged. These constants move in lockstep with version.hpp.
+    // v1.1.2 — maintenance PATCH: fixes four InstrumentedPool/core defects
+    // (BUG-0001..0004) plus the accumulated docs entries; the library's public
+    // surface is unchanged. These constants move in lockstep with version.hpp.
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MAJOR == 1U);
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 1U);
-    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 1U);
+    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 2U);
 }
 
 TEST_CASE("memory_pool_create / _destroy round-trip on valid arguments") {
