@@ -6,9 +6,9 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
+[![Status: v1.1.1 stable](https://img.shields.io/badge/Status-v1.1.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.1)
 
-> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `6236c0f` 時点）。
+> 🌐 本ページはプロジェクトの [`README.md`](../../../README.md) の日本語訳です（コミット `23fc6c4` 時点）。
 > **英語版が唯一の正本です** —— 本訳文と原文に相違がある場合は英語版が優先します。
 > 他の言語で読む：[English](../../../README.md) · [简体中文](../zh-Hans/README.md)。
 > 本ディレクトリの他の日本語ページ：[仕様](docs/specs/01_spec_cpp_memory_pool.md) · [デザインパターンカタログ（概要）](docs/patterns/README.md)。未翻訳のページは英語原文にフォールバックします。
@@ -196,6 +196,8 @@ cmake --build --preset bench
 他の ホスト × コンパイラ の組み合わせ（Linux / GCC、Linux / Clang、macOS / Apple Clang）のレポートも歓迎します —— 貢献の手引きは [`docs/bench/README.md`](../../../docs/bench/README.md) を参照。
 
 ## ステータス
+
+`v1.1.1` —— **保守リリース**（ドキュメント / プロセス / ツール）、`v1.1.0` 以降最初の PATCH。出荷されるライブラリは `v1.1.0` とバイト単位で同一 —— API/ABI/挙動の変更なし。リポジトリ内の[バグ台帳（bug ledger）](../../../docs/bugs/)とトリアージプロトコル（[ADR-0039](../../../docs/adr/0039-bug-ledger-and-triage-protocol.md)）、[PR メタデータポリシー](../../../docs/adr/0040-pull-request-metadata-policy.md)、[`SECURITY.md`](../../../SECURITY.md)、vcpkg/Conan recipe 向けの `packaging-smoke` CI、[セッションジャーナル（session journal）](../../../docs/journal/)（[ADR-0036](../../../docs/adr/0036-session-journal-extraction.md)）、新機能のロードマップ配置ルール（[ADR-0037](../../../docs/adr/0037-new-feature-roadmap-placement.md)）、リリース単位のチェンジログ分割（[ADR-0038](../../../docs/adr/0038-changelog-version-split.md)）を追加。5 つの新規 ADR（0036–0040）で総数は 40 になりました。リリースノート：[`docs/releases/v1.1.1.md`](../../../docs/releases/v1.1.1.md)。より以前のバージョン：
 
 `v1.1.0` —— **国際化とリリース後ガバナンス**（マイルストーン 8）、1.0 以降最初の MINOR。純粋に**追加的** —— ライブラリのバイナリは `v1.0.x` と同一です。ドキュメントは**簡体字中国語（`zh-Hans`）と日本語（`ja`）**で提供されるようになりました（英語が正本 —— [`docs/i18n/`](../../../docs/i18n/)、[ADR-0032](../../../docs/adr/0032-documentation-i18n-architecture.md)）；仕様は英語を正本とします（[ADR-0033](../../../docs/adr/0033-english-as-the-spec-normative-language.md)）；[リリース後保守プロトコル](../../../docs/workflow/maintenance.md)（[ADR-0034](../../../docs/adr/0034-post-release-maintenance-protocol.md)）が保守フェーズを統治し；エージェントが実行可能な[一貫性 lint](../../../tools/consistency_lint.py)（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)）が CI とエージェント契約で成果物間の整合をゲートします。4 つの新規 ADR（0032–0035）で総数は 35 になりました。リリースノート：[`docs/releases/v1.1.0.md`](../../../docs/releases/v1.1.0.md)。より以前のバージョン：
 
