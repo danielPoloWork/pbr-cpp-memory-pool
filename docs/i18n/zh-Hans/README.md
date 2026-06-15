@@ -6,9 +6,9 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../../LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.0 stable](https://img.shields.io/badge/Status-v1.1.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.0)
+[![Status: v1.1.1 stable](https://img.shields.io/badge/Status-v1.1.1%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.1)
 
-> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `6236c0f`）。
+> 🌐 本页面是项目 [`README.md`](../../../README.md) 的简体中文翻译（基于提交 `23fc6c4`）。
 > **英文版本为唯一权威来源** —— 如本译文与原文不一致，以英文版为准。
 > 用其他语言阅读：[English](../../../README.md) · [日本語](../ja/README.md)。
 > 本目录其他简体中文页面：[规范](docs/specs/01_spec_cpp_memory_pool.md) · [设计模式目录（概览）](docs/patterns/README.md)。未翻译的页面回退到英文原文。
@@ -196,6 +196,8 @@ cmake --build --preset bench
 欢迎提供其他 主机 × 编译器 组合（Linux / GCC、Linux / Clang、macOS / Apple Clang）的报告 —— 贡献方法见 [`docs/bench/README.md`](../../../docs/bench/README.md)。
 
 ## 状态
+
+`v1.1.1` —— **维护版本**（文档 / 流程 / 工具），首个 `v1.1.0` 之后的 PATCH。所发布的库与 `v1.1.0` 逐字节相同 —— 无 API/ABI/行为变化。新增仓库内[缺陷台账（bug ledger）](../../../docs/bugs/)及其分诊协议（[ADR-0039](../../../docs/adr/0039-bug-ledger-and-triage-protocol.md)）、一份 [PR 元数据策略](../../../docs/adr/0040-pull-request-metadata-policy.md)、一个 [`SECURITY.md`](../../../SECURITY.md)、面向 vcpkg/Conan recipe 的 `packaging-smoke` CI、[会话日志（session journal）](../../../docs/journal/)（[ADR-0036](../../../docs/adr/0036-session-journal-extraction.md)）、新特性路线图归置规则（[ADR-0037](../../../docs/adr/0037-new-feature-roadmap-placement.md)），以及按发布拆分的变更日志（[ADR-0038](../../../docs/adr/0038-changelog-version-split.md)）。五个新 ADR（0036–0040）使总数达到 40。发布说明：[`docs/releases/v1.1.1.md`](../../../docs/releases/v1.1.1.md)。更早的版本：
 
 `v1.1.0` —— **国际化与发布后治理**（里程碑 8），首个 1.0 之后的 MINOR。纯**附加**性 —— 库的二进制与 `v1.0.x` 相同。文档现已提供**简体中文（`zh-Hans`）与日语（`ja`）**版本（英文为权威来源 —— [`docs/i18n/`](../../../docs/i18n/)、[ADR-0032](../../../docs/adr/0032-documentation-i18n-architecture.md)）；规范以英文为权威（[ADR-0033](../../../docs/adr/0033-english-as-the-spec-normative-language.md)）；一份[发布后维护协议](../../../docs/workflow/maintenance.md)（[ADR-0034](../../../docs/adr/0034-post-release-maintenance-protocol.md)）治理维护期；一个可由代理运行的[一致性 lint](../../../tools/consistency_lint.py)（[ADR-0035](../../../docs/adr/0035-agent-runnable-consistency-lint.md)）在 CI 与代理契约中对跨产物一致性进行门禁。四个新 ADR（0032–0035）使总数达到 35。发布说明：[`docs/releases/v1.1.0.md`](../../../docs/releases/v1.1.0.md)。更早的版本：
 

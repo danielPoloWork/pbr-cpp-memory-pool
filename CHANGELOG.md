@@ -18,7 +18,16 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
-*Nothing yet.*
+### Changed
+
+- **`zh-Hans` / `ja` README translations re-synced to `v1.1.1`.** Carries the English
+  README's `v1.1.1` deltas into both locales — the `v1.1.1` status badge (and its
+  release-tag link) and the new `v1.1.1` status paragraph (bug ledger, PR-metadata
+  policy, `SECURITY.md`, `packaging-smoke` CI, session journal, the roadmap-placement
+  rule, and the changelog split). The `translation-status.md` manifest's two README
+  rows are re-pinned to the current source commit (`23fc6c4`) and flipped from `stale`
+  back to `translated`, clearing the `i18n-freshness` flag the `v1.1.1` release raised.
+  Documentation-only; no API change.
 
 ## Released versions
 
