@@ -40,6 +40,17 @@ The mechanics are identical to a milestone close ([`release.md`](release.md) §1
 
 In all cases the agent prepares the release PR; the maintainer merges; the agent tags; the maintainer publishes ([AGENTS.md](../../AGENTS.md) §11, [ADR-0008](../adr/0008-delegate-tag-creation-and-push-to-the-agent.md)).
 
+## Bug ledger & defect lifecycle
+
+Defects are tracked in the **in-repo bug ledger** under [`docs/bugs/`](../bugs/) — one Markdown file per defect, `BUG-NNNN-<slug>.md` under a discovery-date tree, the ledger being the source of truth ([ADR-0039](../adr/0039-bug-ledger-and-triage-protocol.md)). The ledger and this protocol meet at the point a defect is **fixed**:
+
+1. **Record** — a verified defect (found internally) or a confirmed third-party report becomes a `confirmed` ledger file. An unsubstantiated report is recorded as `cannot-reproduce` / `rejected` / `duplicate`. The agent rule is [`AGENTS.md`](../../AGENTS.md) §7.7.
+2. **Assess the SemVer level** of the fix by the decision tree above (a logic fix is usually a **PATCH**; a fix that must change documented behaviour is **MINOR**/**MAJOR**).
+3. **Fix** through the hotfix/backport flow below. In the **same PR**, flip the record to `status: fixed`, set `fixed-in: vX.Y.Z`, link the fixing PR, and add the `CHANGELOG` line under **`Fixed`** (or **`Security`** for a vulnerability). The ledger record and the `CHANGELOG` line cross-reference each other — keep them in lockstep.
+4. **Security defects** follow the embargoed flow below, not the public ledger, until the advisory is published; the record is then added (or de-embargoed) with the advisory / CVE reference.
+
+The `bugs` consistency check (below) guards the record's structure and the `fixed`↔`fixed-in` link.
+
 ## Hotfix & backport workflow
 
 Two cases, decided by **whether `master` is currently releasable**:
@@ -78,6 +89,7 @@ Run `python tools/consistency_lint.py` before drafting any post-1.0 PR ([AGENTS.
 | `spec-map` | A Spec Coverage Map row has an empty *Roadmap items* cell or no status glyph. | Give the spec row at least one fulfilling roadmap item and a legend glyph (⏳/🚧/✅/❎). |
 | `i18n-freshness` | A `translated` page's English source changed after the source commit recorded in the manifest. | Re-sync the affected `docs/i18n/<lang>/…` page to the new source, then update that manifest row's source commit (or, if the source change does not affect the prose, re-pin the commit after reviewing). |
 | `milestones` | The README marks a milestone ✅ while a ROADMAP item in it is unchecked, or a checkbox is malformed. | Check the remaining ROADMAP item(s), or correct the README table; fix any `- [ ]`/`- [x]` typo. |
+| `bugs` | A `docs/bugs/` record has bad frontmatter (missing key, unknown `status`/`severity`/`reporter`), its filename/path disagrees with its `id`/`discovered`, ids are non-unique or gapped, the index ↔ files bijection is broken, or a `fixed` record has no `fixed-in`. | Fix the record per [`docs/bugs/README.md`](../bugs/README.md): match the filename to `BUG-NNNN`, file it under `<discovered-year>/<month>/`, use the next free id, add/repair the index row, and set `fixed-in` once `status: fixed`. |
 
 ## What this protocol does not change
 

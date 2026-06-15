@@ -11,6 +11,7 @@ This directory holds the durable, versioned documentation for `pbr-cpp-memory-po
 | `docs/patterns/`      | Living catalogue of design patterns adopted, rejected, or under consideration.           |
 | `docs/workflow/`      | Repository workflow conventions (git, documentation maintenance, release).               |
 | `docs/development/`   | Procedural how-to guides for working on the code locally (toolchain, build, debug).      |
+| `docs/bugs/`          | In-repo bug ledger — one record per known defect, with the triage trail (ADR-0039).      |
 
 ## Reading order for newcomers
 

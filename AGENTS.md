@@ -52,7 +52,8 @@ The full specification is in [`docs/specs/01_spec_cpp_memory_pool.md`](docs/spec
 │   ├── adr/                        # Architecture Decision Records
 │   ├── patterns/                   # design-patterns catalogue
 │   ├── specs/                      # functional/technical specifications
-│   └── workflow/                   # git & documentation conventions
+│   ├── workflow/                   # git & documentation conventions
+│   └── bugs/                       # in-repo bug ledger (ADR-0039)
 └── (build/, CMakeLists.txt, etc.)  # created in Milestone 1
 ```
 
@@ -249,6 +250,18 @@ At the **close of a work session that changed the project's state**, the agent:
 3. Updates the **Latest checkpoint** pointer in the `ROADMAP.md` *Session journal* section to the new file.
 
 The journal is documentation that ships with the work, like any other doc in this section — not a separate bookkeeping PR.
+
+### 7.7 Bug ledger & triage protocol
+
+Known defects and the triage of incoming reports live in [`docs/bugs/`](docs/bugs/) — one Markdown file per defect, named `BUG-NNNN-<slug>.md` under a discovery-date tree `docs/bugs/<YYYY>/<MM>/`, indexed by [`docs/bugs/README.md`](docs/bugs/README.md) ([ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)). The ledger is the **source of truth** for defects (a GitHub issue, if any, is referenced, not authoritative); it holds the **open/in-flight/triaged** side, while the **closing** side — what shipped in which release — is the `CHANGELOG` `Fixed` line (§11). `NNNN` is a globally-monotonic id, never reused or renumbered (like an ADR number).
+
+The agent's obligations:
+
+1. **When asked to hunt for / find bugs**, create a ledger file *only* for a **verified, reproducible** defect — never a speculative one. Start from [`docs/bugs/template.md`](docs/bugs/template.md), fill the frontmatter (`status: confirmed`, `reporter: internal`, `severity`, `discovered`, `affected-versions`), capture the reproduction and root cause, and add the index row — in the same PR as the investigation.
+2. **When a third party reports a bug**, **reproduce and root-cause it first.** Only on confirmation create a record (`reporter: third-party`, the reproduction as evidence). A report you **cannot** substantiate is **still recorded** — as `cannot-reproduce` (or `rejected` / `duplicate`) — documenting the investigation that reached that verdict, so the triage trail is preserved. Never transcribe an unconfirmed third-party claim into the ledger as if it were a real defect.
+3. **When a fix lands**, flip the record to `status: fixed`, set `fixed-in`, link the fixing PR, and add the `CHANGELOG` `Fixed` line — in the same PR, per the hotfix/PATCH flow in [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md).
+
+This is a judgment task, not an automated trigger: deciding a defect is *real* belongs to the agent. Structural integrity (frontmatter keys, the `status`/`severity`/`reporter` vocabularies, filename↔`id` and path↔`discovered` agreement, monotonic ids, the index bijection, and that a `fixed` record names its `fixed-in`) is enforced by the consistency lint's `bugs` check (§6.4) — run `python tools/consistency_lint.py` before drafting the PR.
 
 ## 8. Design Patterns Policy
 

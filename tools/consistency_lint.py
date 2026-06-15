@@ -21,7 +21,10 @@ The checks (the "post-release congruence contract"):
      roadmap-items cell);
   5. the i18n manifest has no `translated` entry staler than its English source
      (the recorded source commit is the source file's latest commit);
-  6. ROADMAP / README milestone-completion state is internally consistent.
+  6. ROADMAP / README milestone-completion state is internally consistent;
+  7. every docs/bugs/ record has valid frontmatter, its filename/path agrees with
+     its id/discovered date, ids are unique and non-gapped, the index <-> files
+     bijection holds, and a `fixed` record names its `fixed-in` release.
 
 Each check is independent; all run, then the report lists every failure.
 """
@@ -284,6 +287,90 @@ def check_milestones():
             fail(name, f"malformed ROADMAP checkbox: {ln.strip()[:60]}")
 
 
+# --------------------------------------------------------------------------
+# 7. Bug ledger integrity (docs/bugs/, ADR-0039)
+# --------------------------------------------------------------------------
+BUG_STATUSES = {
+    "open", "confirmed", "fixed", "wontfix", "duplicate", "cannot-reproduce",
+}
+BUG_SEVERITIES = {"low", "medium", "high", "critical"}
+BUG_REPORTERS = {"internal", "third-party"}
+BUG_REQUIRED = ("id", "title", "status", "severity", "reporter", "discovered")
+
+
+def _parse_frontmatter(text):
+    """Return the leading `--- ... ---` block as a dict, or None if absent."""
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None
+    fields = {}
+    for line in text[3:end].splitlines():
+        if not line.strip() or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        fields[key.strip()] = value.strip()
+    return fields
+
+
+def check_bugs():
+    name = "bugs"
+    bugs_dir = os.path.join(ROOT, "docs", "bugs")
+    if not os.path.isdir(bugs_dir):
+        return  # no ledger yet -> nothing to check
+    index_path = os.path.join(bugs_dir, "README.md")
+    index = read("docs", "bugs", "README.md") if os.path.exists(index_path) else ""
+
+    numbers = []
+    for cur, _dirs, files in os.walk(bugs_dir):
+        for fn in files:
+            m = re.fullmatch(r"BUG-(\d{4})-[a-z0-9-]+\.md", fn)
+            if not m:
+                continue  # README.md, template.md, etc.
+            num = int(m.group(1))
+            rel = os.path.relpath(os.path.join(cur, fn), bugs_dir).replace(os.sep, "/")
+            fm = _parse_frontmatter(read("docs", "bugs", *rel.split("/")))
+            if fm is None:
+                fail(name, f"{rel}: missing or malformed YAML frontmatter")
+                continue
+            for key in BUG_REQUIRED:
+                if not fm.get(key):
+                    fail(name, f"{rel}: missing required frontmatter key '{key}'")
+            if fm.get("id") != f"BUG-{m.group(1)}":
+                fail(name, f"{rel}: frontmatter id '{fm.get('id')}' != filename BUG-{m.group(1)}")
+            if fm.get("status") and fm["status"] not in BUG_STATUSES:
+                fail(name, f"{rel}: unknown status '{fm['status']}'")
+            if fm.get("severity") and fm["severity"] not in BUG_SEVERITIES:
+                fail(name, f"{rel}: unknown severity '{fm['severity']}'")
+            if fm.get("reporter") and fm["reporter"] not in BUG_REPORTERS:
+                fail(name, f"{rel}: unknown reporter '{fm['reporter']}'")
+            disc = fm.get("discovered", "")
+            dm = re.fullmatch(r"(\d{4})-(\d{2})-\d{2}", disc)
+            if not dm:
+                fail(name, f"{rel}: discovered '{disc}' is not YYYY-MM-DD")
+            elif f"{dm.group(1)}/{dm.group(2)}/" not in rel:
+                fail(name, f"{rel}: path does not match discovered date {disc} "
+                           f"(expected under {dm.group(1)}/{dm.group(2)}/)")
+            if fm.get("status") == "fixed" and not fm.get("fixed-in"):
+                fail(name, f"{rel}: status 'fixed' requires a 'fixed-in' release")
+            if f"({rel})" not in index:
+                fail(name, f"{rel} is not linked from docs/bugs/README.md index")
+            numbers.append(num)
+
+    if numbers:
+        if len(set(numbers)) != len(numbers):
+            fail(name, "duplicate BUG ids found")
+        for i, n in enumerate(sorted(numbers), start=1):
+            if n != i:
+                fail(name, f"BUG numbering gap/dup: expected {i:04d}, found {n:04d}")
+                break
+    # Every BUG-NNNN-*.md the index links to must exist on disk.
+    for link in re.findall(r"\]\((\d{4}/\d{2}/BUG-\d{4}-[a-z0-9-]+\.md)\)", index):
+        if not os.path.exists(os.path.join(bugs_dir, link)):
+            fail(name, f"index links missing bug file '{link}'")
+
+
 CHECKS = [
     check_version_lockstep,
     check_adr_index,
@@ -291,6 +378,7 @@ CHECKS = [
     check_spec_map,
     check_i18n_freshness,
     check_milestones,
+    check_bugs,
 ]
 
 
