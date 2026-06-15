@@ -20,6 +20,21 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **In-repo bug ledger (`docs/bugs/`) + agent triage protocol.** Known defects and
+  the triage of incoming reports now have a durable, reviewable home: one Markdown
+  record per defect, `BUG-NNNN-<slug>.md` under a discovery-date tree
+  `docs/bugs/<YYYY>/<MM>/`, with a stable monotonic id, structured frontmatter
+  (`status`/`severity`/`reporter`/…), an index + template, and a lifecycle
+  (`open → confirmed → fixed`, plus `wontfix`/`duplicate`/`cannot-reproduce`). The
+  ledger is the source of truth (a GitHub issue is referenced, not authoritative) and
+  cross-references the `CHANGELOG` `Fixed` line at close. The agent rule
+  ([`AGENTS.md`](AGENTS.md) §7.7) requires a record only for **verified** defects, and
+  **verification before acceptance** of third-party reports (unsubstantiated reports
+  are still recorded as `cannot-reproduce`/`rejected`). A new `bugs` consistency-lint
+  check guards frontmatter, ids, the index bijection, and the `fixed`↔`fixed-in` link.
+  Governance in [`docs/workflow/maintenance.md`](docs/workflow/maintenance.md);
+  rationale in [ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md).
+  Documentation/process/tooling-only; no API change.
 - README gains a **Technology stack** section (language standards, build / test /
   docs / tooling, and packaging, with versions — `zero runtime dependencies`) and a
   top-of-page **"Read this in: 简体中文 · 日本語"** pointer to the `docs/i18n/`
