@@ -163,8 +163,10 @@ void* memory_pool_alloc(memory_pool_t* pool);
  * pool state is bit-identical before and after a no-op call. Note that
  * the policy does NOT detect *double-free* on a legitimately-in-range,
  * already-on-the-free-list pointer; that case remains undefined
- * behaviour and is addressed by the optional Decorator instrumentation
- * landing in Milestone 6.
+ * behaviour. The optional `InstrumentedPool` Decorator (Milestone 6)
+ * counts deallocation calls but does not detect a double-free either —
+ * it cannot distinguish one from a legitimate free — so it must not be
+ * relied on to make a double-free safe.
  *
  * @param pool  Pool the block originally came from.
  * @param block Block to release, or `NULL`, or a foreign pointer.

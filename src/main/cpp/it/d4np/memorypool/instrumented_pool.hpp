@@ -131,11 +131,14 @@ public:
           allocation_failures_(other.allocation_failures_.load(std::memory_order_relaxed)),
           live_(other.live_.load(std::memory_order_relaxed)),
           peak_live_(other.peak_live_.load(std::memory_order_relaxed)), observers_(std::move(other.observers_)),
-          last_growths_(other.last_growths_) {}
+          last_growths_(other.last_growths_.load(std::memory_order_relaxed)) {}
 
-    /** Move-assign; releases the current pool and re-seeds the counters + observers. */
+    /** Move-assign; releases the current pool and re-seeds the counters + observers.
+     *  The pool being replaced is going away, so its observers get a `destroyed`
+     *  event first — symmetric with the destructor (BUG-0003). */
     InstrumentedPool& operator=(InstrumentedPool&& other) noexcept {
         if (this != &other) {
+            notify(PoolEvent::destroyed);
             pool_ = std::move(other.pool_);
             allocations_.store(other.allocations_.load(std::memory_order_relaxed), std::memory_order_relaxed);
             deallocations_.store(other.deallocations_.load(std::memory_order_relaxed), std::memory_order_relaxed);
@@ -144,7 +147,7 @@ public:
             live_.store(other.live_.load(std::memory_order_relaxed), std::memory_order_relaxed);
             peak_live_.store(other.peak_live_.load(std::memory_order_relaxed), std::memory_order_relaxed);
             observers_ = std::move(other.observers_);
-            last_growths_ = other.last_growths_;
+            last_growths_.store(other.last_growths_.load(std::memory_order_relaxed), std::memory_order_relaxed);
         }
         return *this;
     }
@@ -191,7 +194,13 @@ public:
     void deallocate(void* block) noexcept {
         if (block != nullptr) {
             deallocations_.fetch_add(1U, std::memory_order_relaxed);
-            live_.fetch_sub(1U, std::memory_order_relaxed);
+            // Clamp at zero: a foreign or already-freed pointer is a no-op in the
+            // core (ADR-0012), so an unconditional fetch_sub would underflow `live_`
+            // to SIZE_MAX on such a call (BUG-0002). Decrement only while positive.
+            std::size_t live = live_.load(std::memory_order_relaxed);
+            while (live > 0U && !live_.compare_exchange_weak(live, live - 1U, std::memory_order_relaxed)) {
+                // `live` is reloaded by compare_exchange_weak on failure; retry.
+            }
         }
         pool_.deallocate(block);
     }
@@ -250,9 +259,16 @@ private:
      *  the dynamic pool grew, so notify `grew`. */
     void notify_if_grew() noexcept {
         const std::size_t growths = ::memory_pool_growths(pool_.native_handle());
-        if (growths > last_growths_) {
-            last_growths_ = growths;
-            notify(PoolEvent::grew);
+        // Advance the high-water growth count atomically; the thread that wins the
+        // compare-exchange notifies `grew` exactly once per observed growth, so
+        // concurrent callers neither race on the counter nor double-notify (BUG-0001).
+        std::size_t last = last_growths_.load(std::memory_order_relaxed);
+        while (growths > last) {
+            if (last_growths_.compare_exchange_weak(last, growths, std::memory_order_relaxed)) {
+                notify(PoolEvent::grew);
+                break;
+            }
+            // `last` is reloaded by compare_exchange_weak on failure; re-check.
         }
     }
 
@@ -263,7 +279,9 @@ private:
     std::atomic<std::size_t> live_{0U};
     std::atomic<std::size_t> peak_live_{0U};
     std::vector<PoolObserver*> observers_;
-    std::size_t last_growths_{0U};
+    // Atomic: read+advanced on the hot allocation path (`notify_if_grew`), which the
+    // class contract allows to run concurrently over a thread-safe pool (BUG-0001).
+    std::atomic<std::size_t> last_growths_{0U};
 };
 
 }  // namespace it::d4np::memorypool

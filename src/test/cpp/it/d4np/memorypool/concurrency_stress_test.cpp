@@ -35,12 +35,14 @@
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
+#include <it/d4np/memorypool/instrumented_pool.hpp>
 #include <it/d4np/memorypool/memory_pool.hpp>
 
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <set>
 #include <thread>
 #include <vector>
@@ -49,6 +51,7 @@
 
 #if PBR_MEMORY_POOL_THREAD_SAFETY != PBR_MEMORY_POOL_THREAD_SAFETY_NONE
 
+using it::d4np::memorypool::InstrumentedPool;
 using it::d4np::memorypool::Pool;
 
 namespace {
@@ -178,6 +181,45 @@ TEST_CASE("a vended block is exclusively owned while held (no double-vend)") {
     }
 
     CHECK_FALSE(violated.load(std::memory_order_relaxed));
+}
+
+TEST_CASE("concurrent InstrumentedPool over a dynamic pool is race-free on the growth counter (BUG-0001)") {
+    std::optional<InstrumentedPool> opt = InstrumentedPool::make_dynamic(BLOCK_SIZE, 64U, 2U);
+    if (!opt.has_value()) {
+        return;  // LOCKFREE: dynamic mode rejected (ADR-0024 §2) — no growth path to race on
+    }
+    InstrumentedPool& pool = *opt;
+
+    // Drive concurrent allocations that force repeated growth. Before the fix,
+    // notify_if_grew() read+wrote the non-atomic last_growths_ on this hot path;
+    // ThreadSanitizer flags that race under MUTEX. Each thread keeps its blocks so
+    // nothing is freed mid-flight (the focus is the growth-counter access).
+    constexpr int PER_THREAD = 2000;
+    std::vector<std::vector<void*>> grabbed(THREAD_COUNT);
+    std::vector<std::thread> threads;
+    threads.reserve(THREAD_COUNT);
+    for (unsigned t = 0; t < THREAD_COUNT; ++t) {
+        threads.emplace_back([&pool, &grabbed, t] {
+            std::vector<void*>& mine = grabbed.at(t);
+            for (int i = 0; i < PER_THREAD; ++i) {
+                void* const block = pool.try_allocate();
+                if (block != nullptr) {
+                    mine.push_back(block);
+                }
+            }
+        });
+    }
+    for (std::thread& th : threads) {
+        th.join();
+    }
+
+    CHECK(pool.stats().allocation_failures_ == 0U);  // dynamic: grows rather than failing
+
+    for (const std::vector<void*>& v : grabbed) {
+        for (void* const p : v) {
+            pool.deallocate(p);
+        }
+    }
 }
 
 #else  // PBR_MEMORY_POOL_THREAD_SAFETY != NONE
