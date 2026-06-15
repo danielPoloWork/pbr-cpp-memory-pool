@@ -40,6 +40,27 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   back to `translated`, clearing the `i18n-freshness` flag the `v1.1.1` release raised.
   Documentation-only; no API change.
 
+### Fixed
+
+- **`InstrumentedPool` data race on the growth counter ([BUG-0001](docs/bugs/2026/06/BUG-0001-instrumented-pool-growth-counter-data-race.md)).**
+  `notify_if_grew()` read and wrote the non-atomic `last_growths_` on the allocation
+  hot path, while the decorator is documented as safe to drive concurrently over a
+  thread-safe pool — a data race (UB) under `MUTEX` + dynamic growth. `last_growths_`
+  is now `std::atomic` and advanced with a `compare_exchange`, so the growth event is
+  emitted once per growth without a race. A concurrent `InstrumentedPool` case was
+  added to the ThreadSanitizer stress suite. Header-only; no API change.
+- **`InstrumentedPool::deallocate` no longer underflows `live_` ([BUG-0002](docs/bugs/2026/06/BUG-0002-instrumented-pool-live-counter-underflow.md)).**
+  A foreign or double-freed pointer (a no-op in the core, ADR-0012) used to decrement
+  the unsigned `live_` counter unconditionally, wrapping it to `SIZE_MAX` and
+  corrupting `stats()`. The decrement now clamps at zero. The C header's
+  `memory_pool_free` note was corrected to stop claiming the Decorator *detects*
+  double-free (it counts but cannot distinguish one). Header/doc-only; no API change.
+- **`InstrumentedPool` move-assignment now emits `destroyed` for the replaced pool
+  ([BUG-0003](docs/bugs/2026/06/BUG-0003-instrumented-pool-move-assign-missing-destroyed-event.md)).**
+  Move-assigning over an instrumented pool released its `Pool` and observers without
+  notifying `PoolEvent::destroyed`, asymmetric with the destructor. It now notifies
+  before reassignment. Header-only; no API change.
+
 ## Released versions
 
 Each released version is an **immutable** entry under [`docs/changelog/`](docs/changelog/) — one file per release, newest first ([ADR-0038](docs/adr/0038-changelog-version-split.md)). They are never edited after release; only the `Unreleased` block above changes during development.

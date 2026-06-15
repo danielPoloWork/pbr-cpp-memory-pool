@@ -222,3 +222,26 @@ TEST_CASE("an observer is notified of growth on a dynamic pool (ADR-0026)") {
         opt->deallocate(block);
     }
 }
+
+TEST_CASE("InstrumentedPool::deallocate clamps live_ at zero on a foreign pointer (BUG-0002)") {
+    InstrumentedPool pool{Pool(BLOCK_SIZE, 4U)};
+    void* const a = pool.try_allocate();
+    REQUIRE(a != nullptr);
+    pool.deallocate(a);  // live_ -> 0
+
+    int stack_var = 0;
+    pool.deallocate(&stack_var);  // foreign pointer: core no-op (ADR-0012); must not underflow
+
+    const PoolStats s = pool.stats();
+    CHECK(s.live_ == 0U);           // clamped at zero, not wrapped to SIZE_MAX
+    CHECK(s.deallocations_ == 2U);  // both non-null calls counted (documented meaning)
+}
+
+TEST_CASE("InstrumentedPool move-assignment notifies destroyed for the replaced pool (BUG-0003)") {
+    RecordingObserver obs;  // out-lives both pools below
+    InstrumentedPool dest{Pool(BLOCK_SIZE, 4U)};
+    dest.add_observer(obs);
+
+    dest = InstrumentedPool{Pool(BLOCK_SIZE, 4U)};  // replaces dest's pool
+    CHECK(obs.destroyed_ == 1);                     // the replaced pool announced destruction
+}

@@ -73,11 +73,12 @@ checked by `python tools/consistency_lint.py` (the `bugs` check).
 
 ## Index
 
-Newest first, grouped by year and month. *(No defects recorded yet — the ledger is empty
-as of `v1.1.0`.)*
+Newest first, grouped by year and month.
 
-<!-- When adding a record, append a row here:
+### 2026 — June
+
 | Id | Title | Status | Severity | Discovered |
 |----|-------|--------|----------|------------|
-| [BUG-0001](2026/06/2026...) | ... | open | medium | 2026-06-15 |
--->
+| [BUG-0001](2026/06/BUG-0001-instrumented-pool-growth-counter-data-race.md) | Data race on `InstrumentedPool::last_growths_` under concurrent use | `fixed` | high | 2026-06-15 |
+| [BUG-0002](2026/06/BUG-0002-instrumented-pool-live-counter-underflow.md) | `InstrumentedPool::deallocate` underflows `live_` on a foreign / double-freed pointer | `fixed` | medium | 2026-06-15 |
+| [BUG-0003](2026/06/BUG-0003-instrumented-pool-move-assign-missing-destroyed-event.md) | `InstrumentedPool` move-assignment does not notify `destroyed` for the replaced pool | `fixed` | low | 2026-06-15 |
