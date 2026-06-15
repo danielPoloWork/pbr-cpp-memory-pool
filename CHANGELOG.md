@@ -18,6 +18,17 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Removed
+
+- **The `docs-site` CI status badge** was removed from the README header in all three
+  locales (English, `zh-Hans`, `ja`). The published Doxygen site is already linked from
+  the **API reference** badge, so the separate build-status badge was redundant. The
+  `docs-site.yml` workflow itself is unchanged. The badge is removed from the
+  translations in the same change; the `translation-status.md` manifest's two README
+  rows are marked `stale` here (the English source moved ahead of their pin) and
+  re-pinned + flipped back to `translated` in a follow-up once this lands on `master`.
+  Documentation-only; no API change.
+
 ### Changed
 
 - **`zh-Hans` / `ja` README translations re-synced to `v1.1.1`.** Carries the English
