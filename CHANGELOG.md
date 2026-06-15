@@ -86,10 +86,10 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `docs/changelog/v<MAJOR>/v<X.Y.Z>.md`; the root `CHANGELOG.md` now keeps only the
   preamble, `[Unreleased]`, and the *Released versions* index below — dropping from
   1129 to ~100 lines. Keep a Changelog and the root-file location are preserved;
-  the `version-lockstep` consistency check and [`release.md`](docs/workflow/release.md)
-  roll-over mechanic were updated accordingly. Rationale (incl. why not a calendar
-  or XML/Liquibase split) in [ADR-0038](docs/adr/0038-changelog-version-split.md).
-  Documentation/tooling-only.
+  the `version-lockstep` consistency check, [`release.md`](docs/workflow/release.md)
+  §3, and the `AGENTS.md` §11 release contract were updated to match. Rationale
+  (incl. why not a calendar or XML/Liquibase split) in
+  [ADR-0038](docs/adr/0038-changelog-version-split.md). Documentation/tooling-only.
 
 ## Released versions
 

@@ -304,7 +304,7 @@ The project follows **Semantic Versioning 2.0.0**. Tags are annotated and have t
 
 **Post-1.0 (`MAJOR.MINOR.PATCH`)** — standard SemVer; `MAJOR` for source-/ABI-incompatible changes, `MINOR` for additions, `PATCH` for fixes.
 
-**`CHANGELOG.md`** — Keep a Changelog 1.1.0 format. Every PR that introduces user-visible change adds a line to the `Unreleased` section in the same PR; release PRs roll `Unreleased` into the new version block.
+**`CHANGELOG.md`** — Keep a Changelog 1.1.0 format. Released entries are **immutable, one file per release** under `docs/changelog/v<MAJOR>/v<X.Y.Z>.md`; the root `CHANGELOG.md` keeps only the `[Unreleased]` block and the *Released versions* index ([ADR-0038](docs/adr/0038-changelog-version-split.md)). Every PR that introduces user-visible change adds a line to the root `Unreleased` section in the same PR; a release PR **moves** `Unreleased` into a new per-version file and adds an index row ([`docs/workflow/release.md`](docs/workflow/release.md) §3) — it does not edit a released file.
 
 **Release artifacts** — on each `v*` tag push, the `release` CI workflow re-runs the full test matrix, builds per-platform binaries (Linux x86_64, Windows x86_64, macOS arm64), produces `SHA256SUMS`, and creates a **draft** GitHub Release. The maintainer reviews and clicks *Publish*.
 
@@ -315,7 +315,7 @@ The project follows **Semantic Versioning 2.0.0**. Tags are annotated and have t
 | Action                                                | Who      |
 |-------------------------------------------------------|----------|
 | Bump version constant in source                       | Agent    |
-| Update `CHANGELOG.md` (Unreleased → version)          | Agent    |
+| Move `Unreleased` → `docs/changelog/v<MAJOR>/v<X.Y.Z>.md` + index row | Agent    |
 | Draft GitHub Release notes (`docs/releases/v<X.Y.Z>.md`) | Agent  |
 | Open the release PR                                   | **Human**|
 | Merge the release PR                                  | **Human**|
