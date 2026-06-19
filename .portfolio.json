@@ -1,0 +1,10 @@
+{
+  "title": "High-Performance Memory Pool Manager (C/C++)",
+  "tags": ["memory-pool", "custom-allocator", "high-performance", "low-latency", "cpp17", "ansi-c"],
+  "order": 1,
+  "description": {
+    "en": "A fixed-block-size O(1) memory pool for C and C++17: pre-allocates contiguous backing storage and delivers constant-time, fixed-size allocation with zero external fragmentation and zero per-block metadata overhead. Four-function C ABI plus an idiomatic C++17 wrapper, built to enterprise quality (warnings-as-errors, sanitizers, Valgrind, Doxygen). Part of the Purpose-Built References (PBR) series.",
+    "ja": "C と C++17 向けの固定ブロックサイズ O(1) メモリプール。連続したバッキングストレージを事前確保し、定数時間・固定サイズの割り当てを提供します。外部フラグメンテーションはゼロ、ブロックあたりのメタデータオーバーヘッドもゼロ。4 関数の C ABI とイディオマティックな C++17 ラッパーを備え、エンタープライズ品質（警告をエラー扱い、サニタイザ、Valgrind、Doxygen）で構築。Purpose-Built References (PBR) シリーズの一部です。",
+    "zh": "面向 C 与 C++17 的固定块大小 O(1) 内存池：预分配连续的后备存储，提供常数时间、固定大小的分配，具备零外部碎片与每块零元数据开销。提供四函数 C ABI 以及符合习惯用法的 C++17 封装，以企业级质量构建（警告即错误、Sanitizer、Valgrind、Doxygen）。隶属 Purpose-Built References (PBR) 系列。"
+  }
+}
