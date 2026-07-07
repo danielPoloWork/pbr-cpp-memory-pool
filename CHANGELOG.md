@@ -20,6 +20,17 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **`std::pmr::memory_resource` adapter — `PoolMemoryResource`.** A new header-only Adapter
+  ([`pool_memory_resource.hpp`](src/main/cpp/it/d4np/memorypool/pool_memory_resource.hpp))
+  binds one `Pool` behind the runtime `std::pmr::memory_resource` interface, so a single
+  resource can back any `std::pmr` container through `std::pmr::polymorphic_allocator` without
+  the per-type `PoolAllocator<T>` rebind — the "door left open" in ADR-0018. Deterministic
+  `(bytes, alignment)` routing to the pool (over-sized / over-aligned requests fall back to a
+  configurable upstream resource; exhaustion throws `std::bad_alloc`), `is_equal` by
+  `(pool, upstream)` identity, gated behind `PBR_MEMORY_POOL_HAS_PMR` where `<memory_resource>`
+  is available. Purely additive and ABI-compatible — the frozen C ABI and existing C++ types
+  are unchanged; opens roadmap Milestone 9 (a `v1.2.0` candidate).
+  [ADR-0042](docs/adr/0042-pmr-memory-resource-adapter.md). Closes #107.
 - **C4 component diagram of the pool internals** in the specification
   ([`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md), §4.2),
   authored in Mermaid. [ADR-0041](docs/adr/0041-mermaid-diagram-tooling.md) records Mermaid

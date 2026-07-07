@@ -199,6 +199,29 @@ add_test(
 set_tests_properties(zero_overhead PROPERTIES
     LABELS "smoke;milestone-6")
 
+# ROADMAP item 9.1 — the std::pmr::memory_resource Adapter (ADR-0042). The
+# adapter is header-only and gated behind PBR_MEMORY_POOL_HAS_PMR (availability
+# of <memory_resource>); the test TU compiles in both states (a placeholder
+# case when the surface is gated out), so this binary builds in every
+# configuration and is the compile-time proof that pool_memory_resource.hpp
+# instantiates cleanly (including through std::pmr::list / std::pmr::vector)
+# under the full warning set.
+add_executable(pool_memory_resource_test
+    pool_memory_resource_test.cpp)
+
+target_link_libraries(pool_memory_resource_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(pool_memory_resource_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    pool_memory_resource
+    COMMAND pool_memory_resource_test)
+
+set_tests_properties(pool_memory_resource PROPERTIES
+    LABELS "smoke;milestone-9")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

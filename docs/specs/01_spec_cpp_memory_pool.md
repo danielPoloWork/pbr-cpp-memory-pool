@@ -169,6 +169,7 @@ A layered, idiomatic C++ surface built on the C core:
 - `Pool` — move-only RAII owner; `PoolBuilder` / factory methods for construction ([ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md), [ADR-0011](../adr/0011-factory-method-and-builder-for-pool-construction.md)).
 - `TypedPool<T>` — type-safe `construct`/`destroy` over the pool ([ADR-0017](../adr/0017-typed-pool-design.md)).
 - `PoolAllocator<T>` — an STL `Allocator` adapter so the pool can back `std::list`, `std::map`, … ([ADR-0018](../adr/0018-stl-allocator-adapter.md)).
+- `PoolMemoryResource` — a `std::pmr::memory_resource` adapter so one pool can back any `std::pmr` container via `std::pmr::polymorphic_allocator`, without the per-type rebind. Header-only and gated behind `PBR_MEMORY_POOL_HAS_PMR` (compiled where `<memory_resource>` is available) ([ADR-0042](../adr/0042-pmr-memory-resource-adapter.md)).
 - `InstrumentedPool` — a Decorator adding counters and lifecycle Observers ([ADR-0025](../adr/0025-decorator-for-instrumented-pool.md), [ADR-0026](../adr/0026-observer-for-pool-lifecycle-events.md)).
 
 ### 5.3 Error semantics
@@ -221,6 +222,7 @@ Every requirement above is realized and recorded. The table maps the spec to its
 | §4 free-list layout, constraints, alignment, intrusive-vs-bitmap | [ADR-0009](../adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) |
 | §4.2 component (C4) diagram & diagram tooling | [ADR-0041](../adr/0041-mermaid-diagram-tooling.md) |
 | §5.1–5.2 API, RAII, Pimpl, builder, typed pool, STL adapter | [ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md), [ADR-0011](../adr/0011-factory-method-and-builder-for-pool-construction.md), [ADR-0017](../adr/0017-typed-pool-design.md), [ADR-0018](../adr/0018-stl-allocator-adapter.md) |
+| §5.2 `std::pmr` adapter (PoolMemoryResource) | [ADR-0042](../adr/0042-pmr-memory-resource-adapter.md) |
 | §5.3 error semantics | [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md), [ADR-0016](../adr/0016-exception-policy-at-the-c-cpp-boundary.md) |
 | §5.4 instrumentation / observers | [ADR-0025](../adr/0025-decorator-for-instrumented-pool.md), [ADR-0026](../adr/0026-observer-for-pool-lifecycle-events.md) |
 | §6.3 benchmark methodology | [ADR-0014](../adr/0014-microbenchmark-methodology-pool-vs-malloc.md) |
@@ -230,7 +232,6 @@ Every requirement above is realized and recorded. The table maps the spec to its
 
 These are explicitly out of the current build and tracked as issues:
 
-- **`std::pmr::memory_resource` adapter** — the "door left open" in [ADR-0018](../adr/0018-stl-allocator-adapter.md) (issue #107).
 - **Coverage-guided fuzzing harness** (issue #108).
 - **Opt-in debug hardening** — freed-block poisoning, canaries, free-list safe-linking; would also add double-free detection (issue #109).
 - **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting (issue #111).

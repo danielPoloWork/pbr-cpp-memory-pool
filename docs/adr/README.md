@@ -74,5 +74,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0039   | [In-repo bug ledger and agent triage protocol](0039-bug-ledger-and-triage-protocol.md) | Accepted |
 | 0040   | [Pull-request metadata policy (assignee, labels, milestone)](0040-pull-request-metadata-policy.md) | Accepted |
 | 0041   | [Mermaid as the in-repo diagram tooling](0041-mermaid-diagram-tooling.md) | Accepted |
+| 0042   | [`std::pmr::memory_resource` adapter — `PoolMemoryResource`](0042-pmr-memory-resource-adapter.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.
