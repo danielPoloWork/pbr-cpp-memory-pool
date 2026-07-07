@@ -18,6 +18,16 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Added
+
+- **C4 component diagram of the pool internals** in the specification
+  ([`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md), §4.2),
+  authored in Mermaid. [ADR-0041](docs/adr/0041-mermaid-diagram-tooling.md) records Mermaid
+  as the in-repo diagram tooling — C4 levels are drawn as flowcharts with `subgraph`
+  boundaries, and PlantUML, checked-in images, and Mermaid's experimental `C4Component` DSL
+  were considered and rejected. Closes the last open item of the specification review.
+  Documentation-only; no API change. Refs #105.
+
 ### Changed
 
 - **`zh-Hans` / `ja` README translations re-synced to `v1.1.2`.** Carries the English

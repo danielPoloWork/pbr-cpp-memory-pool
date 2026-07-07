@@ -86,6 +86,54 @@ Storing a next-pointer in-band imposes constraints, all enforced by the implemen
 
 The intrusive-free-list design was chosen over a bitmap allocator; the rejected alternative and its rationale are recorded in [ADR-0009](../adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md).
 
+### 4.2 Component diagram (C4)
+
+The C4-model **Component** view below relates the public surface, the core engine (which lives behind the opaque `memory_pool_t` handle / Pimpl), and the operating-system backing store. It is authored in Mermaid per [ADR-0041](../adr/0041-mermaid-diagram-tooling.md); a viewer without Mermaid support sees the equivalent source. Solid arrows are runtime call / ownership paths; dashed arrows are optional or diagnostic relationships. Bracketed tags name the realizing technology or the design pattern applied.
+
+```mermaid
+%% C4 model — Component level for the pbr-cpp-memory-pool library.
+%% Authored as a Mermaid flowchart with C4 boundary subgraphs (ADR-0041).
+flowchart TB
+    app["Consumer application<br/>[C or C++]<br/>fixed-size allocation on a hot path"]
+
+    subgraph lib["pbr-cpp-memory-pool — static library"]
+      direction TB
+      subgraph surface["Public surface"]
+        direction TB
+        capi["C API — memory_pool.h [extern C]<br/>frozen 4-function ABI + create_dynamic + introspection"]
+        cpp["Pool / PoolBuilder [C++ RAII]<br/>move-only owner; factory / builder construction"]
+        adapters["TypedPool&lt;T&gt; · PoolAllocator&lt;T&gt; [templates]<br/>type-safe and STL-allocator adapters"]
+        instr["InstrumentedPool [Decorator]<br/>counters + lifecycle Observers"]
+        diag["FreeListView [diagnostics, gated]<br/>read-only free-list iterator"]
+      end
+      subgraph core["Core engine — behind the Pimpl / C ABI"]
+        direction TB
+        state["memory_pool [Pimpl struct]<br/>backing · head · sizes · chunk list · grow factor"]
+        skel["alloc / free skeleton [Template Method]<br/>range-checks, dispatches to the sync policy"]
+        policy["Sync policy [Strategy, compile-time]<br/>SingleThreaded / Mutex / LockFree (ABA-tagged Treiber)"]
+        freelist["Intrusive free list [LIFO]<br/>in-band next-pointer, zero per-block metadata"]
+        chunks["Chunk list [Composite]<br/>non-contiguous geometric growth; pointers stay valid"]
+      end
+    end
+
+    os[("Backing storage<br/>[over-aligned operator new]<br/>alignof(max_align_t)")]
+
+    app -->|"C ABI"| capi
+    app -->|"idiomatic C++"| cpp
+    adapters -->|"compose"| cpp
+    instr -.->|"decorate"| cpp
+    diag -.->|"iterate (gated)"| freelist
+    cpp -->|"own via C core"| capi
+    capi --> state
+    state --> skel
+    skel -->|"pop / push"| policy
+    policy --> freelist
+    skel -->|"grow on exhaustion"| chunks
+    chunks -->|"seed a sub-list"| freelist
+    chunks --> os
+    state --> os
+```
+
 ---
 
 ## 5. API / Public Interface
@@ -171,6 +219,7 @@ Every requirement above is realized and recorded. The table maps the spec to its
 | §2.4 thread safety (mutex / lock-free + ABA tag) | [ADR-0020](../adr/0020-thread-safety-strategy-and-compile-time-knob.md) |
 | §3.2 overhead budget & introspection | [ADR-0015](../adr/0015-metadata-overhead-budget-and-introspection.md) |
 | §4 free-list layout, constraints, alignment, intrusive-vs-bitmap | [ADR-0009](../adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) |
+| §4.2 component (C4) diagram & diagram tooling | [ADR-0041](../adr/0041-mermaid-diagram-tooling.md) |
 | §5.1–5.2 API, RAII, Pimpl, builder, typed pool, STL adapter | [ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md), [ADR-0011](../adr/0011-factory-method-and-builder-for-pool-construction.md), [ADR-0017](../adr/0017-typed-pool-design.md), [ADR-0018](../adr/0018-stl-allocator-adapter.md) |
 | §5.3 error semantics | [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md), [ADR-0016](../adr/0016-exception-policy-at-the-c-cpp-boundary.md) |
 | §5.4 instrumentation / observers | [ADR-0025](../adr/0025-decorator-for-instrumented-pool.md), [ADR-0026](../adr/0026-observer-for-pool-lifecycle-events.md) |
@@ -184,5 +233,6 @@ These are explicitly out of the current build and tracked as issues:
 - **`std::pmr::memory_resource` adapter** — the "door left open" in [ADR-0018](../adr/0018-stl-allocator-adapter.md) (issue #107).
 - **Coverage-guided fuzzing harness** (issue #108).
 - **Opt-in debug hardening** — freed-block poisoning, canaries, free-list safe-linking; would also add double-free detection (issue #109).
-- **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting.
-- **C4 component diagram** of the pool internals.
+- **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting (issue #111).
+
+The **C4 component diagram** of the pool internals, once deferred here, now ships in [Section 4.2](#42-component-diagram-c4) (its tooling decision is [ADR-0041](../adr/0041-mermaid-diagram-tooling.md)).
