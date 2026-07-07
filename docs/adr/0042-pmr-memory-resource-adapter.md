@@ -147,7 +147,7 @@ C++ types, so this is a SemVer **MINOR** (a `v1.2.0` candidate).
   application of it, fully documented here and in the spec §7 map — and the `README.md`
   Milestone-9 table row (a release-time refresh per the M8.8 pattern). The release PR refreshes
   both and re-syncs the `zh-Hans` / `ja` translations in one pass.
-- [`docs/doxygen/Doxyfile`](doxygen/Doxyfile) `PREDEFINED` gains
+- [`docs/doxygen/Doxyfile`](../doxygen/Doxyfile) `PREDEFINED` gains
   `__cpp_lib_memory_resource=201603L` so the gated class is documented on the API site.
 - [`CHANGELOG.md`](../../CHANGELOG.md) `Unreleased` — an *Added* entry.
 
