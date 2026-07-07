@@ -27,6 +27,17 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   `translation-status.md` manifest's two README rows are re-pinned to the current
   source commit (`d38b598`) and flipped from `stale` back to `translated`, clearing
   the `i18n-freshness` flag the `v1.1.2` release raised. Documentation-only; no API change.
+- **Specification reconciled with the as-built system.**
+  [`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md) was the
+  original greenfield brief and had drifted from the delivered (`v1.0.0`-frozen) library. It
+  now cross-links the realizing ADRs, formalizes the `§2`/`§3` subsection anchors already
+  referenced across the ADR set, disambiguates the `§2.2` dynamic-growth model (non-contiguous
+  chunk-linking; ADR-0022/0023/0024), documents the `§4.1`
+  block-size/alignment/strict-aliasing constraints (ADR-0009), the `§5.3` error semantics
+  (ADR-0012/0016) and `§5.4` introspection (ADR-0015/0025), and adds a `§7` spec→ADR map plus
+  the explicitly deferred items (#107 `pmr`, #108 fuzzing, #109 hardening). The
+  `zh-Hans`/`ja` spec translation rows are marked `stale` pending a follow-up re-sync.
+  Documentation-only; no API change. Refs #105.
 
 ## Released versions
 

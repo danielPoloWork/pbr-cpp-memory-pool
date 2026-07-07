@@ -17,7 +17,7 @@ Status vocabulary:
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
 | [`README.md`](../../README.md) | `d38b598` | `d38b598` | `translated` | — |
-| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `2e55dfa` | `2e55dfa` | `translated` | — |
+| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `2e55dfa` | `2e55dfa` | `stale` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | `524f0cc` | `524f0cc` | `translated` | — |
 
 ## `ja` (Japanese)
@@ -25,7 +25,7 @@ Status vocabulary:
 | Source page | Source commit | Translated at | Status | Reviewer |
 |-------------|:-------------:|:-------------:|:------:|----------|
 | [`README.md`](../../README.md) | `d38b598` | `d38b598` | `translated` | — |
-| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `612f9d2` | `612f9d2` | `translated` | — |
+| [`docs/specs/01_spec_cpp_memory_pool.md`](../specs/01_spec_cpp_memory_pool.md) | `612f9d2` | `612f9d2` | `stale` | — |
 | [`docs/patterns/README.md`](../patterns/README.md) | `6c6aeb7` | `6c6aeb7` | `translated` | — |
 
 > Seeded by ROADMAP §8.2 with the full translatable surface at `missing`. The
