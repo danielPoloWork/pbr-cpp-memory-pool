@@ -56,12 +56,14 @@ TEST_CASE("version constants are consistent with the project version") {
     const std::string_view ver{mem::PBR_MEMORY_POOL_VERSION_STRING};
     CHECK(ver.find('.') != std::string_view::npos);
 
-    // v1.1.2 — maintenance PATCH: fixes four InstrumentedPool/core defects
-    // (BUG-0001..0004) plus the accumulated docs entries; the library's public
-    // surface is unchanged. These constants move in lockstep with version.hpp.
+    // v1.2.0 — Milestone 9 (Ergonomics, Hardening & Tooling): the additive,
+    // ABI-compatible new-feature wave — std::pmr adapter, opt-in debug
+    // hardening, a fuzzing harness, and the benchmark extension. The frozen
+    // v1.0.0 public surface is unchanged, so this is a SemVer MINOR. These
+    // constants move in lockstep with version.hpp.
     CHECK(mem::PBR_MEMORY_POOL_VERSION_MAJOR == 1U);
-    CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 1U);
-    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 2U);
+    CHECK(mem::PBR_MEMORY_POOL_VERSION_MINOR == 2U);
+    CHECK(mem::PBR_MEMORY_POOL_VERSION_PATCH == 0U);
 }
 
 TEST_CASE("memory_pool_create / _destroy round-trip on valid arguments") {

@@ -5,7 +5,7 @@
 [![API reference](https://img.shields.io/badge/API%20reference-Doxygen-1f6feb.svg)](https://danielpolowork.github.io/pbr-cpp-memory-pool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Standard: C++17 / ANSI C](https://img.shields.io/badge/Standard-C%2B%2B17%20%2F%20ANSI%20C-blue.svg)](docs/specs/01_spec_cpp_memory_pool.md)
-[![Status: v1.1.2 stable](https://img.shields.io/badge/Status-v1.1.2%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.1.2)
+[![Status: v1.2.0 stable](https://img.shields.io/badge/Status-v1.2.0%20stable-brightgreen.svg)](https://github.com/danielPoloWork/pbr-cpp-memory-pool/releases/tag/v1.2.0)
 
 > Part of the **Purpose-Built References (PBR)** series — small, didactic, production-quality C/C++ reference implementations of high-performance building blocks.
 
@@ -193,6 +193,8 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 
 ## Status
 
+`v1.2.0` — **Milestone 9 (Ergonomics, Hardening & Tooling)**, the first post-`v1.0.0` MINOR. A wave of **additive, ABI-compatible** capabilities on top of the frozen public surface — the shipped library is byte-for-byte what `v1.1.x` produced in a default build. Adds a [`std::pmr::memory_resource` adapter](docs/adr/0042-pmr-memory-resource-adapter.md) (`PoolMemoryResource`, #107), **opt-in debug hardening** — freed-block poisoning, a guard word, and free-list safe-linking behind the `PBR_MEMORY_POOL_HARDENING` knob ([ADR-0043](docs/adr/0043-opt-in-debug-hardening.md), #109), a **coverage-guided fuzzing harness** ([ADR-0044](docs/adr/0044-coverage-guided-fuzzing-harness.md), #108), and a **benchmark extension** — p99 tail latency + `LD_PRELOAD` jemalloc/tcmalloc baselines ([ADR-0045](docs/adr/0045-benchmark-percentiles-and-external-baselines.md), #111). Every new feature is header-only, behind an opt-in knob, or test/bench-only; the `v1.0.0` C ABI and C++ types are unchanged. Five new ADRs (0041–0045) bring the total to 45. Release notes: [`docs/releases/v1.2.0.md`](docs/releases/v1.2.0.md). The earlier line:
+
 `v1.1.2` — **maintenance** (bug fixes + documentation), a PATCH over `v1.1.1`. The public surface is unchanged — no API/ABI change. Fixes four verified, externally-reported defects (the first use of the in-repo [bug ledger](docs/bugs/), [ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)): an `InstrumentedPool` growth-counter **data race** (BUG-0001), a `live_` counter **underflow** on foreign/double frees (BUG-0002), a missing `destroyed` event on move-assignment (BUG-0003), and a latent `grow_pool` **overflow** guard (BUG-0004). Also removes the redundant `docs-site` README badge and re-syncs the `zh-Hans`/`ja` translations. Release notes: [`docs/releases/v1.1.2.md`](docs/releases/v1.1.2.md). The earlier line:
 
 `v1.1.1` — **maintenance** (documentation / process / tooling), the first post-`v1.1.0` PATCH. The shipped library is byte-identical to `v1.1.0` — no API/ABI/behaviour change. Adds the in-repo [bug ledger](docs/bugs/) + triage protocol ([ADR-0039](docs/adr/0039-bug-ledger-and-triage-protocol.md)), a [PR-metadata policy](docs/adr/0040-pull-request-metadata-policy.md), a [`SECURITY.md`](SECURITY.md), `packaging-smoke` CI for the vcpkg/Conan recipes, the [session journal](docs/journal/) ([ADR-0036](docs/adr/0036-session-journal-extraction.md)), the new-feature roadmap-placement rule ([ADR-0037](docs/adr/0037-new-feature-roadmap-placement.md)), and the per-release changelog split ([ADR-0038](docs/adr/0038-changelog-version-split.md)). Five new ADRs (0036–0040) bring the total to 40. Release notes: [`docs/releases/v1.1.1.md`](docs/releases/v1.1.1.md). The earlier line:
@@ -214,6 +216,7 @@ Reports for other host × compiler combinations (Linux / GCC, Linux / Clang, mac
 | 6         | Observability & Decorators         | ✅ complete |
 | 7         | Release & Polish                   | ✅ complete |
 | 8         | i18n & Post-Release Governance     | ✅ complete |
+| 9         | Ergonomics, Hardening & Tooling    | ✅ complete |
 
 See [`ROADMAP.md`](ROADMAP.md) for the per-task breakdown and the Spec Coverage Map at the bottom (traceability from spec sections to roadmap items).
 
