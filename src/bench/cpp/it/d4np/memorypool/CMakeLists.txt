@@ -31,30 +31,16 @@ elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
 endif()
 
 # ---------------------------------------------------------------------------
-# Optional external-allocator baselines (ADR-0045). Feature-detected: when the
-# library AND its header are both found, the bench compiles in an extra baseline
-# row (and percentile row) for that allocator. NEVER a hard dependency — the
-# default build stays zero-external-dependency (spec §3.3), and a missing
-# allocator is a silent skip, not an error. jemalloc is used via its extended
-# mallocx/dallocx API; tcmalloc via gperftools' explicit tc_malloc/tc_free.
+# Optional external-allocator baselines (ADR-0045). jemalloc / tcmalloc are NOT
+# linked — they are loaded at run time via dlopen(RTLD_LOCAL) so they never
+# interpose the system malloc and cannot conflict by co-linking (see the source
+# for the rationale). All that needs linking is the dynamic-loader library,
+# where the platform separates it from libc; ${CMAKE_DL_LIBS} is empty on
+# platforms (Windows, newer glibc) that fold dlopen into the C runtime. A
+# missing allocator is a silent run-time skip, so the default build stays
+# zero-external-dependency (spec §3.3).
 # ---------------------------------------------------------------------------
-find_library(PBR_JEMALLOC_LIB jemalloc)
-find_path(PBR_JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h)
-if(PBR_JEMALLOC_LIB AND PBR_JEMALLOC_INCLUDE_DIR)
-    target_compile_definitions(pool_vs_malloc_bench PRIVATE PBR_BENCH_HAVE_JEMALLOC=1)
-    target_include_directories(pool_vs_malloc_bench PRIVATE "${PBR_JEMALLOC_INCLUDE_DIR}")
-    target_link_libraries(pool_vs_malloc_bench PRIVATE "${PBR_JEMALLOC_LIB}")
-    message(STATUS "  bench baseline: jemalloc (${PBR_JEMALLOC_LIB})")
-endif()
-
-find_library(PBR_TCMALLOC_LIB tcmalloc)
-find_path(PBR_TCMALLOC_INCLUDE_DIR gperftools/tcmalloc.h)
-if(PBR_TCMALLOC_LIB AND PBR_TCMALLOC_INCLUDE_DIR)
-    target_compile_definitions(pool_vs_malloc_bench PRIVATE PBR_BENCH_HAVE_TCMALLOC=1)
-    target_include_directories(pool_vs_malloc_bench PRIVATE "${PBR_TCMALLOC_INCLUDE_DIR}")
-    target_link_libraries(pool_vs_malloc_bench PRIVATE "${PBR_TCMALLOC_LIB}")
-    message(STATUS "  bench baseline: tcmalloc (${PBR_TCMALLOC_LIB})")
-endif()
+target_link_libraries(pool_vs_malloc_bench PRIVATE ${CMAKE_DL_LIBS})
 
 # Property name used by IDEs that group targets; matches the layout under
 # src/bench/cpp/.

@@ -24,8 +24,9 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
   The pool-vs-malloc microbenchmark gains an opt-in `--percentiles` mode that emits a separate
   per-operation **p50/p90/p99/p999** table — the dynamic-pool growth row surfaces the
   microsecond-scale growth spike the aggregate median hides — and optional **jemalloc** /
-  **tcmalloc** baselines that are CMake-**feature-detected** (used via `mallocx`/`dallocx` and
-  `tc_malloc`/`tc_free`), so they appear as extra comparison rows where installed while the
+  **tcmalloc** baselines **loaded at run time via `dlopen`(`RTLD_LOCAL`)** (so they never
+  interpose the system `malloc` and cannot conflict by co-linking; called via `mallocx`/`dallocx`
+  and `tc_malloc`/`tc_free`), appearing as extra comparison rows where installed while the
   default build stays zero-external-dependency (spec §3.3). Both are strictly additive: the
   [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md) aggregate ns/op table
   and its committed numbers are unchanged. A Linux `bench-baselines` CI cell installs both

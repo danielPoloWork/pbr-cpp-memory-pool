@@ -104,13 +104,13 @@ growth       pool       3.000      4.000      6.000      7000.000    1000000
 
 ## External allocator baselines (jemalloc / tcmalloc, ADR-0045)
 
-jemalloc and tcmalloc are **optional** baselines, CMake-feature-detected: when the library and its header are both found at configure time, the bench compiles in an extra row for that allocator (in the aggregate table and, with `--percentiles`, the percentile table). When neither is present — the default, and every MSVC build — the benchmark is dependency-free (spec §3.3) and its output is unchanged but for a `# baselines: malloc` disclosure line. On Debian/Ubuntu:
+jemalloc and tcmalloc are **optional** baselines, **loaded at run time via `dlopen`** (POSIX). They are deliberately *not* linked: linking either would make its `malloc` interpose the whole process (turning the "malloc" row into that allocator), and linking both crashes. Loading each with `RTLD_LOCAL` and calling only its explicit API (`mallocx`/`dallocx`, `tc_malloc`/`tc_free`) keeps the system `malloc` intact and lets all of pool / malloc / jemalloc / tcmalloc appear as distinct rows in one run. If an allocator's shared object is not installed, it is a silent skip; on non-POSIX hosts (MSVC) the mechanism is compiled out and the output is dependency-free (spec §3.3) but for a `# baselines: malloc` disclosure line. On Debian/Ubuntu just install the runtime libraries and run — no reconfigure needed:
 
 ```bash
-sudo apt-get install -y libjemalloc-dev libgoogle-perftools-dev
-cmake --preset bench        # prints "bench baseline: jemalloc / tcmalloc" when detected
-cmake --build --preset bench
+sudo apt-get install -y libjemalloc2 libgoogle-perftools4t64
+cmake --preset bench && cmake --build --preset bench
 ./build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench --scenario all --percentiles
+# the header line "# baselines: malloc jemalloc tcmalloc" confirms both loaded
 ```
 
 ## Reporting

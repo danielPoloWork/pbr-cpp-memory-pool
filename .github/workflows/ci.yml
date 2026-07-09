@@ -476,24 +476,19 @@ jobs:
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
 
-      - name: Install jemalloc and tcmalloc
+      - name: Install jemalloc and tcmalloc runtime libraries
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libjemalloc-dev libgoogle-perftools-dev
+          # The runtime shared objects are what dlopen loads at run time.
+          sudo apt-get install -y libjemalloc2 libgoogle-perftools4t64
 
-      - name: Configure (bench preset) and confirm both baselines were detected
+      - name: Configure and build (bench preset)
         shell: bash
         run: |
-          set -euo pipefail
           export CC=gcc CXX=g++
-          cmake --preset bench 2>&1 | tee configure.log
-          grep -q "bench baseline: jemalloc" configure.log || { echo "FAIL: jemalloc not detected"; exit 1; }
-          grep -q "bench baseline: tcmalloc" configure.log || { echo "FAIL: tcmalloc not detected"; exit 1; }
-
-      - name: Build the bench binary
-        shell: bash
-        run: cmake --build --preset bench
+          cmake --preset bench
+          cmake --build --preset bench
 
       - name: Run with baselines and the percentile table
         shell: bash
@@ -502,10 +497,11 @@ jobs:
           bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
           out="$("$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
           echo "$out"
-          # Assert the added rows/columns are actually present.
+          # The baselines are dlopen'd at run time; assert both were found and
+          # that their rows and the percentile table are present.
           echo "$out" | grep -q "^# baselines: malloc jemalloc tcmalloc" || { echo "FAIL: baseline disclosure missing"; exit 1; }
-          echo "$out" | grep -q "	jemalloc	" || { echo "FAIL: jemalloc row missing"; exit 1; }
-          echo "$out" | grep -q "	tcmalloc	" || { echo "FAIL: tcmalloc row missing"; exit 1; }
+          echo "$out" | grep -qP "\tjemalloc\t" || { echo "FAIL: jemalloc row missing"; exit 1; }
+          echo "$out" | grep -qP "\ttcmalloc\t" || { echo "FAIL: tcmalloc row missing"; exit 1; }
           echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing"; exit 1; }
           echo "OK — baselines + percentile table present and ran to completion."
 

@@ -25,9 +25,9 @@ Percentiles use the **nearest-rank** method over the sorted per-op samples. The 
 
 **Documented caveat (honest methodology).** Per-op timing carries a fixed clock-read overhead common to every allocator, and its resolution is the platform `steady_clock` tick: on Linux/macOS (≈1 ns) the percentiles are fine-grained; on Windows (≈100 ns) they **quantize to the tick**, so p50–p99 of a single ~5–50 ns op collapse onto multiples of 100 ns. The percentile columns are therefore for **tail / relative comparison and for surfacing microsecond-scale events** (a growth spike shows as p999 ≫ p50 on every platform); for absolute per-op cost the aggregate ns/op table remains authoritative. This is stated in the bench README and the report template.
 
-### 2. Optional external baselines — feature-detected, never a hard dependency
+### 2. Optional external baselines — `dlopen`-loaded at run time, never a hard dependency
 
-jemalloc and tcmalloc are added as **optional** baselines. CMake feature-detects each (`find_library` + `find_path` for the header); only when both are found does it define `PBR_BENCH_HAVE_JEMALLOC` / `PBR_BENCH_HAVE_TCMALLOC` and link it. When neither is present — the default, and every MSVC build — the guarded code is compiled out and the benchmark's output is byte-for-byte what ADR-0014 produced (plus one `# baselines: malloc` disclosure line). jemalloc is driven through its prefix-independent extended API (`mallocx`/`dallocx`), tcmalloc through gperftools' explicit `tc_malloc`/`tc_free`, so neither has to override the system `malloc` and all three appear as **distinct rows**.
+jemalloc and tcmalloc are added as **optional** baselines, **loaded at run time via `dlopen` with `RTLD_LOCAL`** (POSIX only) rather than linked. This is deliberate and load-bearing: both libraries, if *linked*, export strong `malloc`/`operator new` symbols that **interpose the whole process's allocator** — so linking one would silently turn the "malloc" row into that allocator, and linking *both* crashes (their initializers fight over global `malloc`). Loading each with `RTLD_LOCAL` keeps its symbols out of global resolution: the process's `malloc` stays the true system allocator, jemalloc and tcmalloc never conflict, and each is reached only through the explicit extended-API entry points resolved by `dlsym` — jemalloc's `mallocx`/`dallocx`, tcmalloc's `tc_malloc`/`tc_free`. All three therefore appear as **distinct, honest rows** in one run. `dlsym` yields a `void*`; the bits are copied into the typed function pointer with `memcpy` (not a `reinterpret_cast` between object- and function-pointer types, which `-Wpedantic` rejects). On a non-POSIX host (Windows/MSVC) the whole mechanism is `#ifdef`-compiled out and the output is byte-for-byte what ADR-0014 produced, plus a `# baselines: malloc` disclosure line; a library that is not installed is a silent run-time skip. The only build dependency is the dynamic-loader library (`${CMAKE_DL_LIBS}`, empty where `dlopen` lives in libc), so spec §3.3's zero-external-dependency posture holds.
 
 A small `RawAllocator` (name + alloc/free function pointers) unifies the system `malloc`, jemalloc, and tcmalloc behind one interface for the *added* baseline rows and the percentile recorder. The dedicated `malloc` runners that produce the committed ADR-0014 aggregate numbers are left untouched.
 
@@ -37,13 +37,13 @@ Additive per ADR-0014 §6: the aggregate 8-column table is unchanged; baseline r
 
 ### 4. CI
 
-A `bench-baselines` job (Linux) installs `libjemalloc-dev` + `libgoogle-perftools-dev`, asserts both baselines were feature-detected, builds, and runs `--scenario all --percentiles`, asserting the baseline rows and the percentile table are present. Like every bench cell it gates on **exit code 0, not numbers** (ADR-0014 §8 — shared runners are too noisy for numeric thresholds). It is Linux-only, never touching the MSVC leg (ADR-0005 §3), consistent with the sanitizer-preset split.
+A `bench-baselines` job (Linux) installs the jemalloc + tcmalloc **runtime** shared objects (`libjemalloc2`, `libgoogle-perftools4t64`), builds, and runs `--scenario all --percentiles`, asserting that both baselines loaded at run time and that their rows and the percentile table are present. Like every bench cell it gates on **exit code 0, not numbers** (ADR-0014 §8 — shared runners are too noisy for numeric thresholds). It is Linux-only, never touching the MSVC leg (ADR-0005 §3), consistent with the sanitizer-preset split.
 
 ## Alternatives Considered
 
 - **Always-on percentiles (fold p99 into the existing per-repeat `Stats`).** Rejected. p99 over ~9 per-repeat aggregates is meaningless (it is essentially the max), and per-op timing on the default path would perturb the committed ADR-0014 ns/op numbers. Per-op sampling behind an opt-in flag is the only way to get a meaningful p99 without disturbing the frozen numbers.
 - **HdrHistogram (or another bucketed recorder).** Rejected for now: it is an external dependency, and for this benchmark's needs a `std::vector<double>` of per-op samples with a nearest-rank query is sufficient and keeps the methodology inspectable (the ADR-0014 §1 pedagogy argument). Revisit if memory for the sample vector becomes a constraint at very large iteration counts.
-- **`LD_PRELOAD` / link the whole binary against jemalloc.** Rejected: that *replaces* the `malloc` row with jemalloc rather than adding a distinct baseline, so pool / malloc / jemalloc cannot be compared side by side in one run. Calling the allocators' explicit APIs keeps them as separate rows.
+- **Link the allocators at compile time (`find_library` + `-ljemalloc`/`-ltcmalloc`), or `LD_PRELOAD`.** Rejected — this was the first implementation and it *crashed* (SIGSEGV): both libraries export strong `malloc`/`operator new` symbols, so co-linking makes their initializers fight over global `malloc`, and even linking one interposes the process allocator (turning the "malloc" row into that allocator, defeating the side-by-side comparison). `LD_PRELOAD` has the same interposition problem and cannot load two allocators at once. Loading each via `dlopen(RTLD_LOCAL)` and calling only its explicit API sidesteps interposition entirely and lets pool / malloc / jemalloc / tcmalloc appear as four distinct rows in a single run.
 - **A hard dependency on jemalloc/tcmalloc.** Rejected — it would break spec §3.3 and the MSVC leg. Feature-detection with a silent skip keeps the default build dependency-free.
 - **CI numeric thresholds on the baselines/percentiles.** Rejected for the ADR-0014 §8 runner-noise reasons; the new cell is a build/run gate, not a performance gate.
 
@@ -58,12 +58,12 @@ A `bench-baselines` job (Linux) installs `libjemalloc-dev` + `libgoogle-perftool
 **Negative**
 
 - Per-op percentiles are resolution-bound: on Windows's ~100 ns `steady_clock` tick they quantize, so they are meaningful there only for microsecond-scale tail events, not for sub-tick medians (documented; the aggregate table stays authoritative).
-- The jemalloc/tcmalloc code paths build and run only where those libraries exist, so they are exercised on the Linux CI cell, not on the maintainer's MSVC box.
+- The `dlopen` baseline path compiles on POSIX and loads the allocators only where they are installed, so it is exercised on the Linux CI cell, not on the maintainer's MSVC box (where it is `#ifdef`-compiled out).
 
 **Tooling / documentation (same PR)**
 
 - [`pool_vs_malloc_bench.cpp`](../../src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench.cpp) — the `--percentiles` mode, the `RawAllocator` abstraction, and the guarded baselines.
-- [bench `CMakeLists.txt`](../../src/bench/cpp/it/d4np/memorypool/CMakeLists.txt) — the jemalloc/tcmalloc feature-detect.
+- [bench `CMakeLists.txt`](../../src/bench/cpp/it/d4np/memorypool/CMakeLists.txt) — links `${CMAKE_DL_LIBS}` for the run-time `dlopen`.
 - [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — the `bench-baselines` job.
 - [bench `README.md`](../../src/bench/cpp/it/d4np/memorypool/README.md) — the new columns/baselines and the percentile caveat.
 - [`ROADMAP.md`](../../ROADMAP.md) item 9.4, spec §7.1, [`CHANGELOG.md`](../../CHANGELOG.md) `Unreleased`.

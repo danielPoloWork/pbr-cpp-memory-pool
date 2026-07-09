@@ -58,13 +58,15 @@
 #include <thread>
 #include <vector>
 
-// Optional external-allocator baselines (ADR-0045), feature-detected by CMake.
-// Guarded so the default build keeps spec §3.3's zero external dependencies.
-#ifdef PBR_BENCH_HAVE_JEMALLOC
-#include <jemalloc/jemalloc.h>
-#endif
-#ifdef PBR_BENCH_HAVE_TCMALLOC
-#include <gperftools/tcmalloc.h>
+// Optional external-allocator baselines (ADR-0045). They are loaded at RUN time
+// via dlopen with RTLD_LOCAL (POSIX only) rather than linked, so their malloc
+// symbols never interpose the process's system allocator — the "malloc" row
+// stays the true system malloc, and jemalloc + tcmalloc cannot conflict by both
+// trying to take over global malloc, as they would if co-linked. The default
+// build keeps spec §3.3's zero external dependencies.
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#define PBR_BENCH_DLOPEN 1
 #endif
 
 namespace mem = it::d4np::memorypool;
@@ -155,39 +157,94 @@ void sys_free(void* ptr) {
     std::free(ptr);
 }
 
-#ifdef PBR_BENCH_HAVE_JEMALLOC
-// jemalloc's extended API (always exported, prefix-independent). mallocx
-// requires a non-zero size and dallocx a non-null pointer; both hold here.
+#ifdef PBR_BENCH_DLOPEN
+// The external allocators' explicit extended-API signatures, resolved by dlsym.
+using MallocxFn = void* (*)(std::size_t, int);  // jemalloc mallocx(size, flags)
+using DallocxFn = void (*)(void*, int);         // jemalloc dallocx(ptr, flags)
+using TcMallocFn = void* (*)(std::size_t);      // tcmalloc tc_malloc(size)
+using TcFreeFn = void (*)(void*);               // tcmalloc tc_free(ptr)
+
+// Resolved once by load_external_baselines(); a C-style dlsym table
+// unavoidably needs mutable globals, mirroring the do_not_optimize sink above.
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+MallocxFn g_je_mallocx = nullptr;
+DallocxFn g_je_dallocx = nullptr;
+TcMallocFn g_tc_malloc = nullptr;
+TcFreeFn g_tc_free = nullptr;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+
+// mallocx requires a non-zero size and dallocx a non-null pointer; both hold.
 void* je_alloc(std::size_t size) {
-    return mallocx(size != 0U ? size : 1U, 0);
+    return g_je_mallocx(size != 0U ? size : 1U, 0);
 }
 void je_release(void* ptr) {
     if (ptr != nullptr) {
-        dallocx(ptr, 0);
+        g_je_dallocx(ptr, 0);
     }
 }
-#endif
-
-#ifdef PBR_BENCH_HAVE_TCMALLOC
-// gperftools tcmalloc's explicit, non-overriding symbols.
 void* tc_alloc(std::size_t size) {
-    return tc_malloc(size);
+    return g_tc_malloc(size);
 }
 void tc_release(void* ptr) {
-    tc_free(ptr);
+    g_tc_free(ptr);
 }
-#endif
 
-// The optional external baselines compiled into this build (empty by default —
-// spec §3.3). System malloc is NOT here: it keeps its dedicated committed-number
-// runners; this list drives only the added baseline rows.
-std::vector<RawAllocator> external_baselines() {
+void* dlopen_local(const char* primary, const char* fallback) {
+    void* handle = dlopen(primary, RTLD_NOW | RTLD_LOCAL);
+    if (handle == nullptr) {
+        handle = dlopen(fallback, RTLD_NOW | RTLD_LOCAL);
+    }
+    return handle;
+}
+
+// Resolve a symbol to a function pointer. dlsym yields a void*; copying the
+// bits with memcpy (rather than reinterpret_cast between object- and
+// function-pointer types, which -Wpedantic rejects as conditionally-supported)
+// is the portable, warning-free idiom. Returns nullptr if the symbol is absent.
+template <typename Fn>
+Fn resolve_symbol(void* handle, const char* name) {
+    void* const sym = dlsym(handle, name);
+    Fn fn = nullptr;
+    if (sym != nullptr) {
+        std::memcpy(&fn, &sym, sizeof(fn));
+    }
+    return fn;
+}
+
+std::vector<RawAllocator> load_external_baselines() {
     std::vector<RawAllocator> list;
-#ifdef PBR_BENCH_HAVE_JEMALLOC
-    list.push_back(RawAllocator{"jemalloc", &je_alloc, &je_release});
-#endif
-#ifdef PBR_BENCH_HAVE_TCMALLOC
-    list.push_back(RawAllocator{"tcmalloc", &tc_alloc, &tc_release});
+    void* const je = dlopen_local("libjemalloc.so.2", "libjemalloc.so");
+    if (je != nullptr) {
+        g_je_mallocx = resolve_symbol<MallocxFn>(je, "mallocx");
+        g_je_dallocx = resolve_symbol<DallocxFn>(je, "dallocx");
+        if (g_je_mallocx != nullptr && g_je_dallocx != nullptr) {
+            list.push_back(RawAllocator{"jemalloc", &je_alloc, &je_release});
+        }
+    }
+    void* tc = dlopen_local("libtcmalloc.so.4", "libtcmalloc.so");
+    if (tc == nullptr) {
+        tc = dlopen_local("libtcmalloc_minimal.so.4", "libtcmalloc_minimal.so");
+    }
+    if (tc != nullptr) {
+        g_tc_malloc = resolve_symbol<TcMallocFn>(tc, "tc_malloc");
+        g_tc_free = resolve_symbol<TcFreeFn>(tc, "tc_free");
+        if (g_tc_malloc != nullptr && g_tc_free != nullptr) {
+            list.push_back(RawAllocator{"tcmalloc", &tc_alloc, &tc_release});
+        }
+    }
+    return list;
+}
+#endif  // PBR_BENCH_DLOPEN
+
+// The external baselines available at run time (empty by default and on
+// non-POSIX hosts — spec §3.3). Resolved once. System malloc is NOT here: it
+// keeps its dedicated committed-number runners; this list drives the added
+// baseline rows and the percentile table only.
+const std::vector<RawAllocator>& external_baselines() {
+#ifdef PBR_BENCH_DLOPEN
+    static const std::vector<RawAllocator> list = load_external_baselines();
+#else
+    static const std::vector<RawAllocator> list;
 #endif
     return list;
 }
