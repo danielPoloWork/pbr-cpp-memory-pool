@@ -95,6 +95,24 @@
             }
         },
         {
+            "name": "fuzz",
+            "inherits": "debug",
+            "displayName": "Fuzzing (libFuzzer + ASan/UBSan)",
+            "description": "Debug + the coverage-guided libFuzzer target pool_fuzz, with ASan/UBSan over the whole build. Clang / POSIX only — libFuzzer is a Clang runtime (ADR-0044).",
+            "cacheVariables": {
+                "PBR_MEMORY_POOL_BUILD_FUZZERS": "ON",
+                "CMAKE_C_FLAGS": "-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer -g",
+                "CMAKE_CXX_FLAGS": "-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer -g",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+                "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "bench",
             "displayName": "Benchmark",
             "description": "Release build with benchmarks ON and tests OFF (ADR-0014 / M2.9). Used to produce the numbers committed under docs/bench/.",
@@ -114,6 +132,7 @@
         {"name": "ubsan",   "configurePreset": "ubsan"},
         {"name": "tsan",    "configurePreset": "tsan"},
         {"name": "harden",  "configurePreset": "harden"},
+        {"name": "fuzz",    "configurePreset": "fuzz"},
         {"name": "bench",   "configurePreset": "bench"}
     ],
     "testPresets": [
@@ -122,6 +141,7 @@
         {"name": "asan",    "configurePreset": "asan",    "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
         {"name": "ubsan",   "configurePreset": "ubsan",   "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
         {"name": "tsan",    "configurePreset": "tsan",    "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
-        {"name": "harden",  "configurePreset": "harden",  "output": {"outputOnFailure": true}, "execution": {"jobs": 0}}
+        {"name": "harden",  "configurePreset": "harden",  "output": {"outputOnFailure": true}, "execution": {"jobs": 0}},
+        {"name": "fuzz",    "configurePreset": "fuzz",    "output": {"outputOnFailure": true}, "execution": {"jobs": 0}}
     ]
 }

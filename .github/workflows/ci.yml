@@ -597,3 +597,60 @@ jobs:
           # growth scenario grows under MUTEX and cleanly skips under LOCKFREE.
           "$bin" --scenario all --threads 4 --iterations 20000 --repeats 3
           echo "OK — all bench scenarios ran to completion under ${{ matrix.mode }}."
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP §9.3 — coverage-guided fuzzing (ADR-0044). Builds the libFuzzer
+  # target under ASan/UBSan (Clang / POSIX only — libFuzzer is a Clang runtime),
+  # replays the seed corpus as a regression gate, then fuzzes for a bounded time
+  # on every PR. A crash fails the job and the offending input is uploaded as a
+  # reproducer for the bug ledger (ADR-0039).
+  # ---------------------------------------------------------------------------
+  fuzz:
+    name: fuzz / libFuzzer (asan+ubsan)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure (fuzz preset, Clang)
+        shell: bash
+        run: |
+          export CC=clang CXX=clang++
+          cmake --preset fuzz
+
+      - name: Build the fuzz target
+        shell: bash
+        run: cmake --build build/fuzz --target pool_fuzz
+
+      - name: Replay the seed corpus (regression gate)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/fuzz/src/test/cpp/it/d4np/memorypool/pool_fuzz"
+          corpus="src/test/cpp/it/d4np/memorypool/pool_fuzz_corpus"
+          # Replaying named files runs each once and exits; a crash is a finding.
+          "$bin" "$corpus"/seed_*
+          echo "OK — seed corpus replayed clean."
+
+      - name: Fuzz for a bounded time
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/fuzz/src/test/cpp/it/d4np/memorypool/pool_fuzz"
+          corpus="src/test/cpp/it/d4np/memorypool/pool_fuzz_corpus"
+          "$bin" -max_total_time=60 -timeout=25 -rss_limit_mb=4096 "$corpus"
+          echo "OK — libFuzzer ran to the time budget with no crash."
+
+      - name: Upload any crash reproducers
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            timeout-*
+            oom-*
+          if-no-files-found: ignore

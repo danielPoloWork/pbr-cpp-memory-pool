@@ -247,6 +247,69 @@ add_test(
 set_tests_properties(pool_hardening PROPERTIES
     LABELS "smoke;milestone-9")
 
+# ROADMAP item 9.3 — coverage-guided fuzzing harness (ADR-0044). The harness in
+# pool_fuzz.cpp exposes LLVMFuzzerTestOneInput plus a standalone replay main.
+#
+# pool_fuzz_replay is built with the normal test suite (no fuzzing engine): its
+# main replays each seed-corpus file, so the corpus is a portable regression
+# gate that runs on every platform — including MSVC, where libFuzzer is
+# unavailable. Being a normal test target it is also covered by the clang-tidy
+# gate. The corpus README is excluded from the replayed file list.
+set(_pool_fuzz_corpus_dir "${CMAKE_CURRENT_SOURCE_DIR}/pool_fuzz_corpus")
+file(GLOB _pool_fuzz_corpus_files CONFIGURE_DEPENDS "${_pool_fuzz_corpus_dir}/*")
+list(FILTER _pool_fuzz_corpus_files EXCLUDE REGEX "/README\\.md$")
+
+add_executable(pool_fuzz_replay
+    pool_fuzz.cpp)
+
+target_link_libraries(pool_fuzz_replay PRIVATE
+    pbr::memory_pool)
+
+target_compile_features(pool_fuzz_replay PRIVATE cxx_std_17)
+
+add_test(
+    NAME    pool_fuzz_replay
+    COMMAND pool_fuzz_replay ${_pool_fuzz_corpus_files})
+
+set_tests_properties(pool_fuzz_replay PROPERTIES
+    LABELS "smoke;milestone-9")
+
+# The true coverage-guided libFuzzer target is opt-in (PBR_MEMORY_POOL_BUILD_FUZZERS,
+# default OFF — declared at the top level) and Clang-only, since libFuzzer is a
+# Clang runtime. A dedicated CI job builds and runs it under a bounded time
+# budget; it never perturbs the release build or the ADR-0014 benchmark numbers.
+if(PBR_MEMORY_POOL_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR
+            "PBR_MEMORY_POOL_BUILD_FUZZERS requires Clang (libFuzzer is a Clang "
+            "runtime); got '${CMAKE_CXX_COMPILER_ID}'. The portable pool_fuzz_replay "
+            "target already gates the seed corpus on every platform.")
+    endif()
+    add_executable(pool_fuzz
+        pool_fuzz.cpp)
+
+    target_link_libraries(pool_fuzz PRIVATE
+        pbr::memory_pool)
+
+    target_compile_features(pool_fuzz PRIVATE cxx_std_17)
+    target_compile_definitions(pool_fuzz PRIVATE PBR_MEMORY_POOL_LIBFUZZER=1)
+    # The `fuzz` preset compiles every TU (library + harness) with
+    # -fsanitize=fuzzer-no-link for edge coverage; this target links the
+    # libFuzzer runtime + entry point. Splitting compile-coverage from
+    # link-engine is the standard libFuzzer wiring and keeps the coverage
+    # feedback spanning the library under test, not just the harness.
+    target_link_options(pool_fuzz PRIVATE -fsanitize=fuzzer)
+
+    # libFuzzer replays file / directory arguments and exits 0, so this gates on
+    # the seed corpus as a fast regression check; the CI job adds a bounded run.
+    add_test(
+        NAME    pool_fuzz_corpus
+        COMMAND pool_fuzz ${_pool_fuzz_corpus_dir})
+
+    set_tests_properties(pool_fuzz_corpus PROPERTIES
+        LABELS "fuzz;milestone-9")
+endif()
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.
