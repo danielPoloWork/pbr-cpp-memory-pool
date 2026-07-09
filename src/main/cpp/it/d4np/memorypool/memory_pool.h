@@ -68,6 +68,22 @@
 #endif
 /* NOLINTEND(cppcoreguidelines-macro-usage) */
 
+/*
+ * Opt-in debug-hardening gate (ADR-0043). When 1, the intrusive free list
+ * gains freed-block poisoning, a per-slot guard word (overflow + double-free
+ * detection), and next-pointer safe-linking; see pool_hardening.hpp. OFF by
+ * default — a release build is byte-for-byte unchanged. Set library-wide at
+ * build time via the PBR_MEMORY_POOL_HARDENING CMake option (defined PUBLIC,
+ * because a hardened build changes the on-disk free-list layout, so the
+ * library and every consumer must agree). Preprocessor gate → a macro, not a
+ * constexpr constant; hence the cppcoreguidelines-macro-usage suppression.
+ */
+/* NOLINTBEGIN(cppcoreguidelines-macro-usage) */
+#ifndef PBR_MEMORY_POOL_HARDENING
+#define PBR_MEMORY_POOL_HARDENING 0
+#endif
+/* NOLINTEND(cppcoreguidelines-macro-usage) */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -51,6 +51,17 @@ std::uintptr_t to_uint(const void* ptr) noexcept {
     return reinterpret_cast<std::uintptr_t>(ptr);
 }
 
+// The physical slot stride, derived from the first gap between slots rather
+// than assumed to equal block_size: a default build strides by BLOCK_SIZE, the
+// opt-in hardening build (ADR-0043) widens it by a trailing guard word.
+// Extracting it keeps the walk case below the cognitive-complexity threshold.
+std::uintptr_t derive_stride(const std::vector<const void*>& slots) noexcept {
+    if (slots.size() < 2U) {
+        return BLOCK_SIZE;
+    }
+    return to_uint(slots.at(1)) - to_uint(slots.front());
+}
+
 }  // namespace
 
 TEST_CASE("FreeListView walks every slot of a fresh pool in ascending, strided order") {
@@ -67,15 +78,37 @@ TEST_CASE("FreeListView walks every slot of a fresh pool in ascending, strided o
     CHECK(static_cast<std::size_t>(std::distance(view.begin(), view.end())) == BLOCK_COUNT);
 
     // ADR-0009 §1 — a fresh pool initialises the list in ascending address
-    // order, so slot i sits exactly i * block_size above the head, and all
-    // addresses are distinct.
+    // order at a fixed physical slot stride, so slot i sits exactly i strides
+    // above the head, and all addresses are distinct. The stride equals
+    // block_size in a default build; the opt-in hardening build (ADR-0043)
+    // widens it by a trailing guard word (see derive_stride) — the walked-order
+    // property is what this case asserts, not the exact stride.
     const std::uintptr_t head = to_uint(slots.front());
+    const std::uintptr_t stride = derive_stride(slots);
     std::set<const void*> distinct;
     for (std::size_t i = 0; i < slots.size(); ++i) {
-        CHECK(to_uint(slots.at(i)) == head + (i * BLOCK_SIZE));
+        CHECK(to_uint(slots.at(i)) == head + (i * stride));
         distinct.insert(slots.at(i));
     }
     CHECK(distinct.size() == BLOCK_COUNT);
+}
+
+TEST_CASE("the free-list slot stride is block_size, or a wider aligned hardening stride") {
+    // The physical stride equals block_size in a default build and widens by a
+    // trailing guard word under the opt-in hardening build (ADR-0043); either
+    // way it stays a multiple of max_align_t so every slot start is aligned.
+    Pool pool(BLOCK_SIZE, BLOCK_COUNT);
+    const FreeListView view(pool);
+
+    std::vector<const void*> slots;
+    for (const void* const slot : view) {
+        slots.push_back(slot);
+    }
+    REQUIRE(slots.size() == BLOCK_COUNT);
+
+    const std::uintptr_t stride = derive_stride(slots);
+    CHECK(stride >= BLOCK_SIZE);
+    CHECK((stride % alignof(std::max_align_t)) == 0U);
 }
 
 TEST_CASE("allocation shrinks the walked free list") {

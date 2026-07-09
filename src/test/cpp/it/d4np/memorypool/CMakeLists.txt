@@ -222,6 +222,31 @@ add_test(
 set_tests_properties(pool_memory_resource PROPERTIES
     LABELS "smoke;milestone-9")
 
+# ROADMAP item 9.2 — opt-in debug hardening (ADR-0043). The hardening surface
+# is gated behind PBR_MEMORY_POOL_HARDENING, which the library defines PUBLIC
+# (unlike the PRIVATE thread-safety macro), so linking pbr::memory_pool
+# propagates the gate to this target automatically — no cache-variable mirror is
+# needed. The test TU compiles in both states (a placeholder case when the
+# surface is gated out, mirroring free_list_iterator_test), so this binary
+# builds in every configuration and, under the `harden` preset, proves that a
+# use-after-free, a buffer overflow past block_size, and a double-free are each
+# detected deterministically.
+add_executable(pool_hardening_test
+    pool_hardening_test.cpp)
+
+target_link_libraries(pool_hardening_test PRIVATE
+    pbr::memory_pool
+    doctest::doctest)
+
+target_compile_features(pool_hardening_test PRIVATE cxx_std_17)
+
+add_test(
+    NAME    pool_hardening
+    COMMAND pool_hardening_test)
+
+set_tests_properties(pool_hardening PROPERTIES
+    LABELS "smoke;milestone-9")
+
 # ROADMAP item 2.8 — spec §6.2 Valgrind demonstrative test. The directory
 # carries its own CMakeLists.txt because the target consumes a strict ANSI
 # C89 .c source and overrides the project-wide C99 floor on its own scope.

@@ -86,6 +86,8 @@ Storing a next-pointer in-band imposes constraints, all enforced by the implemen
 
 The intrusive-free-list design was chosen over a bitmap allocator; the rejected alternative and its rationale are recorded in [ADR-0009](../adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md).
 
+An in-band next-link is also a classic use-after-free / pointer-corruption primitive. An **opt-in debug-hardening mode** (compile-time knob `PBR_MEMORY_POOL_HARDENING`, OFF by default; [ADR-0043](../adr/0043-opt-in-debug-hardening.md)) hardens the free list against it: freed-block **poisoning** (use-after-free), a trailing per-slot **guard word** (buffer overflow past `block_size`, and double-free), and glibc-style **safe-linking** of the next-link (`ptr XOR (slot_addr >> 12)`). The guard lives in *added* slot stride, so the constraints above — the usable `block_size` and the uniform alignment — are unchanged, and the default build is byte-for-byte and cycle-for-cycle unaffected (the mechanism is fully compiled out).
+
 ### 4.2 Component diagram (C4)
 
 The C4-model **Component** view below relates the public surface, the core engine (which lives behind the opaque `memory_pool_t` handle / Pimpl), and the operating-system backing store. It is authored in Mermaid per [ADR-0041](../adr/0041-mermaid-diagram-tooling.md); a viewer without Mermaid support sees the equivalent source. Solid arrows are runtime call / ownership paths; dashed arrows are optional or diagnostic relationships. Bracketed tags name the realizing technology or the design pattern applied.
@@ -176,7 +178,7 @@ A layered, idiomatic C++ surface built on the C core:
 
 - **Freeing `NULL`** — no-op (mirrors C `free(NULL)`).
 - **Freeing a foreign / out-of-range pointer** — defined, silent no-op detected in $O(1)$; no corruption ([ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)).
-- **Double-free** — a double-free of an in-range, currently-free block is **not** detected by the default build (accepted trade-off, documented in [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)); opt-in detection is tracked as future hardening (Section 7).
+- **Double-free** — a double-free of an in-range, currently-free block is **not** detected by the default build (accepted trade-off, documented in [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)); the opt-in debug-hardening mode ([§4.1](#41-constraints--guarantees), [ADR-0043](../adr/0043-opt-in-debug-hardening.md)) detects it deterministically via the per-slot guard word.
 - **C++ exhaustion** — throws per [ADR-0016](../adr/0016-exception-policy-at-the-c-cpp-boundary.md); exceptions never cross the C ABI.
 
 ### 5.4 Introspection
@@ -206,7 +208,7 @@ valgrind --leak-check=full --show-leak-kinds=all ./test_pool
 
 ### 6.4 Sanitizers & CI
 
-ASan, UBSan and TSan run via dedicated CMake presets; TSan covers the thread-safe configurations. All of the above is wired into a multi-OS CI matrix (warnings-as-errors, `clang-tidy`, Valgrind). A coverage-guided fuzz target is deferred (Section 7).
+ASan, UBSan and TSan run via dedicated CMake presets; TSan covers the thread-safe configurations. The opt-in debug-hardening configuration ([§4.1](#41-constraints--guarantees), [ADR-0043](../adr/0043-opt-in-debug-hardening.md)) runs via a `harden` preset — a Tier-1 CI matrix cell builds it and runs its detection tests, so the quality bar holds in both the default and the hardened configuration. All of the above is wired into a multi-OS CI matrix (warnings-as-errors, `clang-tidy`, Valgrind). A coverage-guided fuzz target is deferred (Section 7).
 
 ---
 
@@ -220,6 +222,7 @@ Every requirement above is realized and recorded. The table maps the spec to its
 | §2.4 thread safety (mutex / lock-free + ABA tag) | [ADR-0020](../adr/0020-thread-safety-strategy-and-compile-time-knob.md) |
 | §3.2 overhead budget & introspection | [ADR-0015](../adr/0015-metadata-overhead-budget-and-introspection.md) |
 | §4 free-list layout, constraints, alignment, intrusive-vs-bitmap | [ADR-0009](../adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) |
+| §4.1 / §5.3 opt-in debug hardening (poisoning, guard word, safe-linking) | [ADR-0043](../adr/0043-opt-in-debug-hardening.md) |
 | §4.2 component (C4) diagram & diagram tooling | [ADR-0041](../adr/0041-mermaid-diagram-tooling.md) |
 | §5.1–5.2 API, RAII, Pimpl, builder, typed pool, STL adapter | [ADR-0010](../adr/0010-raii-pool-wrapper-and-pimpl-across-the-c-cpp-boundary.md), [ADR-0011](../adr/0011-factory-method-and-builder-for-pool-construction.md), [ADR-0017](../adr/0017-typed-pool-design.md), [ADR-0018](../adr/0018-stl-allocator-adapter.md) |
 | §5.2 `std::pmr` adapter (PoolMemoryResource) | [ADR-0042](../adr/0042-pmr-memory-resource-adapter.md) |
@@ -233,7 +236,8 @@ Every requirement above is realized and recorded. The table maps the spec to its
 These are explicitly out of the current build and tracked as issues:
 
 - **Coverage-guided fuzzing harness** (issue #108).
-- **Opt-in debug hardening** — freed-block poisoning, canaries, free-list safe-linking; would also add double-free detection (issue #109).
 - **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting (issue #111).
+
+**Opt-in debug hardening** (freed-block poisoning, a guard word for overflow + double-free detection, and free-list safe-linking), once deferred here, now ships behind the `PBR_MEMORY_POOL_HARDENING` compile-time knob — see [§4.1](#41-constraints--guarantees) and [ADR-0043](../adr/0043-opt-in-debug-hardening.md) (issue #109).
 
 The **C4 component diagram** of the pool internals, once deferred here, now ships in [Section 4.2](#42-component-diagram-c4) (its tooling decision is [ADR-0041](../adr/0041-mermaid-diagram-tooling.md)).

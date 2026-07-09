@@ -120,6 +120,21 @@ if(PBR_MEMORY_POOL_ENABLE_DIAGNOSTICS)
 endif()
 
 # ---------------------------------------------------------------------------
+# Opt-in debug hardening (ADR-0043). When ON, the free list gains freed-block
+# poisoning, a per-slot guard word (buffer-overflow + double-free detection),
+# and next-pointer safe-linking (see pool_hardening.hpp). OFF by default — a
+# release build is byte-for-byte unchanged. Defined PUBLIC because a hardened
+# build changes the on-disk free-list encoding AND the physical slot stride, so
+# the library and every consumer / test linking it must agree; never mix a
+# hardened and a non-hardened build.
+# ---------------------------------------------------------------------------
+option(PBR_MEMORY_POOL_HARDENING
+    "Enable opt-in debug hardening: poisoning, guard word, free-list safe-linking (ADR-0043)" OFF)
+if(PBR_MEMORY_POOL_HARDENING)
+    target_compile_definitions(pbr_memory_pool PUBLIC PBR_MEMORY_POOL_HARDENING=1)
+endif()
+
+# ---------------------------------------------------------------------------
 # Thread-safety policy (ADR-0020). Selects how the implementation
 # synchronizes the free-list head, fixed library-wide at build time. The
 # default NONE preserves the single-thread fast path (spec §2.4). The macro

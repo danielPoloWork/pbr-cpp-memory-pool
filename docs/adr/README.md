@@ -75,5 +75,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0040   | [Pull-request metadata policy (assignee, labels, milestone)](0040-pull-request-metadata-policy.md) | Accepted |
 | 0041   | [Mermaid as the in-repo diagram tooling](0041-mermaid-diagram-tooling.md) | Accepted |
 | 0042   | [`std::pmr::memory_resource` adapter — `PoolMemoryResource`](0042-pmr-memory-resource-adapter.md) | Accepted |
+| 0043   | [Opt-in debug hardening — poisoning, a guard word, and free-list safe-linking](0043-opt-in-debug-hardening.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

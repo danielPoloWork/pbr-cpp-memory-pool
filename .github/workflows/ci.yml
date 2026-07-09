@@ -64,14 +64,22 @@ jobs:
           - { os: ubuntu-24.04,  compiler: clang,       preset: release }
           - { os: ubuntu-24.04,  compiler: clang,       preset: asan }
           - { os: ubuntu-24.04,  compiler: clang,       preset: ubsan }
+          # Opt-in debug hardening (ADR-0043) — cross-platform (no sanitizer
+          # flags); builds the hardened configuration and runs its detection
+          # tests, the "clean in both configurations" acceptance for #109.
+          - { os: ubuntu-24.04,  compiler: gcc,         preset: harden }
+          - { os: ubuntu-24.04,  compiler: clang,       preset: harden }
           # Windows x86_64 — sanitizer presets are POSIX-only.
           - { os: windows-2022,  compiler: msvc,        preset: debug }
           - { os: windows-2022,  compiler: msvc,        preset: release }
+          # MSVC has no ASan in this matrix, so hardening is the memory-safety net here.
+          - { os: windows-2022,  compiler: msvc,        preset: harden }
           # macOS arm64
           - { os: macos-14,      compiler: apple-clang, preset: debug }
           - { os: macos-14,      compiler: apple-clang, preset: release }
           - { os: macos-14,      compiler: apple-clang, preset: asan }
           - { os: macos-14,      compiler: apple-clang, preset: ubsan }
+          - { os: macos-14,      compiler: apple-clang, preset: harden }
     steps:
       - name: Check out the source tree
         uses: actions/checkout@v6
