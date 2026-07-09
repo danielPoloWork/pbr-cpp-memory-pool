@@ -461,10 +461,11 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # ROADMAP §9.4 — external-allocator baselines + tail-latency percentiles
-  # (ADR-0045). Installs jemalloc + tcmalloc so the feature-detected baseline
-  # rows compile and run, and exercises the opt-in --percentiles table. Linux
-  # only (the baselines are packaged there); never touches the MSVC leg. Like
-  # the other bench cells this asserts exit code 0, not numbers.
+  # (ADR-0045). External baselines are measured the safe way: re-run the SAME
+  # bench under LD_PRELOAD, which swaps the whole process allocator (jemalloc /
+  # tcmalloc take over global malloc on load, so they cannot be linked or dlopen'd
+  # beside the system allocator). Exercises the opt-in --percentiles table too.
+  # Linux only; never touches the MSVC leg. Asserts exit code 0, not numbers.
   # ---------------------------------------------------------------------------
   bench-baselines:
     name: bench / external baselines + percentiles
@@ -480,8 +481,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          # The runtime shared objects are what dlopen loads at run time.
-          sudo apt-get install -y libjemalloc2 libgoogle-perftools4t64
+          sudo apt-get install -y libjemalloc2 libtcmalloc-minimal4t64
 
       - name: Configure and build (bench preset)
         shell: bash
@@ -490,20 +490,27 @@ jobs:
           cmake --preset bench
           cmake --build --preset bench
 
-      - name: Run with baselines and the percentile table
+      - name: Baseline via LD_PRELOAD + the percentile table
         shell: bash
         run: |
           set -euo pipefail
           bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
-          out="$("$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
-          echo "$out"
-          # The baselines are dlopen'd at run time; assert both were found and
-          # that their rows and the percentile table are present.
-          echo "$out" | grep -q "^# baselines: malloc jemalloc tcmalloc" || { echo "FAIL: baseline disclosure missing"; exit 1; }
-          echo "$out" | grep -qP "\tjemalloc\t" || { echo "FAIL: jemalloc row missing"; exit 1; }
-          echo "$out" | grep -qP "\ttcmalloc\t" || { echo "FAIL: tcmalloc row missing"; exit 1; }
-          echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing"; exit 1; }
-          echo "OK — baselines + percentile table present and ran to completion."
+          je="$(find / -name 'libjemalloc.so.2' 2>/dev/null | head -1)"
+          tc="$(find / -name 'libtcmalloc_minimal.so.4' 2>/dev/null | head -1)"
+          echo "jemalloc=$je tcmalloc=$tc"
+          [ -n "$je" ] || { echo "FAIL: libjemalloc.so.2 not found"; exit 1; }
+          [ -n "$tc" ] || { echo "FAIL: libtcmalloc_minimal.so.4 not found"; exit 1; }
+          run() {  # label, preload-path
+            echo "=== allocator: $1 ==="
+            out="$(LD_PRELOAD="$2" "$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
+            echo "$out"
+            echo "$out" | grep -q "# allocator: ${3:-system malloc}" || { echo "FAIL: allocator disclosure ($1)"; exit 1; }
+            echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing ($1)"; exit 1; }
+          }
+          run "system malloc" "" "system malloc"
+          run "jemalloc" "$je" "$je"
+          run "tcmalloc" "$tc" "$tc"
+          echo "OK — pool benchmarked against system malloc, jemalloc, and tcmalloc; percentile table present."
 
   # ---------------------------------------------------------------------------
   # thread-safety — build and run the existing (single-threaded) test suite

@@ -25,25 +25,25 @@ Percentiles use the **nearest-rank** method over the sorted per-op samples. The 
 
 **Documented caveat (honest methodology).** Per-op timing carries a fixed clock-read overhead common to every allocator, and its resolution is the platform `steady_clock` tick: on Linux/macOS (≈1 ns) the percentiles are fine-grained; on Windows (≈100 ns) they **quantize to the tick**, so p50–p99 of a single ~5–50 ns op collapse onto multiples of 100 ns. The percentile columns are therefore for **tail / relative comparison and for surfacing microsecond-scale events** (a growth spike shows as p999 ≫ p50 on every platform); for absolute per-op cost the aggregate ns/op table remains authoritative. This is stated in the bench README and the report template.
 
-### 2. Optional external baselines — `dlopen`-loaded at run time, never a hard dependency
+### 2. Optional external baselines — measured under `LD_PRELOAD`, never a hard dependency
 
-jemalloc and tcmalloc are added as **optional** baselines, **loaded at run time via `dlopen` with `RTLD_LOCAL`** (POSIX only) rather than linked. This is deliberate and load-bearing: both libraries, if *linked*, export strong `malloc`/`operator new` symbols that **interpose the whole process's allocator** — so linking one would silently turn the "malloc" row into that allocator, and linking *both* crashes (their initializers fight over global `malloc`). Loading each with `RTLD_LOCAL` keeps its symbols out of global resolution: the process's `malloc` stays the true system allocator, jemalloc and tcmalloc never conflict, and each is reached only through the explicit extended-API entry points resolved by `dlsym` — jemalloc's `mallocx`/`dallocx`, tcmalloc's `tc_malloc`/`tc_free`. All three therefore appear as **distinct, honest rows** in one run. `dlsym` yields a `void*`; the bits are copied into the typed function pointer with `memcpy` (not a `reinterpret_cast` between object- and function-pointer types, which `-Wpedantic` rejects). On a non-POSIX host (Windows/MSVC) the whole mechanism is `#ifdef`-compiled out and the output is byte-for-byte what ADR-0014 produced, plus a `# baselines: malloc` disclosure line; a library that is not installed is a silent run-time skip. The only build dependency is the dynamic-loader library (`${CMAKE_DL_LIBS}`, empty where `dlopen` lives in libc), so spec §3.3's zero-external-dependency posture holds.
+jemalloc and tcmalloc are measured by **re-running the same bench binary under `LD_PRELOAD`**, which swaps the whole process allocator. This is deliberate and load-bearing. Those libraries are *designed to be the process allocator*: they take over global `malloc`/`operator new` — via strong symbols and, for tcmalloc, a library constructor — on load. So they cannot be linked, nor even `dlopen`'d, alongside the system allocator to produce side-by-side in-process rows: linking one silently turns the "malloc" row into that allocator, linking both crashes (their initializers fight over `malloc`), and `dlopen` does not help because the constructor still runs. Both were tried and both crashed (SIGSEGV).
 
-A small `RawAllocator` (name + alloc/free function pointers) unifies the system `malloc`, jemalloc, and tcmalloc behind one interface for the *added* baseline rows and the percentile recorder. The dedicated `malloc` runners that produce the committed ADR-0014 aggregate numbers are left untouched.
+`LD_PRELOAD` sidesteps all of that: one process, one allocator, no mixing. Under `LD_PRELOAD=libjemalloc.so.2` the bench's `malloc` rows — and the pool's own backing store — are served by jemalloc, so a preloaded run is a clean, complete `pool`-vs-*that-allocator* comparison across every scenario (including the percentile table). The bench therefore carries **no allocator-specific code at all**: the default build stays byte-for-byte what ADR-0014 produced and spec §3.3's zero-external-dependency posture holds trivially. A `# allocator:` header line (read from `LD_PRELOAD`, POSIX only; "system malloc" otherwise) discloses which allocator each run's numbers reflect, so the three reports are unambiguous.
 
 ### 3. Output contract
 
-Additive per ADR-0014 §6: the aggregate 8-column table is unchanged; baseline rows reuse that schema (extra rows, tagged with the allocator name); percentile data is a new, separate table with its own header; a `# baselines:` header line discloses which allocators are compiled in. No existing row or column changes, so the M7.x report-diffing tooling still parses old and new reports.
+Additive per ADR-0014 §6: the aggregate 8-column table is unchanged; percentile data is a new, separate table with its own header; a `# allocator:` header line discloses which allocator this run measured (the `LD_PRELOAD` basename, or "system malloc"). No existing row or column changes, so the M7.x report-diffing tooling still parses old and new reports; a baseline comparison is a set of reports, one per allocator, distinguished by that header line.
 
 ### 4. CI
 
-A `bench-baselines` job (Linux) installs the jemalloc + tcmalloc **runtime** shared objects (`libjemalloc2`, `libgoogle-perftools4t64`), builds, and runs `--scenario all --percentiles`, asserting that both baselines loaded at run time and that their rows and the percentile table are present. Like every bench cell it gates on **exit code 0, not numbers** (ADR-0014 §8 — shared runners are too noisy for numeric thresholds). It is Linux-only, never touching the MSVC leg (ADR-0005 §3), consistent with the sanitizer-preset split.
+A `bench-baselines` job (Linux) installs the jemalloc + tcmalloc **runtime** shared objects (`libjemalloc2`, `libtcmalloc-minimal4t64`), builds once, and runs `--scenario all --percentiles` three times — plain, `LD_PRELOAD=libjemalloc.so.2`, and `LD_PRELOAD=libtcmalloc_minimal.so.4` — asserting each disclosed the expected allocator, emitted the percentile table, and exited cleanly. Like every bench cell it gates on **exit code 0, not numbers** (ADR-0014 §8 — shared runners are too noisy for numeric thresholds). It is Linux-only, never touching the MSVC leg (ADR-0005 §3), consistent with the sanitizer-preset split.
 
 ## Alternatives Considered
 
 - **Always-on percentiles (fold p99 into the existing per-repeat `Stats`).** Rejected. p99 over ~9 per-repeat aggregates is meaningless (it is essentially the max), and per-op timing on the default path would perturb the committed ADR-0014 ns/op numbers. Per-op sampling behind an opt-in flag is the only way to get a meaningful p99 without disturbing the frozen numbers.
 - **HdrHistogram (or another bucketed recorder).** Rejected for now: it is an external dependency, and for this benchmark's needs a `std::vector<double>` of per-op samples with a nearest-rank query is sufficient and keeps the methodology inspectable (the ADR-0014 §1 pedagogy argument). Revisit if memory for the sample vector becomes a constraint at very large iteration counts.
-- **Link the allocators at compile time (`find_library` + `-ljemalloc`/`-ltcmalloc`), or `LD_PRELOAD`.** Rejected — this was the first implementation and it *crashed* (SIGSEGV): both libraries export strong `malloc`/`operator new` symbols, so co-linking makes their initializers fight over global `malloc`, and even linking one interposes the process allocator (turning the "malloc" row into that allocator, defeating the side-by-side comparison). `LD_PRELOAD` has the same interposition problem and cannot load two allocators at once. Loading each via `dlopen(RTLD_LOCAL)` and calling only its explicit API sidesteps interposition entirely and lets pool / malloc / jemalloc / tcmalloc appear as four distinct rows in a single run.
+- **In-process side-by-side rows — link the allocators (`-ljemalloc`/`-ltcmalloc`) or `dlopen` them.** Rejected after *both* were implemented and *both crashed* (SIGSEGV). The libraries take over global `malloc` on load (strong symbols; tcmalloc also via a constructor), so co-linking makes their initializers fight over `malloc`, linking one silently rebinds the "malloc" row to that allocator, and `dlopen(RTLD_LOCAL)` still runs the constructor. There is no safe way to have two of these allocators plus the system allocator live in one process. `LD_PRELOAD` — one allocator per process, chosen from outside — is the standard, crash-free way to benchmark them, at the cost that a full comparison is N reports rather than N rows in one.
 - **A hard dependency on jemalloc/tcmalloc.** Rejected — it would break spec §3.3 and the MSVC leg. Feature-detection with a silent skip keeps the default build dependency-free.
 - **CI numeric thresholds on the baselines/percentiles.** Rejected for the ADR-0014 §8 runner-noise reasons; the new cell is a build/run gate, not a performance gate.
 
@@ -52,18 +52,18 @@ A `bench-baselines` job (Linux) installs the jemalloc + tcmalloc **runtime** sha
 **Positive**
 
 - p99/p999 tail latency is reportable, and the dynamic-pool growth row makes the amortized-growth spike visible where the median hid it — the #105 §6.3 critique is closed.
-- Modern baselines (jemalloc/tcmalloc) are available for comparison wherever they are installed, feature-detected and validated in CI.
+- Modern baselines (jemalloc/tcmalloc) are available for comparison wherever they are installed, via `LD_PRELOAD`, and validated in CI.
 - The default build and the committed ADR-0014 numbers are unchanged; zero external dependencies preserved.
 
 **Negative**
 
 - Per-op percentiles are resolution-bound: on Windows's ~100 ns `steady_clock` tick they quantize, so they are meaningful there only for microsecond-scale tail events, not for sub-tick medians (documented; the aggregate table stays authoritative).
-- The `dlopen` baseline path compiles on POSIX and loads the allocators only where they are installed, so it is exercised on the Linux CI cell, not on the maintainer's MSVC box (where it is `#ifdef`-compiled out).
+- A baseline comparison is **N reports, not N rows in one** — the user (or CI) re-runs the bench under each `LD_PRELOAD`. This is exercised on the Linux CI cell; the maintainer's MSVC box has no `LD_PRELOAD`, so it reports "system malloc" only.
 
 **Tooling / documentation (same PR)**
 
-- [`pool_vs_malloc_bench.cpp`](../../src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench.cpp) — the `--percentiles` mode, the `RawAllocator` abstraction, and the guarded baselines.
-- [bench `CMakeLists.txt`](../../src/bench/cpp/it/d4np/memorypool/CMakeLists.txt) — links `${CMAKE_DL_LIBS}` for the run-time `dlopen`.
+- [`pool_vs_malloc_bench.cpp`](../../src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench.cpp) — the `--percentiles` mode and the `# allocator:` header disclosure.
+- [bench `CMakeLists.txt`](../../src/bench/cpp/it/d4np/memorypool/CMakeLists.txt) — no allocator link; the `# allocator:` header disclosure is the only bench code touched for baselines.
 - [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — the `bench-baselines` job.
 - [bench `README.md`](../../src/bench/cpp/it/d4np/memorypool/README.md) — the new columns/baselines and the percentile caveat.
 - [`ROADMAP.md`](../../ROADMAP.md) item 9.4, spec §7.1, [`CHANGELOG.md`](../../CHANGELOG.md) `Unreleased`.
@@ -71,5 +71,5 @@ A `bench-baselines` job (Linux) installs the jemalloc + tcmalloc **runtime** sha
 ## References
 
 - [ADR-0014](0014-microbenchmark-methodology-pool-vs-malloc.md) — the methodology this extends.
-- jemalloc `mallocx`/`dallocx` extended API; gperftools tcmalloc `tc_malloc`/`tc_free`.
+- jemalloc and gperftools tcmalloc — `LD_PRELOAD` drop-in allocator replacements; both take over global `malloc` on load, which is why they are measured out-of-process here.
 - Gil Tene, *How NOT to Measure Latency* — the case for percentiles/tail over averages in latency reporting.

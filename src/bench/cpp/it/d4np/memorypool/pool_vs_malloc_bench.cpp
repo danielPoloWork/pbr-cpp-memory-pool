@@ -58,16 +58,13 @@
 #include <thread>
 #include <vector>
 
-// Optional external-allocator baselines (ADR-0045). They are loaded at RUN time
-// via dlopen with RTLD_LOCAL (POSIX only) rather than linked, so their malloc
-// symbols never interpose the process's system allocator — the "malloc" row
-// stays the true system malloc, and jemalloc + tcmalloc cannot conflict by both
-// trying to take over global malloc, as they would if co-linked. The default
-// build keeps spec §3.3's zero external dependencies.
-#if defined(__unix__) || defined(__APPLE__)
-#include <dlfcn.h>
-#define PBR_BENCH_DLOPEN 1
-#endif
+// External-allocator baselines (jemalloc / tcmalloc) are obtained by re-running
+// this binary under LD_PRELOAD, which swaps the whole process allocator — the
+// only safe way, since those libraries take over global malloc on load, so they
+// cannot be linked or dlopen'd alongside the system allocator without crashing.
+// The bench itself therefore carries no allocator-specific code and keeps spec
+// §3.3's zero external dependencies; the header discloses the active allocator.
+// See ADR-0045.
 
 namespace mem = it::d4np::memorypool;
 
@@ -129,124 +126,6 @@ inline void do_not_optimize(const T& value) {
 // allocation alive and to actually fault in the page on first touch.
 inline void touch_byte(void* ptr, std::size_t loop_index) {
     *static_cast<volatile unsigned char*>(ptr) = static_cast<unsigned char>(loop_index & BYTE_MASK);
-}
-
-// ---------------------------------------------------------------------------
-// A raw (C-style) allocator, described by a name and an alloc/free function
-// pair (ADR-0045). This unifies the system `malloc` and the optional external
-// baselines (jemalloc / tcmalloc) behind one interface so the generic runners
-// and the per-op percentile recorder drive them all through the same code
-// path. The existing dedicated `malloc` runners that produce the committed
-// ADR-0014 aggregate numbers are left untouched; this abstraction serves the
-// *added* baseline rows and the percentile table only.
-// ---------------------------------------------------------------------------
-struct RawAllocator {
-    std::string_view name_;
-    void* (*alloc_)(std::size_t);
-    void (*free_)(void*);
-};
-
-// The system allocator, wrapped so its address can travel in a RawAllocator.
-// NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
-void* sys_malloc(std::size_t size) {
-    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
-    return std::malloc(size);
-}
-void sys_free(void* ptr) {
-    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
-    std::free(ptr);
-}
-
-#ifdef PBR_BENCH_DLOPEN
-// The external allocators' explicit extended-API signatures, resolved by dlsym.
-using MallocxFn = void* (*)(std::size_t, int);  // jemalloc mallocx(size, flags)
-using DallocxFn = void (*)(void*, int);         // jemalloc dallocx(ptr, flags)
-using TcMallocFn = void* (*)(std::size_t);      // tcmalloc tc_malloc(size)
-using TcFreeFn = void (*)(void*);               // tcmalloc tc_free(ptr)
-
-// Resolved once by load_external_baselines(); a C-style dlsym table
-// unavoidably needs mutable globals, mirroring the do_not_optimize sink above.
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-MallocxFn g_je_mallocx = nullptr;
-DallocxFn g_je_dallocx = nullptr;
-TcMallocFn g_tc_malloc = nullptr;
-TcFreeFn g_tc_free = nullptr;
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
-
-// mallocx requires a non-zero size and dallocx a non-null pointer; both hold.
-void* je_alloc(std::size_t size) {
-    return g_je_mallocx(size != 0U ? size : 1U, 0);
-}
-void je_release(void* ptr) {
-    if (ptr != nullptr) {
-        g_je_dallocx(ptr, 0);
-    }
-}
-void* tc_alloc(std::size_t size) {
-    return g_tc_malloc(size);
-}
-void tc_release(void* ptr) {
-    g_tc_free(ptr);
-}
-
-void* dlopen_local(const char* primary, const char* fallback) {
-    void* handle = dlopen(primary, RTLD_NOW | RTLD_LOCAL);
-    if (handle == nullptr) {
-        handle = dlopen(fallback, RTLD_NOW | RTLD_LOCAL);
-    }
-    return handle;
-}
-
-// Resolve a symbol to a function pointer. dlsym yields a void*; copying the
-// bits with memcpy (rather than reinterpret_cast between object- and
-// function-pointer types, which -Wpedantic rejects as conditionally-supported)
-// is the portable, warning-free idiom. Returns nullptr if the symbol is absent.
-template <typename Fn>
-Fn resolve_symbol(void* handle, const char* name) {
-    void* const sym = dlsym(handle, name);
-    Fn fn = nullptr;
-    if (sym != nullptr) {
-        std::memcpy(&fn, &sym, sizeof(fn));
-    }
-    return fn;
-}
-
-std::vector<RawAllocator> load_external_baselines() {
-    std::vector<RawAllocator> list;
-    void* const je = dlopen_local("libjemalloc.so.2", "libjemalloc.so");
-    if (je != nullptr) {
-        g_je_mallocx = resolve_symbol<MallocxFn>(je, "mallocx");
-        g_je_dallocx = resolve_symbol<DallocxFn>(je, "dallocx");
-        if (g_je_mallocx != nullptr && g_je_dallocx != nullptr) {
-            list.push_back(RawAllocator{"jemalloc", &je_alloc, &je_release});
-        }
-    }
-    void* tc = dlopen_local("libtcmalloc.so.4", "libtcmalloc.so");
-    if (tc == nullptr) {
-        tc = dlopen_local("libtcmalloc_minimal.so.4", "libtcmalloc_minimal.so");
-    }
-    if (tc != nullptr) {
-        g_tc_malloc = resolve_symbol<TcMallocFn>(tc, "tc_malloc");
-        g_tc_free = resolve_symbol<TcFreeFn>(tc, "tc_free");
-        if (g_tc_malloc != nullptr && g_tc_free != nullptr) {
-            list.push_back(RawAllocator{"tcmalloc", &tc_alloc, &tc_release});
-        }
-    }
-    return list;
-}
-#endif  // PBR_BENCH_DLOPEN
-
-// The external baselines available at run time (empty by default and on
-// non-POSIX hosts — spec §3.3). Resolved once. System malloc is NOT here: it
-// keeps its dedicated committed-number runners; this list drives the added
-// baseline rows and the percentile table only.
-const std::vector<RawAllocator>& external_baselines() {
-#ifdef PBR_BENCH_DLOPEN
-    static const std::vector<RawAllocator> list = load_external_baselines();
-#else
-    static const std::vector<RawAllocator> list;
-#endif
-    return list;
 }
 
 // ---------------------------------------------------------------------------
@@ -405,47 +284,6 @@ double time_malloc_interleaved(const Config& cfg) {
 }
 
 // ---------------------------------------------------------------------------
-// Generic aggregate runners for a RawAllocator (ADR-0045). Same timing method
-// as the dedicated malloc runners above — used for the added jemalloc/tcmalloc
-// baseline rows, so their numbers are directly comparable to the malloc rows.
-// ---------------------------------------------------------------------------
-double time_raw_bulk_alloc(const RawAllocator& allocator, const Config& cfg, std::vector<void*>& out) {
-    out.clear();
-    out.reserve(cfg.iterations_);
-    const auto t0 = clock::now();
-    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
-        void* const p = allocator.alloc_(cfg.block_size_);
-        touch_byte(p, i);
-        do_not_optimize(p);
-        out.push_back(p);
-    }
-    const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, cfg.iterations_);
-}
-
-double time_raw_bulk_free(const RawAllocator& allocator, std::vector<void*>& blocks) {
-    const auto t0 = clock::now();
-    for (void* p : blocks) {
-        do_not_optimize(p);
-        allocator.free_(p);
-    }
-    const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, blocks.size());
-}
-
-double time_raw_interleaved(const RawAllocator& allocator, const Config& cfg) {
-    const auto t0 = clock::now();
-    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
-        void* const p = allocator.alloc_(cfg.block_size_);
-        touch_byte(p, i);
-        do_not_optimize(p);
-        allocator.free_(p);
-    }
-    const auto t1 = clock::now();
-    return ns_per_iter(t0, t1, cfg.iterations_);
-}
-
-// ---------------------------------------------------------------------------
 // Per-operation timers for the percentile table (ADR-0045). Each records ONE
 // latency sample per operation into `out`, so a percentile summary is
 // meaningful. Per-op timing adds a fixed clock-read overhead common to every
@@ -467,15 +305,17 @@ void perop_pool_interleaved(mem::Pool& pool, const Config& cfg, std::vector<doub
     }
 }
 
-void perop_raw_interleaved(const RawAllocator& allocator, const Config& cfg, std::vector<double>& out) {
+void perop_malloc_interleaved(const Config& cfg, std::vector<double>& out) {
     out.clear();
     out.reserve(cfg.iterations_);
     for (std::size_t i = 0; i < cfg.iterations_; ++i) {
         const auto t0 = clock::now();
-        void* const p = allocator.alloc_(cfg.block_size_);
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        void* const p = std::malloc(cfg.block_size_);
         touch_byte(p, i);
         do_not_optimize(p);
-        allocator.free_(p);
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        std::free(p);
         const auto t1 = clock::now();
         out.push_back(ns_per_iter(t0, t1, 1U));
     }
@@ -892,11 +732,19 @@ void print_header(std::ostream& os, const Config& cfg) {
     os << "# hardware_concurrency: " << std::thread::hardware_concurrency() << "\n";
     os << "# max_align_t: " << alignof(std::max_align_t) << " bytes\n";
     os << "# thread_safety_policy: " << policy_name() << "\n";
-    os << "# baselines: malloc";
-    for (const RawAllocator& allocator : external_baselines()) {
-        os << " " << allocator.name_;
-    }
-    os << "\n";
+    // Disclose the active allocator behind the `malloc` rows. External baselines
+    // (jemalloc / tcmalloc) are measured by re-running under LD_PRELOAD, which
+    // swaps the whole process allocator — the only safe way, since those
+    // libraries take over global malloc on load (ADR-0045). This line records
+    // which allocator the `malloc` (and pool-backing) numbers actually reflect.
+    // LD_PRELOAD is POSIX-only; on Windows the allocator is always the system one.
+#ifdef _MSC_VER
+    const char* const preload = nullptr;
+#else
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char* const preload = std::getenv("LD_PRELOAD");
+#endif
+    os << "# allocator: " << ((preload != nullptr && preload[0] != '\0') ? preload : "system malloc") << "\n";
     if (cfg.percentiles_) {
         os << "# percentiles: on (per-op tail-latency table appended — ADR-0045)\n";
     }
@@ -1012,45 +860,11 @@ std::string run_and_report_growth(const Config& cfg, std::ostream& body) {
     return tail.str();
 }
 
-// M9.4 — append rows for each optional external baseline (jemalloc / tcmalloc)
-// to the main TSV table, using the same aggregate method and column schema as
-// the malloc rows so they are directly comparable (ADR-0045). A no-op when no
-// baseline is compiled in — the default build's table is byte-for-byte
-// unchanged. Writes rows only; the existing malloc/pool headline is unchanged.
-void run_and_report_baselines(const Config& cfg, std::ostream& body) {
-    std::vector<void*> slots;
-    for (const RawAllocator& allocator : external_baselines()) {
-        if (cfg.run_bulk_) {
-            std::vector<double> alloc_samples;
-            std::vector<double> free_samples;
-            for (std::size_t r = 0; r < cfg.repeats_; ++r) {
-                const double a = time_raw_bulk_alloc(allocator, cfg, slots);
-                const double f = time_raw_bulk_free(allocator, slots);
-                if (r != WARMUP_REPEAT_INDEX) {
-                    alloc_samples.push_back(a);
-                    free_samples.push_back(f);
-                }
-            }
-            print_row(body, RowKey{"bulk", allocator.name_, "alloc"}, summarise(alloc_samples));
-            print_row(body, RowKey{"bulk", allocator.name_, "free"}, summarise(free_samples));
-        }
-        if (cfg.run_interleaved_) {
-            std::vector<double> samples;
-            for (std::size_t r = 0; r < cfg.repeats_; ++r) {
-                const double s = time_raw_interleaved(allocator, cfg);
-                if (r != WARMUP_REPEAT_INDEX) {
-                    samples.push_back(s);
-                }
-            }
-            print_row(body, RowKey{"interleaved", allocator.name_, "alloc+free"}, summarise(samples));
-        }
-    }
-}
-
 // M9.4 — the tail-latency table (ADR-0045). A separate TSV section (its own
 // header) so the ADR-0014 aggregate table's schema is untouched. Per-op timing
-// for interleaved across pool / malloc / each baseline, plus a dynamic-pool
-// growth row whose p99 / p999 expose the growth spikes.
+// for interleaved across pool and the process `malloc` (which an external
+// allocator baseline replaces under LD_PRELOAD — see the header disclosure and
+// ADR-0045), plus a dynamic-pool growth row whose p99 / p999 expose the spikes.
 void print_percentile_table_header(std::ostream& os) {
     os << "scenario\tallocator\tp50_ns/op\tp90_ns/op\tp99_ns/op\tp999_ns/op\tsamples\n";
 }
@@ -1072,13 +886,8 @@ void run_and_report_percentiles(const Config& cfg, std::ostream& body) {
         print_percentile_row(body, "interleaved", "pool", percentiles_of(samples));
     }
 
-    const RawAllocator system_malloc{"malloc", &sys_malloc, &sys_free};
-    perop_raw_interleaved(system_malloc, cfg, samples);
+    perop_malloc_interleaved(cfg, samples);
     print_percentile_row(body, "interleaved", "malloc", percentiles_of(samples));
-    for (const RawAllocator& allocator : external_baselines()) {
-        perop_raw_interleaved(allocator, cfg, samples);
-        print_percentile_row(body, "interleaved", allocator.name_, percentiles_of(samples));
-    }
 
     if (perop_pool_growth(cfg, samples)) {
         print_percentile_row(body, "growth", "pool", percentiles_of(samples));
@@ -1113,9 +922,6 @@ int main(int argc, char* argv[]) {
     if (cfg.run_growth_) {
         tail += run_and_report_growth(cfg, std::cout);
     }
-    // Added external-baseline rows (jemalloc / tcmalloc) go into the same table,
-    // before the headline tail; a no-op when none are compiled in (ADR-0045).
-    run_and_report_baselines(cfg, std::cout);
     std::cout << "\n" << tail;
     // The opt-in per-op tail-latency table is a separate section after the
     // headlines so the ADR-0014 aggregate table is untouched (ADR-0045).

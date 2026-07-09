@@ -104,13 +104,16 @@ growth       pool       3.000      4.000      6.000      7000.000    1000000
 
 ## External allocator baselines (jemalloc / tcmalloc, ADR-0045)
 
-jemalloc and tcmalloc are **optional** baselines, **loaded at run time via `dlopen`** (POSIX). They are deliberately *not* linked: linking either would make its `malloc` interpose the whole process (turning the "malloc" row into that allocator), and linking both crashes. Loading each with `RTLD_LOCAL` and calling only its explicit API (`mallocx`/`dallocx`, `tc_malloc`/`tc_free`) keeps the system `malloc` intact and lets all of pool / malloc / jemalloc / tcmalloc appear as distinct rows in one run. If an allocator's shared object is not installed, it is a silent skip; on non-POSIX hosts (MSVC) the mechanism is compiled out and the output is dependency-free (spec §3.3) but for a `# baselines: malloc` disclosure line. On Debian/Ubuntu just install the runtime libraries and run — no reconfigure needed:
+jemalloc and tcmalloc are measured as baselines by **re-running the bench under `LD_PRELOAD`**, which swaps the whole process allocator. This is the only safe way: those libraries take over global `malloc`/`operator new` on load, so they cannot be linked or `dlopen`'d beside the system allocator to produce side-by-side rows (both were tried; both crashed). Under a preload, the bench's `malloc` rows — and the pool's own backing — are served by that allocator, so each run is a clean `pool`-vs-*allocator* comparison; the `# allocator:` header line discloses which. The bench carries no allocator-specific code, so the default build is dependency-free (spec §3.3). On Debian/Ubuntu:
 
 ```bash
-sudo apt-get install -y libjemalloc2 libgoogle-perftools4t64
+sudo apt-get install -y libjemalloc2 libtcmalloc-minimal4t64
 cmake --preset bench && cmake --build --preset bench
-./build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench --scenario all --percentiles
-# the header line "# baselines: malloc jemalloc tcmalloc" confirms both loaded
+bin=./build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench
+"$bin" --scenario all --percentiles                                   # system malloc
+LD_PRELOAD=libjemalloc.so.2        "$bin" --scenario all --percentiles  # vs jemalloc
+LD_PRELOAD=libtcmalloc_minimal.so.4 "$bin" --scenario all --percentiles # vs tcmalloc
+# the "# allocator:" header line records which allocator each run measured
 ```
 
 ## Reporting
@@ -127,7 +130,7 @@ The file wraps the raw benchmark output in a Markdown report disclosing the full
 
 ## CI
 
-The `bench-smoke` job in [`.github/workflows/ci.yml`](../../../../../../.github/workflows/ci.yml) builds the bench binary with the `bench` preset and runs it with `--iterations 10000 --repeats 3` — proves the binary still compiles, links, and runs to completion. A companion `bench-baselines` job (Linux) installs jemalloc + tcmalloc and runs `--scenario all --percentiles`, asserting the feature-detected baseline rows and the percentile table are present (ADR-0045). Both deliberately **not** assert numeric thresholds; shared-runner noise makes that gate flaky without adding signal. ADR-0014 §8 documents the rationale.
+The `bench-smoke` job in [`.github/workflows/ci.yml`](../../../../../../.github/workflows/ci.yml) builds the bench binary with the `bench` preset and runs it with `--iterations 10000 --repeats 3` — proves the binary still compiles, links, and runs to completion. A companion `bench-baselines` job (Linux) installs jemalloc + tcmalloc and re-runs `--scenario all --percentiles` under each via `LD_PRELOAD`, asserting each run disclosed the expected allocator and emitted the percentile table (ADR-0045). Both deliberately **not** assert numeric thresholds; shared-runner noise makes that gate flaky without adding signal. ADR-0014 §8 documents the rationale.
 
 ## Methodology snapshot
 

@@ -30,17 +30,10 @@ elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
         PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
 endif()
 
-# ---------------------------------------------------------------------------
-# Optional external-allocator baselines (ADR-0045). jemalloc / tcmalloc are NOT
-# linked — they are loaded at run time via dlopen(RTLD_LOCAL) so they never
-# interpose the system malloc and cannot conflict by co-linking (see the source
-# for the rationale). All that needs linking is the dynamic-loader library,
-# where the platform separates it from libc; ${CMAKE_DL_LIBS} is empty on
-# platforms (Windows, newer glibc) that fold dlopen into the C runtime. A
-# missing allocator is a silent run-time skip, so the default build stays
-# zero-external-dependency (spec §3.3).
-# ---------------------------------------------------------------------------
-target_link_libraries(pool_vs_malloc_bench PRIVATE ${CMAKE_DL_LIBS})
+# Optional external-allocator baselines (jemalloc / tcmalloc) are obtained by
+# re-running the binary under LD_PRELOAD (ADR-0045), which swaps the whole
+# process allocator. The bench links nothing allocator-specific, so the default
+# build keeps spec §3.3's zero external dependencies.
 
 # Property name used by IDEs that group targets; matches the layout under
 # src/bench/cpp/.

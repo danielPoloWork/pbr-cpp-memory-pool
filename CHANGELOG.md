@@ -23,11 +23,12 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 - **Benchmark extension — tail-latency percentiles and optional jemalloc/tcmalloc baselines.**
   The pool-vs-malloc microbenchmark gains an opt-in `--percentiles` mode that emits a separate
   per-operation **p50/p90/p99/p999** table — the dynamic-pool growth row surfaces the
-  microsecond-scale growth spike the aggregate median hides — and optional **jemalloc** /
-  **tcmalloc** baselines **loaded at run time via `dlopen`(`RTLD_LOCAL`)** (so they never
-  interpose the system `malloc` and cannot conflict by co-linking; called via `mallocx`/`dallocx`
-  and `tc_malloc`/`tc_free`), appearing as extra comparison rows where installed while the
-  default build stays zero-external-dependency (spec §3.3). Both are strictly additive: the
+  microsecond-scale growth spike the aggregate median hides — and **jemalloc** / **tcmalloc**
+  baselines measured the safe way, by re-running the bench under **`LD_PRELOAD`** (those
+  allocators take over global `malloc` on load, so they cannot be linked or `dlopen`'d beside
+  the system allocator without crashing). A `# allocator:` header line discloses which allocator
+  each run measured; the bench carries no allocator-specific code, so the default build stays
+  zero-external-dependency (spec §3.3). Both are strictly additive: the
   [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md) aggregate ns/op table
   and its committed numbers are unchanged. A Linux `bench-baselines` CI cell installs both
   allocators and exercises the new paths (non-asserting on numbers, per ADR-0014 §8).
