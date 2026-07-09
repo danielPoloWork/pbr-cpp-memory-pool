@@ -18,6 +18,16 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
+### Changed
+
+- **`zh-Hans` / `ja` README translations re-synced to `v1.2.0`.** Carries the English
+  README's `v1.2.0` deltas into both locales — the `v1.2.0` status badge (and its
+  release-tag link), the new `v1.2.0` Milestone-9 status paragraph, and the Milestone 9
+  row in the status table — and re-pins the `translation-status.md` manifest's two README
+  rows to the source commit (`d277258`), flipping them from `stale` back to `translated`
+  and clearing the `i18n-freshness` flag the `v1.2.0` release raised. Documentation-only;
+  no API change.
+
 ## Released versions
 
 Each released version is an **immutable** entry under [`docs/changelog/`](docs/changelog/) — one file per release, newest first ([ADR-0038](docs/adr/0038-changelog-version-split.md)). They are never edited after release; only the `Unreleased` block above changes during development.
