@@ -495,21 +495,18 @@ jobs:
         run: |
           set -euo pipefail
           bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
-          je="$(find / -name 'libjemalloc.so.2' 2>/dev/null | head -1)"
-          tc="$(find / -name 'libtcmalloc_minimal.so.4' 2>/dev/null | head -1)"
-          echo "jemalloc=$je tcmalloc=$tc"
-          [ -n "$je" ] || { echo "FAIL: libjemalloc.so.2 not found"; exit 1; }
-          [ -n "$tc" ] || { echo "FAIL: libtcmalloc_minimal.so.4 not found"; exit 1; }
-          run() {  # label, preload-path
+          # LD_PRELOAD resolves a soname through the loader cache (ldconfig ran on
+          # install), so no filesystem search is needed.
+          run() {  # label, LD_PRELOAD value ("" = none), expected "# allocator:" text
             echo "=== allocator: $1 ==="
             out="$(LD_PRELOAD="$2" "$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
             echo "$out"
-            echo "$out" | grep -q "# allocator: ${3:-system malloc}" || { echo "FAIL: allocator disclosure ($1)"; exit 1; }
+            echo "$out" | grep -q "# allocator: $3" || { echo "FAIL: allocator disclosure ($1)"; exit 1; }
             echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing ($1)"; exit 1; }
           }
           run "system malloc" "" "system malloc"
-          run "jemalloc" "$je" "$je"
-          run "tcmalloc" "$tc" "$tc"
+          run "jemalloc" "libjemalloc.so.2" "libjemalloc.so.2"
+          run "tcmalloc" "libtcmalloc_minimal.so.4" "libtcmalloc_minimal.so.4"
           echo "OK — pool benchmarked against system malloc, jemalloc, and tcmalloc; percentile table present."
 
   # ---------------------------------------------------------------------------
