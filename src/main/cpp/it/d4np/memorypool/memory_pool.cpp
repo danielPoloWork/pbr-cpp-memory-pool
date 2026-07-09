@@ -239,7 +239,12 @@ void* reveal_next(const void* slot) noexcept {
 // single-thread and mutex pops hold exclusivity and the diagnostic walk runs on
 // a stable list. The lock-free pop uses reveal_next instead (see above) and
 // defers integrity to on_alloc's guard-word check once the slot is owned.
-void* read_next(const void* slot) noexcept {
+//
+// [[maybe_unused]]: under the LOCKFREE policy the pop path uses reveal_next, so
+// read_next has no caller unless the diagnostic surface is also compiled in
+// (PBR_MEMORY_POOL_DIAGNOSTICS). Without this, a LOCKFREE + diagnostics-off
+// build trips -Wunused-function under warnings-as-errors.
+[[maybe_unused]] void* read_next(const void* slot) noexcept {
     void* const revealed = reveal_next(slot);
 #if PBR_MEMORY_POOL_HARDENING
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
