@@ -270,6 +270,11 @@ void write_next(void* slot, void* next) noexcept {
 #endif
 }
 
+// The two size_t parameters (block_size, block_count) mirror the frozen
+// memory_pool_create argument order; a config struct would diverge from that
+// established shape, so the swappable-parameters check is suppressed here as it
+// is on the create/factory entry points.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void initialize_free_list(void* backing, std::size_t block_size, std::size_t block_count) noexcept {
     // Implicit free list per ADR-0009 §1, ascending address order. Each free
     // slot stores the address of the next free slot in its own first
