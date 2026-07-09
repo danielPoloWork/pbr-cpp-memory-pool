@@ -208,7 +208,7 @@ valgrind --leak-check=full --show-leak-kinds=all ./test_pool
 
 ### 6.4 Sanitizers & CI
 
-ASan, UBSan and TSan run via dedicated CMake presets; TSan covers the thread-safe configurations. The opt-in debug-hardening configuration ([§4.1](#41-constraints--guarantees), [ADR-0043](../adr/0043-opt-in-debug-hardening.md)) runs via a `harden` preset — a Tier-1 CI matrix cell builds it and runs its detection tests, so the quality bar holds in both the default and the hardened configuration. All of the above is wired into a multi-OS CI matrix (warnings-as-errors, `clang-tidy`, Valgrind). A coverage-guided fuzz target is deferred (Section 7).
+ASan, UBSan and TSan run via dedicated CMake presets; TSan covers the thread-safe configurations. The opt-in debug-hardening configuration ([§4.1](#41-constraints--guarantees), [ADR-0043](../adr/0043-opt-in-debug-hardening.md)) runs via a `harden` preset — a Tier-1 CI matrix cell builds it and runs its detection tests, so the quality bar holds in both the default and the hardened configuration. A **coverage-guided fuzzing** tier ([ADR-0044](../adr/0044-coverage-guided-fuzzing-harness.md)) drives randomized `alloc`/`free`/grow sequences through the public surface under ASan/UBSan, asserting the no-alias, foreign-pointer-no-op, and accounting invariants against a shadow oracle: a Clang-only `fuzz` preset builds the libFuzzer target and a dedicated CI job replays the seed corpus and fuzzes for a bounded time on every PR, while a portable standalone replay target gates the corpus everywhere (including MSVC, where libFuzzer is unavailable). All of the above is wired into a multi-OS CI matrix (warnings-as-errors, `clang-tidy`, Valgrind).
 
 ---
 
@@ -229,15 +229,17 @@ Every requirement above is realized and recorded. The table maps the spec to its
 | §5.3 error semantics | [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md), [ADR-0016](../adr/0016-exception-policy-at-the-c-cpp-boundary.md) |
 | §5.4 instrumentation / observers | [ADR-0025](../adr/0025-decorator-for-instrumented-pool.md), [ADR-0026](../adr/0026-observer-for-pool-lifecycle-events.md) |
 | §6.3 benchmark methodology | [ADR-0014](../adr/0014-microbenchmark-methodology-pool-vs-malloc.md) |
+| §6.4 coverage-guided fuzzing harness | [ADR-0044](../adr/0044-coverage-guided-fuzzing-harness.md) |
 | Spec-compliance acceptance audit | [ADR-0029](../adr/0029-spec-compliance-acceptance-audit.md) |
 
 ### 7.1 Deferred / tracked
 
 These are explicitly out of the current build and tracked as issues:
 
-- **Coverage-guided fuzzing harness** (issue #108).
 - **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting (issue #111).
 
 **Opt-in debug hardening** (freed-block poisoning, a guard word for overflow + double-free detection, and free-list safe-linking), once deferred here, now ships behind the `PBR_MEMORY_POOL_HARDENING` compile-time knob — see [§4.1](#41-constraints--guarantees) and [ADR-0043](../adr/0043-opt-in-debug-hardening.md) (issue #109).
+
+The **coverage-guided fuzzing harness**, once deferred here, now ships as the libFuzzer target `pool_fuzz` plus a portable standalone corpus-replay gate — see [§6.4](#64-sanitizers--ci) and [ADR-0044](../adr/0044-coverage-guided-fuzzing-harness.md) (issue #108).
 
 The **C4 component diagram** of the pool internals, once deferred here, now ships in [Section 4.2](#42-component-diagram-c4) (its tooling decision is [ADR-0041](../adr/0041-mermaid-diagram-tooling.md)).

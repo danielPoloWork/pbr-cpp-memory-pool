@@ -20,6 +20,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **Coverage-guided fuzzing harness for the pool surface.** A new
+  [`pool_fuzz.cpp`](src/test/cpp/it/d4np/memorypool/pool_fuzz.cpp) drives randomized
+  `alloc` / `free(valid)` / `free(NULL)` / `free(foreign)` sequences — over both fixed and
+  dynamic-growth pools — through a stateful opcode interpreter, asserting the no-alias,
+  per-block-canary, foreign/NULL-no-op ([ADR-0012](docs/adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)),
+  and `InstrumentedPool` accounting invariants against a shadow oracle so a corruption becomes
+  a saved reproducer. One engine-agnostic source yields the Clang-only libFuzzer target
+  `pool_fuzz` (opt-in `PBR_MEMORY_POOL_BUILD_FUZZERS`; a `fuzz` preset builds it under
+  `-fsanitize=fuzzer,address,undefined`, and a dedicated CI job replays the seed corpus and
+  fuzzes for a bounded time on every PR) and an always-built standalone `pool_fuzz_replay` that
+  makes the seed corpus a portable regression gate everywhere — including MSVC, where libFuzzer
+  is unavailable. Test-only and additive; the release build and the benchmark numbers are
+  untouched. [ADR-0044](docs/adr/0044-coverage-guided-fuzzing-harness.md). Closes #108.
 - **Opt-in debug hardening — freed-block poisoning, a guard word, and free-list
   safe-linking.** A compile-time knob `PBR_MEMORY_POOL_HARDENING` (OFF by default; a `harden`
   CMake preset turns it on) hardens the intrusive free list against the classic

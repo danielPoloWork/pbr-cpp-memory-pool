@@ -275,6 +275,19 @@ if(PBR_MEMORY_POOL_BUILD_BENCHMARKS)
 endif()
 
 # ---------------------------------------------------------------------------
+# Coverage-guided fuzzing (ADR-0044). When ON, the test tree adds the
+# libFuzzer target `pool_fuzz` (Clang only — libFuzzer is a Clang runtime),
+# built with -fsanitize=fuzzer,address,undefined and run by a dedicated CI
+# job. OFF by default so it never perturbs the release build or the ADR-0014
+# benchmark methodology. The portable `pool_fuzz_replay` target (which replays
+# the seed corpus as a regression gate) is built with the normal test suite
+# regardless of this option; only the coverage-guided engine is gated here.
+# Requires PBR_MEMORY_POOL_BUILD_TESTS, since the target lives in the test tree.
+# ---------------------------------------------------------------------------
+option(PBR_MEMORY_POOL_BUILD_FUZZERS
+    "Build the libFuzzer coverage-guided fuzz target (Clang only, ADR-0044)" OFF)
+
+# ---------------------------------------------------------------------------
 # Configuration summary (debug aid; not output in -DCMAKE_MESSAGE_LOG_LEVEL=ERROR).
 # ---------------------------------------------------------------------------
 message(STATUS "")
@@ -285,5 +298,6 @@ message(STATUS "  C++ standard        : C++${CMAKE_CXX_STANDARD} (extensions ${C
 message(STATUS "  Build type          : ${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Tests               : ${PBR_MEMORY_POOL_BUILD_TESTS}")
 message(STATUS "  Benchmarks          : ${PBR_MEMORY_POOL_BUILD_BENCHMARKS}")
+message(STATUS "  Fuzzers             : ${PBR_MEMORY_POOL_BUILD_FUZZERS}")
 message(STATUS "  Install rules        : ${PBR_MEMORY_POOL_INSTALL}")
 message(STATUS "")
