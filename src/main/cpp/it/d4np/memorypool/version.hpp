@@ -20,13 +20,13 @@ namespace it::d4np::memorypool {
 inline constexpr unsigned PBR_MEMORY_POOL_VERSION_MAJOR = 1;
 
 /** Minor version component (incremented with each closed milestone pre-1.0). */
-inline constexpr unsigned PBR_MEMORY_POOL_VERSION_MINOR = 1;
+inline constexpr unsigned PBR_MEMORY_POOL_VERSION_MINOR = 2;
 
 /** Patch version component (incremented for hotfixes between milestones). */
-inline constexpr unsigned PBR_MEMORY_POOL_VERSION_PATCH = 2;
+inline constexpr unsigned PBR_MEMORY_POOL_VERSION_PATCH = 0;
 
 /** Pre-formatted version string, kept in lockstep with the components above. */
-inline constexpr const char* PBR_MEMORY_POOL_VERSION_STRING = "1.1.2";
+inline constexpr const char* PBR_MEMORY_POOL_VERSION_STRING = "1.2.0";
 
 }  // namespace it::d4np::memorypool
 

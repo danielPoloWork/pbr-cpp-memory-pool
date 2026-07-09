@@ -18,98 +18,13 @@ under *Changed* or *Removed*.
 The `Unreleased` block accumulates entries during development and is rolled into a
 dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a milestone.
 
-### Added
-
-- **Benchmark extension — tail-latency percentiles and optional jemalloc/tcmalloc baselines.**
-  The pool-vs-malloc microbenchmark gains an opt-in `--percentiles` mode that emits a separate
-  per-operation **p50/p90/p99/p999** table — the dynamic-pool growth row surfaces the
-  microsecond-scale growth spike the aggregate median hides — and **jemalloc** / **tcmalloc**
-  baselines measured the safe way, by re-running the bench under **`LD_PRELOAD`** (those
-  allocators take over global `malloc` on load, so they cannot be linked or `dlopen`'d beside
-  the system allocator without crashing). A `# allocator:` header line discloses which allocator
-  each run measured; the bench carries no allocator-specific code, so the default build stays
-  zero-external-dependency (spec §3.3). Both are strictly additive: the
-  [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md) aggregate ns/op table
-  and its committed numbers are unchanged. A Linux `bench-baselines` CI cell installs both
-  allocators and exercises the new paths (non-asserting on numbers, per ADR-0014 §8).
-  [ADR-0045](docs/adr/0045-benchmark-percentiles-and-external-baselines.md). Closes #111.
-- **Coverage-guided fuzzing harness for the pool surface.** A new
-  [`pool_fuzz.cpp`](src/test/cpp/it/d4np/memorypool/pool_fuzz.cpp) drives randomized
-  `alloc` / `free(valid)` / `free(NULL)` / `free(foreign)` sequences — over both fixed and
-  dynamic-growth pools — through a stateful opcode interpreter, asserting the no-alias,
-  per-block-canary, foreign/NULL-no-op ([ADR-0012](docs/adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)),
-  and `InstrumentedPool` accounting invariants against a shadow oracle so a corruption becomes
-  a saved reproducer. One engine-agnostic source yields the Clang-only libFuzzer target
-  `pool_fuzz` (opt-in `PBR_MEMORY_POOL_BUILD_FUZZERS`; a `fuzz` preset builds it under
-  `-fsanitize=fuzzer,address,undefined`, and a dedicated CI job replays the seed corpus and
-  fuzzes for a bounded time on every PR) and an always-built standalone `pool_fuzz_replay` that
-  makes the seed corpus a portable regression gate everywhere — including MSVC, where libFuzzer
-  is unavailable. Test-only and additive; the release build and the benchmark numbers are
-  untouched. [ADR-0044](docs/adr/0044-coverage-guided-fuzzing-harness.md). Closes #108.
-- **Opt-in debug hardening — freed-block poisoning, a guard word, and free-list
-  safe-linking.** A compile-time knob `PBR_MEMORY_POOL_HARDENING` (OFF by default; a `harden`
-  CMake preset turns it on) hardens the intrusive free list against the classic
-  use-after-free / pointer-corruption primitives an in-band next-link exposes: freed blocks are
-  **poisoned** (`0xDE`) and verified on the next allocation (use-after-free), a per-slot
-  trailing **guard word** detects a contiguous write past `block_size` (buffer overflow) and a
-  repeated free (double-free — the [ADR-0012](docs/adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)
-  gap), and the next-link is stored with glibc-style **safe-linking**
-  (`ptr XOR (slot_addr >> 12)`) so a leaked/overwritten link is neither usable nor silently
-  followed. On detection a swappable `HardeningViolationHandler`
-  ([`pool_hardening.hpp`](src/main/cpp/it/d4np/memorypool/pool_hardening.hpp)) fires — the
-  default prints a diagnostic and `abort()`s. The guard lives in *added* slot stride, so the
-  user-visible `block_size` and the [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md)
-  alignment guarantee are unchanged, and the default build is byte-for-byte and cycle-for-cycle
-  unchanged (the knob is fully compiled out). Works with fixed and dynamic pools across all
-  three thread-safety policies. Purely additive and ABI-compatible; a hardened build is
-  deliberately not layout-compatible with a non-hardened one (never mix configurations).
-  [ADR-0043](docs/adr/0043-opt-in-debug-hardening.md). Closes #109.
-- **`std::pmr::memory_resource` adapter — `PoolMemoryResource`.** A new header-only Adapter
-  ([`pool_memory_resource.hpp`](src/main/cpp/it/d4np/memorypool/pool_memory_resource.hpp))
-  binds one `Pool` behind the runtime `std::pmr::memory_resource` interface, so a single
-  resource can back any `std::pmr` container through `std::pmr::polymorphic_allocator` without
-  the per-type `PoolAllocator<T>` rebind — the "door left open" in ADR-0018. Deterministic
-  `(bytes, alignment)` routing to the pool (over-sized / over-aligned requests fall back to a
-  configurable upstream resource; exhaustion throws `std::bad_alloc`), `is_equal` by
-  `(pool, upstream)` identity, gated behind `PBR_MEMORY_POOL_HAS_PMR` where `<memory_resource>`
-  is available. Purely additive and ABI-compatible — the frozen C ABI and existing C++ types
-  are unchanged; opens roadmap Milestone 9 (a `v1.2.0` candidate).
-  [ADR-0042](docs/adr/0042-pmr-memory-resource-adapter.md). Closes #107.
-- **C4 component diagram of the pool internals** in the specification
-  ([`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md), §4.2),
-  authored in Mermaid. [ADR-0041](docs/adr/0041-mermaid-diagram-tooling.md) records Mermaid
-  as the in-repo diagram tooling — C4 levels are drawn as flowcharts with `subgraph`
-  boundaries, and PlantUML, checked-in images, and Mermaid's experimental `C4Component` DSL
-  were considered and rejected. Closes the last open item of the specification review.
-  Documentation-only; no API change. Refs #105.
-
-### Changed
-
-- **`zh-Hans` / `ja` README translations re-synced to `v1.1.2`.** Carries the English
-  README's `v1.1.2` deltas into both locales — the `v1.1.2` status badge (and its
-  release-tag link) and the new `v1.1.2` status paragraph (the four BUG-0001…0004
-  fixes, the `docs-site` badge removal, and the translation re-sync). The
-  `translation-status.md` manifest's two README rows are re-pinned to the current
-  source commit (`d38b598`) and flipped from `stale` back to `translated`, clearing
-  the `i18n-freshness` flag the `v1.1.2` release raised. Documentation-only; no API change.
-- **Specification reconciled with the as-built system.**
-  [`docs/specs/01_spec_cpp_memory_pool.md`](docs/specs/01_spec_cpp_memory_pool.md) was the
-  original greenfield brief and had drifted from the delivered (`v1.0.0`-frozen) library. It
-  now cross-links the realizing ADRs, formalizes the `§2`/`§3` subsection anchors already
-  referenced across the ADR set, disambiguates the `§2.2` dynamic-growth model (non-contiguous
-  chunk-linking; ADR-0022/0023/0024), documents the `§4.1`
-  block-size/alignment/strict-aliasing constraints (ADR-0009), the `§5.3` error semantics
-  (ADR-0012/0016) and `§5.4` introspection (ADR-0015/0025), and adds a `§7` spec→ADR map plus
-  the explicitly deferred items (#107 `pmr`, #108 fuzzing, #109 hardening). The
-  `zh-Hans`/`ja` spec translation rows are marked `stale` pending a follow-up re-sync.
-  Documentation-only; no API change. Refs #105.
-
 ## Released versions
 
 Each released version is an **immutable** entry under [`docs/changelog/`](docs/changelog/) — one file per release, newest first ([ADR-0038](docs/adr/0038-changelog-version-split.md)). They are never edited after release; only the `Unreleased` block above changes during development.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| [1.2.0](docs/changelog/v1/v1.2.0.md) | 2026-07-09 | Milestone 9 — std::pmr adapter, opt-in hardening, fuzzing harness, benchmark percentiles + jemalloc/tcmalloc baselines |
 | [1.1.2](docs/changelog/v1/v1.1.2.md) | 2026-06-15 | Maintenance — InstrumentedPool/core bug fixes (BUG-0001…0004) + docs |
 | [1.1.1](docs/changelog/v1/v1.1.1.md) | 2026-06-15 | Maintenance — bug ledger, PR-metadata policy, journal split, SECURITY.md, CI Node bump |
 | [1.1.0](docs/changelog/v1/v1.1.0.md) | 2026-06-14 | Internationalization (zh-Hans / ja) & post-release governance |
@@ -122,4 +37,4 @@ Each released version is an **immutable** entry under [`docs/changelog/`](docs/c
 | [0.2.0](docs/changelog/v0/v0.2.0.md) | 2026-06-11 | Core memory pool — single-threaded O(1) MVP |
 | [0.1.0](docs/changelog/v0/v0.1.0.md) | 2026-06-10 | Build system & project skeleton |
 
-[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/danielPoloWork/pbr-cpp-memory-pool/compare/v1.2.0...HEAD
