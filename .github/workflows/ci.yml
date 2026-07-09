@@ -460,6 +460,56 @@ jobs:
           echo "OK — bench binary ran to completion."
 
   # ---------------------------------------------------------------------------
+  # ROADMAP §9.4 — external-allocator baselines + tail-latency percentiles
+  # (ADR-0045). Installs jemalloc + tcmalloc so the feature-detected baseline
+  # rows compile and run, and exercises the opt-in --percentiles table. Linux
+  # only (the baselines are packaged there); never touches the MSVC leg. Like
+  # the other bench cells this asserts exit code 0, not numbers.
+  # ---------------------------------------------------------------------------
+  bench-baselines:
+    name: bench / external baselines + percentiles
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install jemalloc and tcmalloc
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjemalloc-dev libgoogle-perftools-dev
+
+      - name: Configure (bench preset) and confirm both baselines were detected
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CC=gcc CXX=g++
+          cmake --preset bench 2>&1 | tee configure.log
+          grep -q "bench baseline: jemalloc" configure.log || { echo "FAIL: jemalloc not detected"; exit 1; }
+          grep -q "bench baseline: tcmalloc" configure.log || { echo "FAIL: tcmalloc not detected"; exit 1; }
+
+      - name: Build the bench binary
+        shell: bash
+        run: cmake --build --preset bench
+
+      - name: Run with baselines and the percentile table
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
+          out="$("$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
+          echo "$out"
+          # Assert the added rows/columns are actually present.
+          echo "$out" | grep -q "^# baselines: malloc jemalloc tcmalloc" || { echo "FAIL: baseline disclosure missing"; exit 1; }
+          echo "$out" | grep -q "	jemalloc	" || { echo "FAIL: jemalloc row missing"; exit 1; }
+          echo "$out" | grep -q "	tcmalloc	" || { echo "FAIL: tcmalloc row missing"; exit 1; }
+          echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing"; exit 1; }
+          echo "OK — baselines + percentile table present and ran to completion."
+
+  # ---------------------------------------------------------------------------
   # thread-safety — build and run the existing (single-threaded) test suite
   # under each non-default PBR_MEMORY_POOL_THREAD_SAFETY policy (ADR-0020 /
   # M4.3), proving the compile-time switch compiles and stays single-thread

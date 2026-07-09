@@ -204,7 +204,7 @@ valgrind --leak-check=full --show-leak-kinds=all ./test_pool
 
 ### 6.3 Performance Benchmark
 
-`memory_pool_alloc`/`free` are compared against standard `malloc`/`free`. The methodology is fixed by [ADR-0014](../adr/0014-microbenchmark-methodology-pool-vs-malloc.md): warm-up repeat discarded, min/median/mean/max/stddev reported (not a single wall-clock loop), anti-optimization barriers, disclosed compiler flags and host, per-release reports under `docs/bench/`, and a non-asserting CI smoke run. A **concurrent** scenario (T threads on a shared pool, `MUTEX` vs `LOCKFREE`) provides the contended baseline.
+`memory_pool_alloc`/`free` are compared against standard `malloc`/`free`. The methodology is fixed by [ADR-0014](../adr/0014-microbenchmark-methodology-pool-vs-malloc.md): warm-up repeat discarded, min/median/mean/max/stddev reported (not a single wall-clock loop), anti-optimization barriers, disclosed compiler flags and host, per-release reports under `docs/bench/`, and a non-asserting CI smoke run. A **concurrent** scenario (T threads on a shared pool, `MUTEX` vs `LOCKFREE`) provides the contended baseline. An opt-in `--percentiles` mode adds a per-operation **p50/p90/p99/p999 tail-latency** table (surfacing, for a dynamic pool, the microsecond-scale growth spike the median averages away), and **jemalloc / tcmalloc** are available as optional, feature-detected baselines alongside the system `malloc` — both additive and keeping the default build dependency-free ([ADR-0045](../adr/0045-benchmark-percentiles-and-external-baselines.md)).
 
 ### 6.4 Sanitizers & CI
 
@@ -229,16 +229,17 @@ Every requirement above is realized and recorded. The table maps the spec to its
 | §5.3 error semantics | [ADR-0012](../adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md), [ADR-0016](../adr/0016-exception-policy-at-the-c-cpp-boundary.md) |
 | §5.4 instrumentation / observers | [ADR-0025](../adr/0025-decorator-for-instrumented-pool.md), [ADR-0026](../adr/0026-observer-for-pool-lifecycle-events.md) |
 | §6.3 benchmark methodology | [ADR-0014](../adr/0014-microbenchmark-methodology-pool-vs-malloc.md) |
+| §6.3 benchmark percentiles & external baselines | [ADR-0045](../adr/0045-benchmark-percentiles-and-external-baselines.md) |
 | §6.4 coverage-guided fuzzing harness | [ADR-0044](../adr/0044-coverage-guided-fuzzing-harness.md) |
 | Spec-compliance acceptance audit | [ADR-0029](../adr/0029-spec-compliance-acceptance-audit.md) |
 
 ### 7.1 Deferred / tracked
 
-These are explicitly out of the current build and tracked as issues:
-
-- **Benchmark extension** — external baselines (jemalloc/tcmalloc) and p99 percentile reporting (issue #111).
+Every item once deferred here has now shipped; nothing from the original spec review remains outstanding.
 
 **Opt-in debug hardening** (freed-block poisoning, a guard word for overflow + double-free detection, and free-list safe-linking), once deferred here, now ships behind the `PBR_MEMORY_POOL_HARDENING` compile-time knob — see [§4.1](#41-constraints--guarantees) and [ADR-0043](../adr/0043-opt-in-debug-hardening.md) (issue #109).
+
+The **benchmark extension** — external allocator baselines (jemalloc/tcmalloc) and p99 tail-latency percentiles — once deferred here, now ships as the opt-in `--percentiles` table and the feature-detected baseline rows — see [§6.3](#63-performance-benchmark) / [§6.4](#64-sanitizers--ci) and [ADR-0045](../adr/0045-benchmark-percentiles-and-external-baselines.md) (issue #111).
 
 The **coverage-guided fuzzing harness**, once deferred here, now ships as the libFuzzer target `pool_fuzz` plus a portable standalone corpus-replay gate — see [§6.4](#64-sanitizers--ci) and [ADR-0044](../adr/0044-coverage-guided-fuzzing-harness.md) (issue #108).
 

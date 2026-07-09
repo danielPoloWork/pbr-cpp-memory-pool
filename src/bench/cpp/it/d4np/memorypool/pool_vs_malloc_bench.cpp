@@ -58,6 +58,15 @@
 #include <thread>
 #include <vector>
 
+// Optional external-allocator baselines (ADR-0045), feature-detected by CMake.
+// Guarded so the default build keeps spec §3.3's zero external dependencies.
+#ifdef PBR_BENCH_HAVE_JEMALLOC
+#include <jemalloc/jemalloc.h>
+#endif
+#ifdef PBR_BENCH_HAVE_TCMALLOC
+#include <gperftools/tcmalloc.h>
+#endif
+
 namespace mem = it::d4np::memorypool;
 
 namespace {
@@ -77,6 +86,7 @@ struct Config {
     bool run_interleaved_ = true;
     bool run_concurrent_ = false;  // M4.5 — opt-in (single-thread fast path vs concurrent path)
     bool run_growth_ = false;      // M5.4 — opt-in (amortized cost of dynamic growth)
+    bool percentiles_ = false;     // M9.4 — opt-in per-op tail-latency table (ADR-0045)
 };
 
 constexpr std::size_t MIN_REPEATS = 2U;
@@ -120,6 +130,69 @@ inline void touch_byte(void* ptr, std::size_t loop_index) {
 }
 
 // ---------------------------------------------------------------------------
+// A raw (C-style) allocator, described by a name and an alloc/free function
+// pair (ADR-0045). This unifies the system `malloc` and the optional external
+// baselines (jemalloc / tcmalloc) behind one interface so the generic runners
+// and the per-op percentile recorder drive them all through the same code
+// path. The existing dedicated `malloc` runners that produce the committed
+// ADR-0014 aggregate numbers are left untouched; this abstraction serves the
+// *added* baseline rows and the percentile table only.
+// ---------------------------------------------------------------------------
+struct RawAllocator {
+    std::string_view name_;
+    void* (*alloc_)(std::size_t);
+    void (*free_)(void*);
+};
+
+// The system allocator, wrapped so its address can travel in a RawAllocator.
+// NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+void* sys_malloc(std::size_t size) {
+    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+    return std::malloc(size);
+}
+void sys_free(void* ptr) {
+    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+    std::free(ptr);
+}
+
+#ifdef PBR_BENCH_HAVE_JEMALLOC
+// jemalloc's extended API (always exported, prefix-independent). mallocx
+// requires a non-zero size and dallocx a non-null pointer; both hold here.
+void* je_alloc(std::size_t size) {
+    return mallocx(size != 0U ? size : 1U, 0);
+}
+void je_release(void* ptr) {
+    if (ptr != nullptr) {
+        dallocx(ptr, 0);
+    }
+}
+#endif
+
+#ifdef PBR_BENCH_HAVE_TCMALLOC
+// gperftools tcmalloc's explicit, non-overriding symbols.
+void* tc_alloc(std::size_t size) {
+    return tc_malloc(size);
+}
+void tc_release(void* ptr) {
+    tc_free(ptr);
+}
+#endif
+
+// The optional external baselines compiled into this build (empty by default —
+// spec §3.3). System malloc is NOT here: it keeps its dedicated committed-number
+// runners; this list drives only the added baseline rows.
+std::vector<RawAllocator> external_baselines() {
+    std::vector<RawAllocator> list;
+#ifdef PBR_BENCH_HAVE_JEMALLOC
+    list.push_back(RawAllocator{"jemalloc", &je_alloc, &je_release});
+#endif
+#ifdef PBR_BENCH_HAVE_TCMALLOC
+    list.push_back(RawAllocator{"tcmalloc", &tc_alloc, &tc_release});
+#endif
+    return list;
+}
+
+// ---------------------------------------------------------------------------
 // Stats over a sample of per-iteration nanosecond costs. The first repeat is
 // the warm-up and is dropped before this function is called.
 // ---------------------------------------------------------------------------
@@ -144,6 +217,36 @@ Stats summarise(std::vector<double> samples) {
     const double variance = sq / static_cast<double>(n);
     const double stddev = std::sqrt(variance);
     return Stats{samples.front(), samples.at(n / 2U), mean, samples.back(), stddev};
+}
+
+// ---------------------------------------------------------------------------
+// Tail-latency percentiles over a per-operation sample set (M9.4 / ADR-0045).
+// Unlike Stats (computed over a handful of per-repeat aggregates), these are
+// computed over one sample *per operation*, so p99 / p999 are meaningful — in
+// particular they surface the microsecond-scale spikes of a dynamic-pool growth
+// event that the aggregate median averages away.
+// ---------------------------------------------------------------------------
+struct Percentiles {
+    double p50_ns_;
+    double p90_ns_;
+    double p99_ns_;
+    double p999_ns_;
+    std::size_t count_;
+};
+
+Percentiles percentiles_of(std::vector<double> samples) {
+    std::sort(samples.begin(), samples.end());
+    const std::size_t n = samples.size();
+    // Nearest-rank on a zero-based sorted vector: index = ceil(q*n) - 1, clamped.
+    const auto at_quantile = [&samples, n](double q) {
+        if (n == 0U) {
+            return 0.0;
+        }
+        const auto raw_rank = static_cast<std::size_t>(std::ceil(q * static_cast<double>(n)));
+        const std::size_t rank = std::min(std::max<std::size_t>(raw_rank, 1U), n);
+        return samples.at(rank - 1U);
+    };
+    return Percentiles{at_quantile(0.50), at_quantile(0.90), at_quantile(0.99), at_quantile(0.999), n};
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +345,111 @@ double time_malloc_interleaved(const Config& cfg) {
     }
     const auto t1 = clock::now();
     return ns_per_iter(t0, t1, cfg.iterations_);
+}
+
+// ---------------------------------------------------------------------------
+// Generic aggregate runners for a RawAllocator (ADR-0045). Same timing method
+// as the dedicated malloc runners above — used for the added jemalloc/tcmalloc
+// baseline rows, so their numbers are directly comparable to the malloc rows.
+// ---------------------------------------------------------------------------
+double time_raw_bulk_alloc(const RawAllocator& allocator, const Config& cfg, std::vector<void*>& out) {
+    out.clear();
+    out.reserve(cfg.iterations_);
+    const auto t0 = clock::now();
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        void* const p = allocator.alloc_(cfg.block_size_);
+        touch_byte(p, i);
+        do_not_optimize(p);
+        out.push_back(p);
+    }
+    const auto t1 = clock::now();
+    return ns_per_iter(t0, t1, cfg.iterations_);
+}
+
+double time_raw_bulk_free(const RawAllocator& allocator, std::vector<void*>& blocks) {
+    const auto t0 = clock::now();
+    for (void* p : blocks) {
+        do_not_optimize(p);
+        allocator.free_(p);
+    }
+    const auto t1 = clock::now();
+    return ns_per_iter(t0, t1, blocks.size());
+}
+
+double time_raw_interleaved(const RawAllocator& allocator, const Config& cfg) {
+    const auto t0 = clock::now();
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        void* const p = allocator.alloc_(cfg.block_size_);
+        touch_byte(p, i);
+        do_not_optimize(p);
+        allocator.free_(p);
+    }
+    const auto t1 = clock::now();
+    return ns_per_iter(t0, t1, cfg.iterations_);
+}
+
+// ---------------------------------------------------------------------------
+// Per-operation timers for the percentile table (ADR-0045). Each records ONE
+// latency sample per operation into `out`, so a percentile summary is
+// meaningful. Per-op timing adds a fixed clock-read overhead common to every
+// allocator, so the percentile columns are for tail / relative comparison and
+// for surfacing microsecond-scale events (e.g. a growth) — not an absolute
+// per-op cost, for which the aggregate ns/op table stays authoritative.
+// ---------------------------------------------------------------------------
+void perop_pool_interleaved(mem::Pool& pool, const Config& cfg, std::vector<double>& out) {
+    out.clear();
+    out.reserve(cfg.iterations_);
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        const auto t0 = clock::now();
+        void* const p = pool.try_allocate();
+        touch_byte(p, i);
+        do_not_optimize(p);
+        pool.deallocate(p);
+        const auto t1 = clock::now();
+        out.push_back(ns_per_iter(t0, t1, 1U));
+    }
+}
+
+void perop_raw_interleaved(const RawAllocator& allocator, const Config& cfg, std::vector<double>& out) {
+    out.clear();
+    out.reserve(cfg.iterations_);
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        const auto t0 = clock::now();
+        void* const p = allocator.alloc_(cfg.block_size_);
+        touch_byte(p, i);
+        do_not_optimize(p);
+        allocator.free_(p);
+        const auto t1 = clock::now();
+        out.push_back(ns_per_iter(t0, t1, 1U));
+    }
+}
+
+// A dynamic pool bulk-allocated with per-op timing: the growth events show up
+// in the p99 / p999 tail — the headline motivation for this feature. Returns
+// false if dynamic mode is unsupported in this build (lock-free — ADR-0024 §2).
+bool perop_pool_growth(const Config& cfg, std::vector<double>& out) {
+    std::optional<mem::Pool> opt = mem::Pool::make_dynamic(cfg.block_size_, GROWTH_INITIAL_BLOCKS, GROWTH_FACTOR);
+    if (!opt.has_value()) {
+        return false;
+    }
+    mem::Pool& pool = *opt;
+    out.clear();
+    out.reserve(cfg.iterations_);
+    std::vector<void*> slots;
+    slots.reserve(cfg.iterations_);
+    for (std::size_t i = 0; i < cfg.iterations_; ++i) {
+        const auto t0 = clock::now();
+        void* const p = pool.try_allocate();
+        const auto t1 = clock::now();
+        touch_byte(p, i);
+        do_not_optimize(p);
+        slots.push_back(p);
+        out.push_back(ns_per_iter(t0, t1, 1U));
+    }
+    for (void* const p : slots) {
+        pool.deallocate(p);  // untimed cleanup so destroy is leak-free
+    }
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +702,8 @@ struct ParseLoc {
     std::cerr << argv0 << ": " << msg << "\n";
     std::cerr << "usage: " << argv0 << " [--iterations N] [--repeats N]";
     std::cerr << " [--block-size N] [--threads N]";
-    std::cerr << " [--scenario {bulk|interleaved|concurrent|growth|both|all}]\n";
+    std::cerr << " [--scenario {bulk|interleaved|concurrent|growth|both|all}]";
+    std::cerr << " [--percentiles]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -571,6 +780,8 @@ Config parse_args(int argc, char* argv[]) {
                 }
             }
             ++i;
+        } else if (a == "--percentiles") {
+            cfg.percentiles_ = true;  // M9.4 — opt-in tail-latency table (ADR-0045)
         } else if (a == "-h" || a == "--help") {
             die_with_usage(argv0, "help requested");
         } else {
@@ -592,7 +803,7 @@ Config parse_args(int argc, char* argv[]) {
 // std::ostringstream for the headline tail.
 // ---------------------------------------------------------------------------
 std::string_view compiler_name() {
-#if defined(__clang__)
+#ifdef __clang__
     return "clang";
 #elif defined(__GNUC__)
     return "gcc";
@@ -605,7 +816,7 @@ std::string_view compiler_name() {
 
 std::string compiler_version() {
     std::ostringstream s;
-#if defined(__clang__)
+#ifdef __clang__
     s << __clang_major__ << "." << __clang_minor__ << "." << __clang_patchlevel__;
 #elif defined(__GNUC__)
     s << __GNUC__ << "." << __GNUC_MINOR__ << "." << __GNUC_PATCHLEVEL__;
@@ -624,6 +835,14 @@ void print_header(std::ostream& os, const Config& cfg) {
     os << "# hardware_concurrency: " << std::thread::hardware_concurrency() << "\n";
     os << "# max_align_t: " << alignof(std::max_align_t) << " bytes\n";
     os << "# thread_safety_policy: " << policy_name() << "\n";
+    os << "# baselines: malloc";
+    for (const RawAllocator& allocator : external_baselines()) {
+        os << " " << allocator.name_;
+    }
+    os << "\n";
+    if (cfg.percentiles_) {
+        os << "# percentiles: on (per-op tail-latency table appended — ADR-0045)\n";
+    }
     os << "# config: iterations=" << cfg.iterations_;
     os << " repeats=" << cfg.repeats_;
     os << " block_size=" << cfg.block_size_;
@@ -736,6 +955,81 @@ std::string run_and_report_growth(const Config& cfg, std::ostream& body) {
     return tail.str();
 }
 
+// M9.4 — append rows for each optional external baseline (jemalloc / tcmalloc)
+// to the main TSV table, using the same aggregate method and column schema as
+// the malloc rows so they are directly comparable (ADR-0045). A no-op when no
+// baseline is compiled in — the default build's table is byte-for-byte
+// unchanged. Writes rows only; the existing malloc/pool headline is unchanged.
+void run_and_report_baselines(const Config& cfg, std::ostream& body) {
+    std::vector<void*> slots;
+    for (const RawAllocator& allocator : external_baselines()) {
+        if (cfg.run_bulk_) {
+            std::vector<double> alloc_samples;
+            std::vector<double> free_samples;
+            for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+                const double a = time_raw_bulk_alloc(allocator, cfg, slots);
+                const double f = time_raw_bulk_free(allocator, slots);
+                if (r != WARMUP_REPEAT_INDEX) {
+                    alloc_samples.push_back(a);
+                    free_samples.push_back(f);
+                }
+            }
+            print_row(body, RowKey{"bulk", allocator.name_, "alloc"}, summarise(alloc_samples));
+            print_row(body, RowKey{"bulk", allocator.name_, "free"}, summarise(free_samples));
+        }
+        if (cfg.run_interleaved_) {
+            std::vector<double> samples;
+            for (std::size_t r = 0; r < cfg.repeats_; ++r) {
+                const double s = time_raw_interleaved(allocator, cfg);
+                if (r != WARMUP_REPEAT_INDEX) {
+                    samples.push_back(s);
+                }
+            }
+            print_row(body, RowKey{"interleaved", allocator.name_, "alloc+free"}, summarise(samples));
+        }
+    }
+}
+
+// M9.4 — the tail-latency table (ADR-0045). A separate TSV section (its own
+// header) so the ADR-0014 aggregate table's schema is untouched. Per-op timing
+// for interleaved across pool / malloc / each baseline, plus a dynamic-pool
+// growth row whose p99 / p999 expose the growth spikes.
+void print_percentile_table_header(std::ostream& os) {
+    os << "scenario\tallocator\tp50_ns/op\tp90_ns/op\tp99_ns/op\tp999_ns/op\tsamples\n";
+}
+
+void print_percentile_row(std::ostream& os, std::string_view scenario, std::string_view allocator,
+                          const Percentiles& p) {
+    os << scenario << "\t" << allocator << "\t" << p.p50_ns_ << "\t" << p.p90_ns_ << "\t" << p.p99_ns_ << "\t"
+       << p.p999_ns_ << "\t" << p.count_ << "\n";
+}
+
+void run_and_report_percentiles(const Config& cfg, std::ostream& body) {
+    body << "\n# percentile table — per-op timing (ADR-0045); tail/relative, not absolute per-op cost\n";
+    print_percentile_table_header(body);
+    std::vector<double> samples;
+
+    std::optional<mem::Pool> pool = mem::Pool::make(cfg.block_size_, INTERLEAVED_POOL_CAPACITY);
+    if (pool.has_value()) {
+        perop_pool_interleaved(*pool, cfg, samples);
+        print_percentile_row(body, "interleaved", "pool", percentiles_of(samples));
+    }
+
+    const RawAllocator system_malloc{"malloc", &sys_malloc, &sys_free};
+    perop_raw_interleaved(system_malloc, cfg, samples);
+    print_percentile_row(body, "interleaved", "malloc", percentiles_of(samples));
+    for (const RawAllocator& allocator : external_baselines()) {
+        perop_raw_interleaved(allocator, cfg, samples);
+        print_percentile_row(body, "interleaved", allocator.name_, percentiles_of(samples));
+    }
+
+    if (perop_pool_growth(cfg, samples)) {
+        print_percentile_row(body, "growth", "pool", percentiles_of(samples));
+    } else {
+        body << "# percentile: growth skipped (dynamic mode unsupported in this build — ADR-0024 §2)\n";
+    }
+}
+
 }  // namespace
 
 // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,hicpp-avoid-c-arrays)
@@ -762,6 +1056,14 @@ int main(int argc, char* argv[]) {
     if (cfg.run_growth_) {
         tail += run_and_report_growth(cfg, std::cout);
     }
+    // Added external-baseline rows (jemalloc / tcmalloc) go into the same table,
+    // before the headline tail; a no-op when none are compiled in (ADR-0045).
+    run_and_report_baselines(cfg, std::cout);
     std::cout << "\n" << tail;
+    // The opt-in per-op tail-latency table is a separate section after the
+    // headlines so the ADR-0014 aggregate table is untouched (ADR-0045).
+    if (cfg.percentiles_) {
+        run_and_report_percentiles(cfg, std::cout);
+    }
     return 0;
 }

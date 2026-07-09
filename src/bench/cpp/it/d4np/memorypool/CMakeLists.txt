@@ -30,6 +30,32 @@ elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
         PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
 endif()
 
+# ---------------------------------------------------------------------------
+# Optional external-allocator baselines (ADR-0045). Feature-detected: when the
+# library AND its header are both found, the bench compiles in an extra baseline
+# row (and percentile row) for that allocator. NEVER a hard dependency — the
+# default build stays zero-external-dependency (spec §3.3), and a missing
+# allocator is a silent skip, not an error. jemalloc is used via its extended
+# mallocx/dallocx API; tcmalloc via gperftools' explicit tc_malloc/tc_free.
+# ---------------------------------------------------------------------------
+find_library(PBR_JEMALLOC_LIB jemalloc)
+find_path(PBR_JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h)
+if(PBR_JEMALLOC_LIB AND PBR_JEMALLOC_INCLUDE_DIR)
+    target_compile_definitions(pool_vs_malloc_bench PRIVATE PBR_BENCH_HAVE_JEMALLOC=1)
+    target_include_directories(pool_vs_malloc_bench PRIVATE "${PBR_JEMALLOC_INCLUDE_DIR}")
+    target_link_libraries(pool_vs_malloc_bench PRIVATE "${PBR_JEMALLOC_LIB}")
+    message(STATUS "  bench baseline: jemalloc (${PBR_JEMALLOC_LIB})")
+endif()
+
+find_library(PBR_TCMALLOC_LIB tcmalloc)
+find_path(PBR_TCMALLOC_INCLUDE_DIR gperftools/tcmalloc.h)
+if(PBR_TCMALLOC_LIB AND PBR_TCMALLOC_INCLUDE_DIR)
+    target_compile_definitions(pool_vs_malloc_bench PRIVATE PBR_BENCH_HAVE_TCMALLOC=1)
+    target_include_directories(pool_vs_malloc_bench PRIVATE "${PBR_TCMALLOC_INCLUDE_DIR}")
+    target_link_libraries(pool_vs_malloc_bench PRIVATE "${PBR_TCMALLOC_LIB}")
+    message(STATUS "  bench baseline: tcmalloc (${PBR_TCMALLOC_LIB})")
+endif()
+
 # Property name used by IDEs that group targets; matches the layout under
 # src/bench/cpp/.
 set_target_properties(pool_vs_malloc_bench PROPERTIES

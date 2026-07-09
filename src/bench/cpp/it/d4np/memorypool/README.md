@@ -35,10 +35,12 @@ The binary lands at `build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc
 
 ```text
 usage: pool_vs_malloc_bench [--iterations N] [--repeats N] [--block-size N]
-                             [--scenario {bulk|interleaved|both}]
+                             [--threads N]
+                             [--scenario {bulk|interleaved|concurrent|growth|both|all}]
+                             [--percentiles]
 ```
 
-Defaults match the spec §6.3 contract — 1,000,000 iterations, 10 repeats (first discarded as warm-up, nine measured), 64-byte block size, both scenarios.
+Defaults match the spec §6.3 contract — 1,000,000 iterations, 10 repeats (first discarded as warm-up, nine measured), 64-byte block size, both the `bulk` and `interleaved` scenarios (`concurrent` and `growth` are opt-in via `--scenario`).
 
 ```bash
 # Full canonical run — what the committed bench reports use.
@@ -87,6 +89,30 @@ interleaved malloc    alloc+free  47.600     51.360        49.480      51.360   
 
 All times are in **nanoseconds per single operation** (`ns/op`), computed as `(elapsed_ns_for_repeat / iterations)`. Min / median / mean / max / stddev are across the measured repeats only (the warm-up at index 0 is dropped before statistics).
 
+## Tail-latency percentiles (`--percentiles`, ADR-0045)
+
+`--percentiles` appends a **separate** TSV table timed **per operation** (one sample per op, rather than one per repeat), so p50/p90/p99/p999 are meaningful. It covers the interleaved scenario for every allocator plus a dynamic-pool **growth** row whose p99/p999 expose the microsecond-scale spike of a growth event — the tail a latency-sensitive consumer cares about, which the aggregate median averages away.
+
+```text
+# percentile table — per-op timing (ADR-0045); tail/relative, not absolute per-op cost
+scenario     allocator  p50_ns/op  p90_ns/op  p99_ns/op  p999_ns/op  samples
+interleaved  pool       3.000      4.000      6.000      31.000      1000000
+growth       pool       3.000      4.000      6.000      7000.000    1000000
+```
+
+**Caveat:** per-op timing carries a fixed clock-read overhead, and its resolution is the platform `steady_clock` tick — ≈1 ns on Linux/macOS, but ≈100 ns on Windows, where the columns **quantize** to the tick. Treat the percentile columns as a **tail / relative** comparison and a way to surface microsecond-scale events (a growth spike shows as p999 ≫ p50 on every platform); the aggregate ns/op table above stays authoritative for absolute per-op cost. The `--percentiles` path is opt-in precisely so its overhead never perturbs those aggregate numbers.
+
+## External allocator baselines (jemalloc / tcmalloc, ADR-0045)
+
+jemalloc and tcmalloc are **optional** baselines, CMake-feature-detected: when the library and its header are both found at configure time, the bench compiles in an extra row for that allocator (in the aggregate table and, with `--percentiles`, the percentile table). When neither is present — the default, and every MSVC build — the benchmark is dependency-free (spec §3.3) and its output is unchanged but for a `# baselines: malloc` disclosure line. On Debian/Ubuntu:
+
+```bash
+sudo apt-get install -y libjemalloc-dev libgoogle-perftools-dev
+cmake --preset bench        # prints "bench baseline: jemalloc / tcmalloc" when detected
+cmake --build --preset bench
+./build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench --scenario all --percentiles
+```
+
 ## Reporting
 
 Every release that closes a milestone ships a bench report under [`docs/bench/`](../../../../../../docs/bench/). One file per release × host, named `v<X.Y.Z>-<os>-<compiler>-<arch>.md`:
@@ -101,7 +127,7 @@ The file wraps the raw benchmark output in a Markdown report disclosing the full
 
 ## CI
 
-The `bench-smoke` job in [`.github/workflows/ci.yml`](../../../../../../.github/workflows/ci.yml) builds the bench binary with the `bench` preset and runs it with `--iterations 10000 --repeats 3` — proves the binary still compiles, links, and runs to completion. It deliberately does **not** assert numeric thresholds; shared-runner noise makes that gate flaky without adding signal. ADR-0014 §8 documents the rationale.
+The `bench-smoke` job in [`.github/workflows/ci.yml`](../../../../../../.github/workflows/ci.yml) builds the bench binary with the `bench` preset and runs it with `--iterations 10000 --repeats 3` — proves the binary still compiles, links, and runs to completion. A companion `bench-baselines` job (Linux) installs jemalloc + tcmalloc and runs `--scenario all --percentiles`, asserting the feature-detected baseline rows and the percentile table are present (ADR-0045). Both deliberately **not** assert numeric thresholds; shared-runner noise makes that gate flaky without adding signal. ADR-0014 §8 documents the rationale.
 
 ## Methodology snapshot
 

@@ -77,5 +77,6 @@ Do **not** write one for purely local implementation details, formatting, or tri
 | 0042   | [`std::pmr::memory_resource` adapter — `PoolMemoryResource`](0042-pmr-memory-resource-adapter.md) | Accepted |
 | 0043   | [Opt-in debug hardening — poisoning, a guard word, and free-list safe-linking](0043-opt-in-debug-hardening.md) | Accepted |
 | 0044   | [A coverage-guided fuzzing harness for the pool surface](0044-coverage-guided-fuzzing-harness.md) | Accepted |
+| 0045   | [Benchmark tail-latency percentiles and optional external allocator baselines](0045-benchmark-percentiles-and-external-baselines.md) | Accepted |
 
 When adding a new ADR, append a row to this table in the same PR.

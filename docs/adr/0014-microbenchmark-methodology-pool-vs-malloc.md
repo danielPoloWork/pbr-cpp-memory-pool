@@ -1,9 +1,11 @@
 # ADR-0014: Microbenchmark methodology — pool vs. `malloc`
 
-- **Status:** Accepted
+- **Status:** Accepted (extended by [ADR-0045](0045-benchmark-percentiles-and-external-baselines.md))
 - **Date:** 2026-06-11
 - **Deciders:** Daniel Polo (maintainer), Claude (architect agent)
-- **Related:** spec §6.3, ROADMAP §2.9, [ADR-0005](0005-toolchain-matrix-and-supported-platforms.md) §3 (compiler matrix), [ADR-0006](0006-code-style-and-static-analysis-baseline.md) (style + lint baseline), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §2 (block-size constraints the benchmark must respect), [ADR-0013](0013-doxygen-for-api-markdown-for-narrative.md) (narrative goes in Markdown — bench reports too)
+- **Related:** spec §6.3, ROADMAP §2.9, [ADR-0005](0005-toolchain-matrix-and-supported-platforms.md) §3 (compiler matrix), [ADR-0006](0006-code-style-and-static-analysis-baseline.md) (style + lint baseline), [ADR-0009](0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md) §2 (block-size constraints the benchmark must respect), [ADR-0013](0013-doxygen-for-api-markdown-for-narrative.md) (narrative goes in Markdown — bench reports too), [ADR-0045](0045-benchmark-percentiles-and-external-baselines.md) (adds tail-latency percentiles + optional jemalloc/tcmalloc baselines)
+
+> **Extended by [ADR-0045](0045-benchmark-percentiles-and-external-baselines.md)** (2026-07-09): an opt-in `--percentiles` per-operation table (p50/p90/p99/p999) and optional feature-detected jemalloc/tcmalloc baselines. Both are strictly additive — the §4 aggregate statistics, the §6 output contract, and the committed numbers below are unchanged.
 
 ## Context
 
