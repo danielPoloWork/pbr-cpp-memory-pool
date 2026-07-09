@@ -20,6 +20,19 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **Benchmark extension — tail-latency percentiles and optional jemalloc/tcmalloc baselines.**
+  The pool-vs-malloc microbenchmark gains an opt-in `--percentiles` mode that emits a separate
+  per-operation **p50/p90/p99/p999** table — the dynamic-pool growth row surfaces the
+  microsecond-scale growth spike the aggregate median hides — and **jemalloc** / **tcmalloc**
+  baselines measured the safe way, by re-running the bench under **`LD_PRELOAD`** (those
+  allocators take over global `malloc` on load, so they cannot be linked or `dlopen`'d beside
+  the system allocator without crashing). A `# allocator:` header line discloses which allocator
+  each run measured; the bench carries no allocator-specific code, so the default build stays
+  zero-external-dependency (spec §3.3). Both are strictly additive: the
+  [ADR-0014](docs/adr/0014-microbenchmark-methodology-pool-vs-malloc.md) aggregate ns/op table
+  and its committed numbers are unchanged. A Linux `bench-baselines` CI cell installs both
+  allocators and exercises the new paths (non-asserting on numbers, per ADR-0014 §8).
+  [ADR-0045](docs/adr/0045-benchmark-percentiles-and-external-baselines.md). Closes #111.
 - **Coverage-guided fuzzing harness for the pool surface.** A new
   [`pool_fuzz.cpp`](src/test/cpp/it/d4np/memorypool/pool_fuzz.cpp) drives randomized
   `alloc` / `free(valid)` / `free(NULL)` / `free(foreign)` sequences — over both fixed and

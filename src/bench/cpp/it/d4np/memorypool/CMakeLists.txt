@@ -30,6 +30,11 @@ elseif(PBR_MEMORY_POOL_THREAD_SAFETY STREQUAL "LOCKFREE")
         PBR_MEMORY_POOL_THREAD_SAFETY=PBR_MEMORY_POOL_THREAD_SAFETY_LOCKFREE)
 endif()
 
+# Optional external-allocator baselines (jemalloc / tcmalloc) are obtained by
+# re-running the binary under LD_PRELOAD (ADR-0045), which swaps the whole
+# process allocator. The bench links nothing allocator-specific, so the default
+# build keeps spec §3.3's zero external dependencies.
+
 # Property name used by IDEs that group targets; matches the layout under
 # src/bench/cpp/.
 set_target_properties(pool_vs_malloc_bench PROPERTIES

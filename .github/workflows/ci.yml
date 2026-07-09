@@ -460,6 +460,56 @@ jobs:
           echo "OK — bench binary ran to completion."
 
   # ---------------------------------------------------------------------------
+  # ROADMAP §9.4 — external-allocator baselines + tail-latency percentiles
+  # (ADR-0045). External baselines are measured the safe way: re-run the SAME
+  # bench under LD_PRELOAD, which swaps the whole process allocator (jemalloc /
+  # tcmalloc take over global malloc on load, so they cannot be linked or dlopen'd
+  # beside the system allocator). Exercises the opt-in --percentiles table too.
+  # Linux only; never touches the MSVC leg. Asserts exit code 0, not numbers.
+  # ---------------------------------------------------------------------------
+  bench-baselines:
+    name: bench / external baselines + percentiles
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install jemalloc and tcmalloc runtime libraries
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjemalloc2 libtcmalloc-minimal4t64
+
+      - name: Configure and build (bench preset)
+        shell: bash
+        run: |
+          export CC=gcc CXX=g++
+          cmake --preset bench
+          cmake --build --preset bench
+
+      - name: Baseline via LD_PRELOAD + the percentile table
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="build/bench/src/bench/cpp/it/d4np/memorypool/pool_vs_malloc_bench"
+          # LD_PRELOAD resolves a soname through the loader cache (ldconfig ran on
+          # install), so no filesystem search is needed.
+          run() {  # label, LD_PRELOAD value ("" = none), expected "# allocator:" text
+            echo "=== allocator: $1 ==="
+            out="$(LD_PRELOAD="$2" "$bin" --scenario all --iterations 20000 --repeats 3 --percentiles)"
+            echo "$out"
+            echo "$out" | grep -q "# allocator: $3" || { echo "FAIL: allocator disclosure ($1)"; exit 1; }
+            echo "$out" | grep -q "p99_ns/op" || { echo "FAIL: percentile table missing ($1)"; exit 1; }
+          }
+          run "system malloc" "" "system malloc"
+          run "jemalloc" "libjemalloc.so.2" "libjemalloc.so.2"
+          run "tcmalloc" "libtcmalloc_minimal.so.4" "libtcmalloc_minimal.so.4"
+          echo "OK — pool benchmarked against system malloc, jemalloc, and tcmalloc; percentile table present."
+
+  # ---------------------------------------------------------------------------
   # thread-safety — build and run the existing (single-threaded) test suite
   # under each non-default PBR_MEMORY_POOL_THREAD_SAFETY policy (ADR-0020 /
   # M4.3), proving the compile-time switch compiles and stays single-thread
