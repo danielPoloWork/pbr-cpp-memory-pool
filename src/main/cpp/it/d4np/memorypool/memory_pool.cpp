@@ -26,6 +26,7 @@
 
 #include <it/d4np/memorypool/memory_pool.h>
 #include <it/d4np/memorypool/memory_pool.hpp>
+#include <it/d4np/memorypool/pool_hardening.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -33,6 +34,12 @@
 #include <limits>
 #include <mutex>
 #include <new>
+
+#if PBR_MEMORY_POOL_HARDENING
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#endif
 
 namespace {
 
@@ -73,29 +80,212 @@ void release_backing(void* backing) noexcept {
     ::operator delete(backing, std::align_val_t{POOL_ALIGNMENT});
 }
 
+// ---------------------------------------------------------------------------
+// Opt-in debug hardening (ADR-0043). Everything here is compiled only when
+// PBR_MEMORY_POOL_HARDENING is set; a release build is byte-for-byte unchanged.
+// The next-link accessors read_next / write_next are used at EVERY free-list
+// site below so the safe-linking transform is applied uniformly; when hardening
+// is off they inline to the exact `*static_cast<void**>(slot)` load/store the
+// pool has always used, so the codegen is identical.
+// ---------------------------------------------------------------------------
+
+// Physical slot stride. Hardening reserves a trailing guard word after the
+// user-visible block_size and rounds the stride up to POOL_ALIGNMENT so every
+// slot start stays aligned (ADR-0009 §5). Off, this is the identity — the
+// stride IS block_size, exactly as before.
+constexpr std::size_t slot_stride(std::size_t block_size) noexcept {
+#if PBR_MEMORY_POOL_HARDENING
+    // Guard both intermediate additions against size_t overflow: a block_size
+    // within a guard-word (or a round-up) of SIZE_MAX would otherwise wrap and
+    // collapse the stride to 0 / a tiny value, sailing past the caller's
+    // would_overflow_product guard and causing an out-of-bounds guard/poison
+    // write. Saturating to SIZE_MAX instead makes that guard reject the input
+    // (return NULL / false) exactly as the non-hardened identity path does.
+    constexpr std::size_t SIZE_LIMIT = std::numeric_limits<std::size_t>::max();
+    if (block_size > SIZE_LIMIT - sizeof(std::uint64_t)) {
+        return SIZE_LIMIT;
+    }
+    const std::size_t raw = block_size + sizeof(std::uint64_t);
+    if (raw > SIZE_LIMIT - (POOL_ALIGNMENT - 1U)) {
+        return SIZE_LIMIT;
+    }
+    return ((raw + POOL_ALIGNMENT - 1U) / POOL_ALIGNMENT) * POOL_ALIGNMENT;
+#else
+    return block_size;
+#endif
+}
+
+#if PBR_MEMORY_POOL_HARDENING
+
+namespace hardening_detail {
+
+constexpr std::size_t SAFE_LINK_SHIFT = 12U;  // glibc PROTECT_PTR page shift
+constexpr unsigned char POISON_BYTE = 0xDEU;  // freed-block payload fill
+constexpr std::uint64_t GUARD_FREED = 0xF3EEF3EEF3EEF3EEULL;
+constexpr std::uint64_t GUARD_ALLOCATED = 0xA110CA7EA110CA7EULL;
+
+// glibc safe-linking transform (symmetric: protect == reveal). Keying the
+// stored value on the slot's own address means an out-of-band leaked pointer is
+// not directly usable, and a corrupted store reveals to a misaligned address.
+// The (slot, value) pair models distinct roles (the keying address vs. the
+// pointer being (un)masked); the transform is symmetric so a swap is harmless,
+// and a config struct for two pointers would only obscure the call sites.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void* xor_link(const void* slot, void* value) noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto key = reinterpret_cast<std::uintptr_t>(slot) >> SAFE_LINK_SHIFT;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto raw = reinterpret_cast<std::uintptr_t>(value);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    return reinterpret_cast<void*>(key ^ raw);
+}
+
+void report(const char* kind, const void* block) noexcept {
+    it::d4np::memorypool::hardening_violation_handler()(kind, block);
+}
+
+std::uint64_t read_guard(const void* slot, std::size_t block_size) noexcept {
+    std::uint64_t value = 0U;
+    std::memcpy(&value, static_cast<const unsigned char*>(slot) + block_size, sizeof(value));
+    return value;
+}
+
+void write_guard(void* slot, std::size_t block_size, std::uint64_t value) noexcept {
+    std::memcpy(static_cast<unsigned char*>(slot) + block_size, &value, sizeof(value));
+}
+
+void poison_payload(void* slot, std::size_t block_size) noexcept {
+    // The first sizeof(void*) bytes hold the (safe-linked) next-link; poison
+    // only the payload beyond it.
+    if (block_size > sizeof(void*)) {
+        std::memset(static_cast<unsigned char*>(slot) + sizeof(void*), POISON_BYTE, block_size - sizeof(void*));
+    }
+}
+
+bool payload_is_poison(const void* slot, std::size_t block_size) noexcept {
+    const auto* const payload = static_cast<const unsigned char*>(slot) + sizeof(void*);
+    const std::size_t count = (block_size > sizeof(void*)) ? (block_size - sizeof(void*)) : 0U;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (payload[i] != POISON_BYTE) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A fresh (never-user-owned) slot from initialize_free_list: poison its payload
+// and stamp it free. Its next-link is written by initialize_free_list itself.
+void on_init_slot(void* slot, std::size_t block_size) noexcept {
+    poison_payload(slot, block_size);
+    write_guard(slot, block_size, GUARD_FREED);
+}
+
+// On free: validate the guard word — a still-freed stamp is a double-free, any
+// other non-allocated value is a write past block_size — then poison the
+// payload and re-stamp the slot free.
+//
+// @return `true` if the caller should enqueue the block, `false` on a detected
+// double-free. A double-freed block is *already* on the free list (from its
+// first, legitimate free), so re-linking it would duplicate it / cycle the
+// list. The default handler aborts before returning, so this only matters for a
+// returning handler — but there it upholds the documented "no-further-
+// corruption" contract (pool_hardening.hpp) by dropping the redundant push.
+[[nodiscard]] bool on_free(void* slot, std::size_t block_size) noexcept {
+    const std::uint64_t guard = read_guard(slot, block_size);
+    bool double_free = false;
+    if (guard == GUARD_FREED) {
+        report(it::d4np::memorypool::HARDENING_DOUBLE_FREE, slot);
+        double_free = true;
+    } else if (guard != GUARD_ALLOCATED) {
+        report(it::d4np::memorypool::HARDENING_OVERFLOW, slot);
+    }
+    poison_payload(slot, block_size);
+    write_guard(slot, block_size, GUARD_FREED);
+    return !double_free;
+}
+
+// On alloc: validate the free stamp (free-list integrity) and the payload
+// poison (use-after-free), then stamp the slot allocated.
+void on_alloc(void* slot, std::size_t block_size) noexcept {
+    if (read_guard(slot, block_size) != GUARD_FREED) {
+        report(it::d4np::memorypool::HARDENING_FREELIST_CORRUPTION, slot);
+    }
+    if (!payload_is_poison(slot, block_size)) {
+        report(it::d4np::memorypool::HARDENING_USE_AFTER_FREE, slot);
+    }
+    write_guard(slot, block_size, GUARD_ALLOCATED);
+}
+
+}  // namespace hardening_detail
+
+#endif  // PBR_MEMORY_POOL_HARDENING
+
+// Reveal the next-free link (the safe-linking transform when hardened, else the
+// plain load) WITHOUT the integrity check. Used where the slot may be read
+// speculatively: the lock-free pop reads the head's link *before* the CAS
+// establishes ownership, so those bytes may momentarily be another thread's
+// user data — running the alignment check there would false-positive and abort
+// a correct program (ADR-0043). The stale value is discarded when the CAS fails.
+void* reveal_next(const void* slot) noexcept {
+#if PBR_MEMORY_POOL_HARDENING
+    return hardening_detail::xor_link(slot, *static_cast<void* const*>(slot));
+#else
+    return *static_cast<void* const*>(slot);
+#endif
+}
+
+// Read the next-free link out of a genuinely-free slot, adding the safe-linking
+// integrity check when hardened. Callers must own or quiesce the slot: the
+// single-thread and mutex pops hold exclusivity and the diagnostic walk runs on
+// a stable list. The lock-free pop uses reveal_next instead (see above) and
+// defers integrity to on_alloc's guard-word check once the slot is owned.
+void* read_next(const void* slot) noexcept {
+    void* const revealed = reveal_next(slot);
+#if PBR_MEMORY_POOL_HARDENING
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    if (revealed != nullptr && (reinterpret_cast<std::uintptr_t>(revealed) % POOL_ALIGNMENT) != 0U) {
+        hardening_detail::report(it::d4np::memorypool::HARDENING_FREELIST_CORRUPTION, slot);
+    }
+#endif
+    return revealed;
+}
+
+// Write the next-free link into a free slot — applying the safe-linking protect
+// transform when hardened, else the plain store.
+void write_next(void* slot, void* next) noexcept {
+#if PBR_MEMORY_POOL_HARDENING
+    // `slot` is a free-list slot inside a pool backing sized `stride * count`
+    // (stride >= sizeof(void*)); the first sizeof(void*) bytes are always in
+    // bounds. The analyzer cannot prove this with a symbolic block_size, so it
+    // reports a false out-of-bounds store — suppressed narrowly.
+    // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
+    *static_cast<void**>(slot) = hardening_detail::xor_link(slot, next);
+#else
+    *static_cast<void**>(slot) = next;
+#endif
+}
+
 void initialize_free_list(void* backing, std::size_t block_size, std::size_t block_count) noexcept {
-    // Implicit free list per ADR-0009 §1, ascending address order. Each
-    // free slot stores the address of the next free slot in its own first
-    // `sizeof(void*)` bytes; the last slot stores a null pointer.
-    //
-    // The `*static_cast<void**>(slot) = ptr` idiom is the canonical
-    // pool-allocator write: it expresses "treat the slot's first bytes
-    // as storage for a void* and assign the next-link value there" with
-    // a single, named conversion. It is more concise than std::memcpy,
-    // sidesteps clang-tidy's bugprone-multi-level-implicit-pointer-
-    // conversion check (no const-void* destination conversion in the
-    // expression), and compiles to the same single store. The slots are
-    // raw storage from `::operator new`; writing a `void*` through a
-    // `void**` lvalue is the well-defined implicit-object-creation path
-    // every Tier-1 toolchain accepts.
+    // Implicit free list per ADR-0009 §1, ascending address order. Each free
+    // slot stores the address of the next free slot in its own first
+    // `sizeof(void*)` bytes (via write_next — a plain store, or the safe-linked
+    // store when hardened); the last slot stores a null pointer. `stride` is the
+    // physical slot size (== block_size unless hardening reserves a guard word).
+    const std::size_t stride = slot_stride(block_size);
     auto* const base = static_cast<unsigned char*>(backing);
     for (std::size_t i = 0; i + 1U < block_count; ++i) {
-        void* const this_slot = base + (i * block_size);
-        void* const next_slot = base + ((i + 1U) * block_size);
-        *static_cast<void**>(this_slot) = next_slot;
+        void* const this_slot = base + (i * stride);
+        void* const next_slot = base + ((i + 1U) * stride);
+        write_next(this_slot, next_slot);
+#if PBR_MEMORY_POOL_HARDENING
+        hardening_detail::on_init_slot(this_slot, block_size);
+#endif
     }
-    void* const last_slot = base + ((block_count - 1U) * block_size);
-    *static_cast<void**>(last_slot) = nullptr;
+    void* const last_slot = base + ((block_count - 1U) * stride);
+    write_next(last_slot, nullptr);
+#if PBR_MEMORY_POOL_HARDENING
+    hardening_detail::on_init_slot(last_slot, block_size);
+#endif
 }
 
 }  // namespace
@@ -201,14 +391,18 @@ bool block_in_chunk(const memory_pool* pool, const void* backing, std::size_t co
     const auto base_addr = reinterpret_cast<std::uintptr_t>(backing);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const auto block_addr = reinterpret_cast<std::uintptr_t>(block);
-    const std::uintptr_t end_addr = base_addr + (pool->block_size_ * count);
+    // Slots are `stride` apart (== block_size_ unless hardening reserves a
+    // guard word — ADR-0043); the range and modulo checks must use the physical
+    // stride, not the user-visible block_size_.
+    const std::size_t stride = slot_stride(pool->block_size_);
+    const std::uintptr_t end_addr = base_addr + (stride * count);
     if (block_addr < base_addr) {
         return false;
     }
     if (block_addr >= end_addr) {
         return false;
     }
-    if (((block_addr - base_addr) % pool->block_size_) != 0U) {
+    if (((block_addr - base_addr) % stride) != 0U) {
         return false;
     }
     return true;
@@ -255,10 +449,13 @@ bool grow_pool(memory_pool* pool) noexcept {
     if (add == 0U) {
         return false;
     }
-    if (would_overflow_product(add, pool->block_size_)) {
+    // Allocate by the physical stride (== block_size_ unless hardening reserves
+    // a guard word — ADR-0043), and guard that product against size_t overflow.
+    const std::size_t stride = slot_stride(pool->block_size_);
+    if (would_overflow_product(add, stride)) {
         return false;
     }
-    const std::size_t bytes = add * pool->block_size_;
+    const std::size_t bytes = add * stride;
 
     void* backing = nullptr;
     try {
@@ -314,16 +511,28 @@ struct SingleThreadedPolicy {
         void* const block = pool->head_;
         // The returned block still carries the next-link in its first
         // sizeof(void*) bytes; that is fine — the slot is now user-owned
-        // and its contents are documented as indeterminate.
-        pool->head_ = *static_cast<void**>(block);
+        // and its contents are documented as indeterminate. read_next reveals
+        // the safe-linked link when hardened, else a plain load (ADR-0043).
+        pool->head_ = read_next(block);
+#if PBR_MEMORY_POOL_HARDENING
+        hardening_detail::on_alloc(block, pool->block_size_);
+#endif
         return block;
     }
 
     static void push_head(memory_pool* pool, void* block) noexcept {
         // Mirrors the *static_cast<void**>(slot) = ptr idiom used in
-        // initialize_free_list: store the current head into the block's
-        // first sizeof(void*) bytes, then make this block the new head.
-        *static_cast<void**>(block) = pool->head_;
+        // initialize_free_list, through write_next: store the current head into
+        // the block's first sizeof(void*) bytes, then make this block the new
+        // head. When hardened, on_free validates the guard (double-free /
+        // overflow) and poisons the payload first; a detected double-free is
+        // dropped rather than re-linked (ADR-0043).
+#if PBR_MEMORY_POOL_HARDENING
+        if (!hardening_detail::on_free(block, pool->block_size_)) {
+            return;
+        }
+#endif
+        write_next(block, pool->head_);
         pool->head_ = block;
     }
 };
@@ -345,13 +554,24 @@ struct MutexPolicy {
             }
         }
         void* const block = pool->head_;
-        pool->head_ = *static_cast<void**>(block);
+        pool->head_ = read_next(block);
+#if PBR_MEMORY_POOL_HARDENING
+        hardening_detail::on_alloc(block, pool->block_size_);
+#endif
         return block;
     }
 
     static void push_head(memory_pool* pool, void* block) noexcept {
         const std::lock_guard<std::mutex> guard{pool->mutex_};
-        *static_cast<void**>(block) = pool->head_;
+        // Hardening validation + poison run under the held lock; a detected
+        // double-free is dropped rather than re-linked (ADR-0043). The early
+        // return releases the lock on scope exit as usual.
+#if PBR_MEMORY_POOL_HARDENING
+        if (!hardening_detail::on_free(block, pool->block_size_)) {
+            return;
+        }
+#endif
+        write_next(block, pool->head_);
         pool->head_ = block;
     }
 };
@@ -377,19 +597,37 @@ struct LockFreePolicy {
             if (expected.ptr_ == nullptr) {
                 return nullptr;
             }
-            void* const next = *static_cast<void* const*>(expected.ptr_);
+            // reveal_next, NOT read_next: this read is speculative — the slot
+            // is not owned until the CAS below succeeds, so another thread may
+            // have popped it and filled it with user data. Running the
+            // safe-link integrity check here would false-positive; a genuinely
+            // corrupt link is instead caught by on_alloc's guard check once the
+            // slot is owned (ADR-0043).
+            void* const next = reveal_next(expected.ptr_);
             const TaggedHead desired{next, expected.tag_ + 1U};
             if (pool->head_.compare_exchange_weak(expected, desired, std::memory_order_acq_rel)) {
+#if PBR_MEMORY_POOL_HARDENING
+                hardening_detail::on_alloc(expected.ptr_, pool->block_size_);
+#endif
                 return expected.ptr_;
             }
         }
     }
 
     static void push_head(memory_pool* pool, void* block) noexcept {
+        // The guard check + poison depend only on `block`, so run them once
+        // before the publish loop; the safe-linked next-link (write_next)
+        // depends on `expected` and is rewritten on each CAS retry. A detected
+        // double-free is dropped rather than re-linked (ADR-0043).
+#if PBR_MEMORY_POOL_HARDENING
+        if (!hardening_detail::on_free(block, pool->block_size_)) {
+            return;
+        }
+#endif
         TaggedHead expected = pool->head_.load(std::memory_order_relaxed);
         TaggedHead desired{};
         do {
-            *static_cast<void**>(block) = expected.ptr_;
+            write_next(block, expected.ptr_);
             desired = TaggedHead{block, expected.tag_ + 1U};
         } while (!pool->head_.compare_exchange_weak(expected, desired, std::memory_order_acq_rel));
     }
@@ -445,11 +683,14 @@ memory_pool_t* memory_pool_create(std::size_t block_size, std::size_t block_coun
     if (block_count == 0U) {
         return nullptr;
     }
-    if (would_overflow_product(block_size, block_count)) {
+    // Allocate by the physical stride (== block_size unless hardening reserves
+    // a trailing guard word — ADR-0043) and guard that product for overflow.
+    const std::size_t stride = slot_stride(block_size);
+    if (would_overflow_product(stride, block_count)) {
         return nullptr;
     }
 
-    const std::size_t total_bytes = block_size * block_count;
+    const std::size_t total_bytes = stride * block_count;
 
     // Step 1 — over-aligned contiguous backing for the slots (ADR-0009 §4).
     // The hand-managed owning pointer is unavoidable across the C ABI;
@@ -642,7 +883,9 @@ const void* memory_pool_debug_free_list_next(const memory_pool_t* pool, const vo
     if (pool == nullptr || current == nullptr) {
         return nullptr;
     }
-    return *static_cast<void* const*>(current);
+    // read_next reveals the safe-linked next-link under hardening (else a plain
+    // load), so the diagnostic walk is correct in both configurations.
+    return read_next(current);
 }
 
 std::size_t memory_pool_debug_free_count(const memory_pool_t* pool) {
@@ -659,7 +902,7 @@ std::size_t memory_pool_debug_free_count(const memory_pool_t* pool) {
 #endif
     while (slot != nullptr) {
         ++count;
-        slot = *static_cast<void* const*>(slot);
+        slot = read_next(slot);
     }
     return count;
 }
@@ -669,6 +912,48 @@ std::size_t memory_pool_debug_free_count(const memory_pool_t* pool) {
 }  // extern "C"
 
 namespace it::d4np::memorypool {
+
+#if PBR_MEMORY_POOL_HARDENING
+
+namespace {
+
+// The handler is noexcept (it is called from the pool's noexcept (de)allocate
+// path). `operator<<` on std::cerr is technically permitted to throw, which the
+// analyzer flags as an exception escaping a noexcept function; here it cannot
+// matter — a throw would call std::terminate, and this handler unconditionally
+// std::abort()s one line later, so both outcomes are the same loud crash.
+// NOLINTNEXTLINE(bugprone-exception-escape)
+void default_hardening_violation_handler(const char* kind, const void* block) noexcept {
+    // ADR-0043 / ADR-0012 — a hardening violation is a defined, loud failure:
+    // emit a diagnostic and abort. std::cerr (not a vararg printf) keeps the
+    // handler clang-tidy-clean. Tests install a recording handler to assert a
+    // violation without terminating the process.
+    std::cerr << "[pbr-memory-pool] hardening violation: " << kind << " at " << block << '\n';
+    std::abort();
+}
+
+std::atomic<HardeningViolationHandler>& handler_slot() noexcept {
+    // A function-local static avoids a mutable namespace-scope global
+    // (cppcoreguidelines-avoid-non-const-global-variables) while keeping the
+    // handler process-wide and safe to swap from any thread.
+    static std::atomic<HardeningViolationHandler> slot{&default_hardening_violation_handler};
+    return slot;
+}
+
+}  // namespace
+
+HardeningViolationHandler set_hardening_violation_handler(HardeningViolationHandler handler) noexcept {
+    if (handler == nullptr) {
+        handler = &default_hardening_violation_handler;
+    }
+    return handler_slot().exchange(handler, std::memory_order_acq_rel);
+}
+
+HardeningViolationHandler hardening_violation_handler() noexcept {
+    return handler_slot().load(std::memory_order_acquire);
+}
+
+#endif  // PBR_MEMORY_POOL_HARDENING
 
 Pool::Pool(std::size_t block_size, std::size_t block_count) : handle_(::memory_pool_create(block_size, block_count)) {
     // ADR-0016 §3 — the throwing construction path. Precondition

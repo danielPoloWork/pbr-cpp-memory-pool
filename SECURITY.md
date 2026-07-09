@@ -43,6 +43,8 @@ This is a single-maintainer reference project, so timelines are **best-effort**,
 
 In scope: memory-safety and correctness defects in the library's own code reachable through its public API or documented build options — e.g. out-of-bounds access, use-after-free, double-free, leaks, data races in the `MUTEX` / `LOCKFREE` policies, or integer-overflow in size computations.
 
+For defense-in-depth and bug-finding, the library ships an **opt-in debug-hardening build** (compile-time knob `PBR_MEMORY_POOL_HARDENING`, OFF by default; [ADR-0043](docs/adr/0043-opt-in-debug-hardening.md)) that turns use-after-free, buffer-overflow-past-`block_size`, and double-free into deterministic, loud failures via freed-block poisoning, a per-slot guard word, and glibc-style free-list safe-linking. It complements the sanitizer matrix (and works where ASan does not, e.g. MSVC); it is a debugging aid, not a substitute for the sanitizers, and a hardened build is intentionally not layout-compatible with a default one.
+
 Out of scope: misuse that the documentation explicitly calls undefined behaviour (e.g. pairing storage and object-lifetime verbs incorrectly, or a moved-from wrapper used after move), issues in a consumer's own code, and vulnerabilities in third-party toolchains. The default single-threaded build is intentionally not thread-safe (spec §2.4) — concurrent use of a `NONE`-policy pool is not a vulnerability.
 
 ## See also

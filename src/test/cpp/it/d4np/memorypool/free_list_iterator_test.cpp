@@ -67,12 +67,19 @@ TEST_CASE("FreeListView walks every slot of a fresh pool in ascending, strided o
     CHECK(static_cast<std::size_t>(std::distance(view.begin(), view.end())) == BLOCK_COUNT);
 
     // ADR-0009 §1 — a fresh pool initialises the list in ascending address
-    // order, so slot i sits exactly i * block_size above the head, and all
-    // addresses are distinct.
+    // order at a fixed physical slot stride, so slot i sits exactly i strides
+    // above the head, and all addresses are distinct. The stride equals
+    // block_size in a default build; the opt-in hardening build (ADR-0043)
+    // widens it by a trailing guard word, so derive it from the first gap
+    // rather than assuming block_size — the walked-order property is what this
+    // case asserts, not the exact stride.
     const std::uintptr_t head = to_uint(slots.front());
+    const std::uintptr_t stride = (slots.size() > 1U) ? (to_uint(slots.at(1)) - head) : BLOCK_SIZE;
+    CHECK(stride >= BLOCK_SIZE);
+    CHECK((stride % alignof(std::max_align_t)) == 0U);
     std::set<const void*> distinct;
     for (std::size_t i = 0; i < slots.size(); ++i) {
-        CHECK(to_uint(slots.at(i)) == head + (i * BLOCK_SIZE));
+        CHECK(to_uint(slots.at(i)) == head + (i * stride));
         distinct.insert(slots.at(i));
     }
     CHECK(distinct.size() == BLOCK_COUNT);

@@ -20,6 +20,24 @@ dated version block (`## [X.Y.Z] — YYYY-MM-DD`) when a release PR closes a mil
 
 ### Added
 
+- **Opt-in debug hardening — freed-block poisoning, a guard word, and free-list
+  safe-linking.** A compile-time knob `PBR_MEMORY_POOL_HARDENING` (OFF by default; a `harden`
+  CMake preset turns it on) hardens the intrusive free list against the classic
+  use-after-free / pointer-corruption primitives an in-band next-link exposes: freed blocks are
+  **poisoned** (`0xDE`) and verified on the next allocation (use-after-free), a per-slot
+  trailing **guard word** detects a contiguous write past `block_size` (buffer overflow) and a
+  repeated free (double-free — the [ADR-0012](docs/adr/0012-foreign-pointer-and-out-of-range-pointer-policy.md)
+  gap), and the next-link is stored with glibc-style **safe-linking**
+  (`ptr XOR (slot_addr >> 12)`) so a leaked/overwritten link is neither usable nor silently
+  followed. On detection a swappable `HardeningViolationHandler`
+  ([`pool_hardening.hpp`](src/main/cpp/it/d4np/memorypool/pool_hardening.hpp)) fires — the
+  default prints a diagnostic and `abort()`s. The guard lives in *added* slot stride, so the
+  user-visible `block_size` and the [ADR-0009](docs/adr/0009-free-list-layout-block-size-constraints-and-alignment-guarantee.md)
+  alignment guarantee are unchanged, and the default build is byte-for-byte and cycle-for-cycle
+  unchanged (the knob is fully compiled out). Works with fixed and dynamic pools across all
+  three thread-safety policies. Purely additive and ABI-compatible; a hardened build is
+  deliberately not layout-compatible with a non-hardened one (never mix configurations).
+  [ADR-0043](docs/adr/0043-opt-in-debug-hardening.md). Closes #109.
 - **`std::pmr::memory_resource` adapter — `PoolMemoryResource`.** A new header-only Adapter
   ([`pool_memory_resource.hpp`](src/main/cpp/it/d4np/memorypool/pool_memory_resource.hpp))
   binds one `Pool` behind the runtime `std::pmr::memory_resource` interface, so a single
